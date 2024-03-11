@@ -434,7 +434,7 @@ def post_process_captions(captions, text, concept_mode, job_seed):
 
 
 @torch.no_grad()
-def blip_captioning_dataset(
+def caption_dataset(
     images: List[Image.Image],
     input_captions: List[str],
     model_id: Literal[
@@ -446,10 +446,6 @@ def blip_captioning_dataset(
     n_samples_per_img: int = 1,
     **kwargs,
 ) -> List[str]:
-    """
-    Returns a list of captions for the given images
-    TODO, try BLIP2: https://huggingface.co/docs/transformers/main/model_doc/blip-2#transformers.Blip2ForConditionalGeneration.forward.example-2
-    """
 
     if "blip2" in model_id:
         processor = Blip2Processor.from_pretrained(model_id, cache_dir=MODEL_PATH)
@@ -469,9 +465,6 @@ def blip_captioning_dataset(
             inputs = processor(image, return_tensors="pt").to(device, torch.float16)
             out = model.generate(**inputs, max_length=100, do_sample=True, top_k=40, temperature=0.65)
             caption = processor.decode(out[0], skip_special_tokens=True)
-            # BLIP 2 lowercases all caps tokens. This should properly replace them w/o messing up subwords.
-            #for token in substitution_tokens:
-            #    caption = caption.replace(f" {token.lower()} ", f" {token} ")
         else:
             caption = input_captions[i]
         captions.append(caption)
@@ -673,7 +666,7 @@ def load_and_save_masks_and_captions(
 
     # Use BLIP for autocaptioning:
     print(f"Generating {len(images)} captions using mode: {concept_mode}...")
-    captions = blip_captioning_dataset(images, captions)
+    captions = caption_dataset(images, captions)
 
     # Cleanup prompts using chatgpt:
     captions, trigger_text, gpt_concept_name = post_process_captions(captions, caption_text, concept_mode, seed)

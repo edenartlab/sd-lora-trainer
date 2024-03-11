@@ -9,7 +9,6 @@ import signal
 import time
 import numpy as np
 
-
 SDXL_MODEL_CACHE = "./models/juggernaut_v6.safetensors"
 SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors"
 
@@ -22,10 +21,7 @@ def download_weights(url, dest):
     print("downloading url: ", url)
     print("downloading to: ", dest)
     try:
-        if url.endswith(".tar"):
-            subprocess.check_call(["pget", "-q", "-x", url, dest])
-        else:
-            subprocess.check_call(["wget", "-q", "-O", dest, url])
+        subprocess.check_call(["wget", "-q", "-O", dest, url])
     except subprocess.CalledProcessError as e:
         print("Error occurred while downloading:")
         print("Exit status:", e.returncode)

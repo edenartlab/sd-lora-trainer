@@ -3,3 +3,4 @@ lora_models
 remove
 cache
 __pycache__
+*.tar
