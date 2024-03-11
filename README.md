@@ -20,6 +20,7 @@ sudo chmod +x /usr/local/bin/cog
 
 Code / Cleanup:
 - make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)
+- integrate PEFT (https://github.com/huggingface/peft) instead of the hacky, ad-hoc lora stuff
 - Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops
 
 Algo:
