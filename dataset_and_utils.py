@@ -266,7 +266,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     else:
         vae.to(device, dtype=weight_dtype)
         if weight_dtype != torch.float32:
-            print("Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but not for training!!")
+            print(f"Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but not for training!!")
 
     tokenizer_two = text_encoder_two = None
     if pretrained_model['version'] == "sdxl":

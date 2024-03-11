@@ -12,13 +12,7 @@ from dotenv import load_dotenv
 from preprocess import preprocess
 from trainer_pti import main
 from typing import Iterator, Optional
-from io_utils import SDXL_MODEL_CACHE, SDXL_URL, SD15_MODEL_CACHE, SD15_URL, download_weights
-
-# Define model paths and URLs in a dictionary
-MODEL_INFO = {
-    "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL},
-    "sd15": {"path": SD15_MODEL_CACHE, "url": SD15_URL}
-}
+from io_utils import MODEL_INFO, download_weights, clean_filename
 
 DEBUG_MODE = False
 

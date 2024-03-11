@@ -16,10 +16,22 @@ SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
 # TODO point this url to the correct full folder structure containing the CLIP text-encoder (this wont actually work rn)
 SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
 
+# Define model paths and URLs in a dictionary
+MODEL_INFO = {
+    "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL},
+    "sd15": {"path": SD15_MODEL_CACHE, "url": SD15_URL}
+}
+
 def download_weights(url, dest):
     start = time.time()
     print("downloading url: ", url)
     print("downloading to: ", dest)
+
+    # Make sure the destination directory exists
+    dest_dir = os.path.dirname(dest)
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+
     try:
         subprocess.check_call(["wget", "-q", "-O", dest, url])
     except subprocess.CalledProcessError as e:
