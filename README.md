@@ -11,8 +11,8 @@ sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/la
 sudo chmod +x /usr/local/bin/cog
 ```
 
-2. Build the image with `cog build`
-3. Run a training run with `sh test_train.sh`
+2. Build the image with `sudo cog build`
+3. Run a training run with `sudo sh test_train.sh`
 
 
 
