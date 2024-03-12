@@ -27,5 +27,8 @@ Algo:
 - add proper gradient accumulation so we can train with smaller bs if needed
 - Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
 - Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
-- Tryout DoRa: https://github.com/catid/dora/tree/main
+- Implement / Tryout DoRa: https://github.com/catid/dora/tree/main
 - Add multi-token training
+- test if textual inversion training can also happen with prodigy_optimizer
+- the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
+this random variance, eg CLIP_similarity pretraining.

@@ -287,7 +287,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
 from val_prompts import val_prompts
 @torch.no_grad()
-def render_images(pipeline, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_imgs = 4, debug = False, device = "cuda:0"):
+def render_images(training_pipeline, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, debug = False, device = "cuda:0"):
 
     random.seed(seed)
 
@@ -310,7 +310,8 @@ def render_images(pipeline, lora_path, train_step, seed, is_lora, pretrained_mod
     gc.collect()
     torch.cuda.empty_cache()
 
-    if 1: # reload the entire pipeline from disk and load in the lora module
+    reload_entire_pipeline = False
+    if reload_entire_pipeline: # reload the entire pipeline from disk and load in the lora module
         (pipeline,
             tokenizer_one,
             tokenizer_two,
@@ -318,21 +319,22 @@ def render_images(pipeline, lora_path, train_step, seed, is_lora, pretrained_mod
             text_encoder_one,
             text_encoder_two,
             vae,
-            unet) = load_models(pretrained_model, device, torch.float16) #, keep_vae_float32 = True)
+            unet) = load_models(pretrained_model, device, torch.float16)
 
         pipeline = pipeline.to(device)
         pipeline = patch_pipe_with_lora(pipeline, lora_path)
-        pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
 
     else:
         print(f"Re-using training pipeline for inference")
-           
-
+        pipeline = training_pipeline
+        training_scheduler = pipeline.scheduler
+    
+    pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
     validation_prompts = [prepare_prompt_for_lora(prompt, lora_path) for prompt in validation_prompts_raw]
     generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 
-                "num_inference_steps": 35,
+                "num_inference_steps": n_steps,
                 "guidance_scale": 7,
                 }
 
@@ -351,9 +353,8 @@ def render_images(pipeline, lora_path, train_step, seed, is_lora, pretrained_mod
     # create img_grid:
     img_grid_path = make_validation_img_grid(lora_path)
 
-    del pipeline
-    gc.collect()
-    torch.cuda.empty_cache()
+    if not reload_entire_pipeline: # restore the training scheduler
+        pipeline.scheduler = training_scheduler
 
     return validation_prompts_raw
 
@@ -464,7 +465,7 @@ def main(
         text_encoder_two,
         vae,
         unet,
-    ) = load_models(pretrained_model, device, weight_dtype)#, keep_vae_float32 = True)
+    ) = load_models(pretrained_model, device, weight_dtype)
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
@@ -474,15 +475,9 @@ def main(
     #starting_toks = ["person", "face"]
     starting_toks = None
     embedding_handler.initialize_new_tokens(inserting_toks=inserting_list_tokens, starting_toks=starting_toks, seed=seed)
-    
-    #if debug:
-    #    embedding_handler.plot_token_embeddings(["man", "face", "woman", "foot", "born"], output_folder = output_dir)
-
     text_encoders = [text_encoder_one, text_encoder_two]
 
     unet_param_to_optimize = []
-    # fine tune only attn weights
-
     text_encoder_parameters = []
     for text_encoder in text_encoders:
         if text_encoder is not  None:
@@ -501,7 +496,7 @@ def main(
             # "*.attn*.weight",
             # "*ff*.weight",
             "*"
-        ]  # TODO : make this a parameter
+        ]
         BLACKLIST_PATTERNS = ["*.norm*.weight", "*time*"]
         for name, param in unet.named_parameters():
             if any(
@@ -785,14 +780,22 @@ def main(
                 added_cond_kwargs=added_kw,
             ).sample
 
+            # Get the target for loss depending on the prediction type
+            if noise_scheduler.config.prediction_type == "epsilon":
+                target = noise
+            elif noise_scheduler.config.prediction_type == "v_prediction":
+                target = noise_scheduler.get_velocity(model_input, noise, timesteps)
+            else:
+                raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
+
             # Compute the loss:
             if snr_gamma is None:
-                loss = (model_pred - noise).pow(2) * mask
+                loss = (model_pred - target).pow(2) * mask
 
-                if 1: # modulate loss by the inverse of the mask's mean value
-                    mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
-                    mean_mask_values = mean_mask_values / mean_mask_values.mean()
-                    loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
+                # modulate loss by the inverse of the mask's mean value
+                mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
+                mean_mask_values = mean_mask_values / mean_mask_values.mean()
+                loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
 
                 # Average the normalized errors across the batch
                 loss = loss.mean()
@@ -813,7 +816,7 @@ def main(
                     mse_loss_weights = base_weight
 
                 mse_loss_weights = mse_loss_weights / mse_loss_weights.mean()
-                loss = (model_pred - noise).pow(2) * mask
+                loss = (model_pred - target).pow(2) * mask
                 loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
 
                 if 1: # modulate loss by the inverse of the mask's mean value
@@ -858,6 +861,8 @@ def main(
 
                 if debug:
                     validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
+                    gc.collect()
+                    torch.cuda.empty_cache()
                     token_embeddings = embedding_handler.get_trainable_embeddings()
                     for i, token_embeddings_i in enumerate(token_embeddings):
                         plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
@@ -907,7 +912,7 @@ def main(
     gc.collect()
     torch.cuda.empty_cache()
 
-    validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
+    validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 30, debug=debug)
     
     with open(f"{output_save_dir}/training_args.json", "w") as f:
         args_dict["grid_prompts"] = validation_prompts
