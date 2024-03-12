@@ -844,12 +844,11 @@ def main(
             embedding_handler.fix_embedding_std(off_ratio_power)
             
             # Track the learning rates for final plotting:
+            lora_lrs.append(get_avg_lr(optimizer_prod))
             try:
                 ti_lrs.append(optimizer.param_groups[0]['lr'])
             except:
                 ti_lrs.append(0.0)
-
-            lora_lrs.append(get_avg_lr(optimizer_prod))
 
             # Print some statistics:
             if (global_step % checkpointing_steps == 0):
