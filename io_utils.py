@@ -25,7 +25,7 @@ MODEL_INFO = {
 def download_weights(url, dest):
     start = time.time()
     print("downloading url: ", url)
-    print("downloading to: ", dest)
+    print("downloading to: ", dest, '...')
 
     # Make sure the destination directory exists
     dest_dir = os.path.dirname(dest)

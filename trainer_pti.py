@@ -318,7 +318,7 @@ def render_images(pipeline, lora_path, train_step, seed, is_lora, pretrained_mod
             text_encoder_one,
             text_encoder_two,
             vae,
-            unet) = load_models(pretrained_model, device, torch.float16)
+            unet) = load_models(pretrained_model, device, torch.float16) #, keep_vae_float32 = True)
 
         pipeline = pipeline.to(device)
         pipeline = patch_pipe_with_lora(pipeline, lora_path)
@@ -464,7 +464,7 @@ def main(
         text_encoder_two,
         vae,
         unet,
-    ) = load_models(pretrained_model, device, weight_dtype, keep_vae_float32 = True)
+    ) = load_models(pretrained_model, device, weight_dtype)#, keep_vae_float32 = True)
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
@@ -854,10 +854,10 @@ def main(
             if (global_step % checkpointing_steps == 0):
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
-                validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
                 last_save_step = global_step
 
                 if debug:
+                    validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
                     token_embeddings = embedding_handler.get_trainable_embeddings()
                     for i, token_embeddings_i in enumerate(token_embeddings):
                         plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
