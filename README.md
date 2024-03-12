@@ -33,6 +33,7 @@ but it then recovers. Can we avoid this collapse? Is the learning rate too high?
 - test if textual inversion training can also happen with prodigy_optimizer
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
+- try-out conditioning noise injection during training to increase robustness
 
 Bigger improvements:
 - Add multi-token training

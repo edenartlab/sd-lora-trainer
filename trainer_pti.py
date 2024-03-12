@@ -692,6 +692,7 @@ def main(
         progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
 
         for step, batch in enumerate(train_dataloader):
+            progress_bar.update(1)
 
             if hard_pivot:
                 if epoch >= num_train_epochs // 2:
@@ -713,8 +714,6 @@ def main(
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
                 optimizer.param_groups[0]['lr'] = ti_lr * (1 - completion_f) ** 2.0
 
-            progress_bar.update(1)
-            #progress_bar.refresh()
             
             try: #sdxl
                 (tok1, tok2), vae_latent, mask = batch
@@ -746,16 +745,13 @@ def main(
 
             # Create Spatial-dimensional conditions.
             original_size = (resolution, resolution)
-            target_size = (resolution, resolution)
+            target_size   = (resolution, resolution)
             crops_coords_top_left = (crops_coords_top_left_h, crops_coords_top_left_w)
             add_time_ids = list(original_size + crops_coords_top_left + target_size)
             add_time_ids = torch.tensor([add_time_ids])
-
             add_time_ids = add_time_ids.to(device, dtype=prompt_embeds.dtype).repeat(
                 bs_embed, 1
             )
-
-            added_kw = {"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids}
 
             # Sample noise that we'll add to the latents
             noise = torch.randn_like(vae_latent)
@@ -766,13 +762,12 @@ def main(
                 noise_scheduler.config.num_train_timesteps,
                 (bsz,),
                 device=vae_latent.device,
-            )
-            timesteps = timesteps.long()
+            ).long()
 
             noisy_model_input = noise_scheduler.add_noise(vae_latent, noise, timesteps)
 
             noise_sigma = 0.0
-            if noise_sigma > 0.0: # apply random noise to the conditioning vectors:
+            if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
 
             # Predict the noise residual
@@ -780,10 +775,10 @@ def main(
                 noisy_model_input,
                 timesteps,
                 prompt_embeds,
-                added_cond_kwargs=added_kw,
+                added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
             ).sample
 
-            # Get the target for loss depending on the prediction type
+            # Get the unet prediction target depending on the prediction type:
             if noise_scheduler.config.prediction_type == "epsilon":
                 target = noise
             elif noise_scheduler.config.prediction_type == "v_prediction":
