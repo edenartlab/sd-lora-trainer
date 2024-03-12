@@ -287,7 +287,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
 from val_prompts import val_prompts
 @torch.no_grad()
-def render_images(training_pipeline, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, debug = False, device = "cuda:0"):
+def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, debug = False, device = "cuda:0"):
 
     random.seed(seed)
 
@@ -306,12 +306,14 @@ def render_images(training_pipeline, lora_path, train_step, seed, is_lora, pretr
         validation_prompts_raw = random.sample(val_prompts['object'], n_imgs)
         validation_prompts_raw[0] = '<concept>'
 
-    # Try to free up some memory before rendering the images
-    gc.collect()
-    torch.cuda.empty_cache()
 
     reload_entire_pipeline = False
     if reload_entire_pipeline: # reload the entire pipeline from disk and load in the lora module
+
+        # Try to free up some memory before rendering the images
+        gc.collect()
+        torch.cuda.empty_cache()
+
         (pipeline,
             tokenizer_one,
             tokenizer_two,
@@ -336,6 +338,8 @@ def render_images(training_pipeline, lora_path, train_step, seed, is_lora, pretr
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 
                 "num_inference_steps": n_steps,
                 "guidance_scale": 7,
+                "height": render_size[0],
+                "width": render_size[1],
                 }
 
     if is_lora > 0:
@@ -597,7 +601,6 @@ def main(
         except ImportError:
             raise ImportError("To use Prodigy, please install the prodigyopt library: `pip install prodigyopt`")
 
-        print("Instantiating prodigy optimizer!")
         # Note: the specific settings of Prodigy seem to matter A LOT
         optimizer_prod = prodigyopt.Prodigy(
                         params_to_optimize_prodigy,
@@ -686,6 +689,7 @@ def main(
 
     for epoch in range(first_epoch, num_train_epochs):
         unet.train()
+        progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
 
         for step, batch in enumerate(train_dataloader):
 
@@ -710,7 +714,6 @@ def main(
                 optimizer.param_groups[0]['lr'] = ti_lr * (1 - completion_f) ** 2.0
 
             progress_bar.update(1)
-            progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
             #progress_bar.refresh()
             
             try: #sdxl
@@ -860,7 +863,7 @@ def main(
                 last_save_step = global_step
 
                 if debug:
-                    validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
                     gc.collect()
                     torch.cuda.empty_cache()
                     token_embeddings = embedding_handler.get_trainable_embeddings()
@@ -912,7 +915,7 @@ def main(
     gc.collect()
     torch.cuda.empty_cache()
 
-    validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 30, debug=debug)
+    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 30, debug=debug)
     
     with open(f"{output_save_dir}/training_args.json", "w") as f:
         args_dict["grid_prompts"] = validation_prompts
