@@ -91,7 +91,7 @@ def preprocess(
     os.makedirs(working_directory)
 
     # clear TEMP_IN_DIR first.
-    TEMP_IN_DIR = os.path.join(working_directory,  "images_in")
+    TEMP_IN_DIR  = os.path.join(working_directory, "images_in")
     TEMP_OUT_DIR = os.path.join(working_directory, "images_out")
 
     for path in [TEMP_OUT_DIR, TEMP_IN_DIR]:
@@ -99,45 +99,14 @@ def preprocess(
             shutil.rmtree(path)
         os.makedirs(path)
 
-    """
-    if input_images_filetype == "zip" or str(input_zip_path).endswith(".zip"):
-        with ZipFile(str(input_zip_path), "r") as zip_ref:
-            for zip_info in zip_ref.infolist():
-                if zip_info.filename[-1] == "/" or zip_info.filename.startswith(
-                    "__MACOSX"
-                ):
-                    continue
-                mt = mimetypes.guess_type(zip_info.filename)
-                if mt and mt[0] and mt[0].startswith("image/"):
-                    zip_info.filename = os.path.basename(zip_info.filename)
-                    zip_ref.extract(zip_info, TEMP_IN_DIR)
-    elif input_images_filetype == "tar" or str(input_zip_path).endswith(".tar"):
-        assert str(input_zip_path).endswith(
-            ".tar"
-        ), "files must be a tar file if not zip"
-        with tarfile.open(input_zip_path, "r") as tar_ref:
-            for tar_info in tar_ref:
-                if tar_info.name[-1] == "/" or tar_info.name.startswith("__MACOSX"):
-                    continue
-
-                mt = mimetypes.guess_type(tar_info.name)
-                if mt and mt[0] and mt[0].startswith("image/"):
-                    tar_info.name = os.path.basename(tar_info.name)
-                    tar_ref.extract(tar_info, TEMP_IN_DIR)
-    else:
-        assert False, "input_images_filetype must be zip or tar"
-    """
-
     download_and_prep_training_data(input_zip_path, TEMP_IN_DIR)
-    #print("Skipping download_and_prep_training_data!!!")
-    #TEMP_IN_DIR = "clipx_train"
 
-    output_dir: str = TEMP_OUT_DIR
+    print(TEMP_IN_DIR)
 
     n_training_imgs, trigger_text, segmentation_prompt, captions = load_and_save_masks_and_captions(
         concept_mode, 
         files=TEMP_IN_DIR,
-        output_dir=output_dir,
+        output_dir=TEMP_OUT_DIR,
         seed=seed,
         caption_text=caption_text,
         mask_target_prompts=mask_target_prompts,
@@ -620,7 +589,6 @@ def load_and_save_masks_and_captions(
     if isinstance(files, str):
         if os.path.isdir(files):
             print("Scanning directory for images...")
-            # get all the imgs the directory (everything is already converted to .jpg)
             files = (
                 _find_files("*.png", files)
                 + _find_files("*.jpg", files)

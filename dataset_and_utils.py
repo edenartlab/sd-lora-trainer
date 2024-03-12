@@ -360,7 +360,9 @@ class TokenEmbeddingsHandler:
 
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if text_encoder is None:
+                idx += 1
                 continue
+
             query_embeddings = current_token_embeddings[idx]
 
             for token_id, query_embedding in enumerate(query_embeddings):
@@ -443,10 +445,11 @@ class TokenEmbeddingsHandler:
 
     def plot_token_embeddings(self, example_tokens, output_folder = ".", x_range = [-0.05, 0.05]):
         print(f"Plotting embeddings for tokens: {example_tokens}")
-        idx = 0
 
+        idx = 0
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if tokenizer is None:
+                idx += 1
                 continue
                 
             token_ids  = tokenizer.convert_tokens_to_ids(example_tokens)
@@ -471,6 +474,7 @@ class TokenEmbeddingsHandler:
         idx = 0
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if tokenizer is None:
+                idx += 1
                 continue
             assert isinstance(
                 inserting_toks, list
@@ -519,9 +523,10 @@ class TokenEmbeddingsHandler:
 
             else:
 
-                if 1: 
+                if 1: # random initialization:
                     init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding * 1.0)
-                else:
+                else: 
+                    # Test code to initialize the new tokens with some specific tokens
                     first_tokens = [
                         "Sophia",
                         "Liam",
@@ -652,6 +657,25 @@ class TokenEmbeddingsHandler:
     def device(self):
         return self.text_encoders[0].device
 
+    def _compute_off_ratio(self, idx):
+        # compute the off-std-ratio for the embeddings
+
+        text_encoder = self.text_encoders[idx]
+        tokenizer    = self.tokenizers[idx]
+
+        if text_encoder is None:
+            off_ratio = -1
+        else:
+            index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
+            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]
+            index_updates = ~index_no_updates
+            new_embeddings = (text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates])
+
+            off_ratio = std_token_embedding / new_embeddings.std()
+            print(f"---> Off-ratio[{idx}]: {off_ratio:.4f}")
+
+        return off_ratio
+
     def _load_embeddings(self, loaded_embeddings, tokenizer, text_encoder):
         # Assuming new tokens are of the format <s_i>
         self.inserting_toks = [f"<s{i}>" for i in range(loaded_embeddings.shape[0])]
@@ -671,6 +695,7 @@ class TokenEmbeddingsHandler:
 
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if text_encoder is None:
+                idx += 1
                 continue
 
             index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
@@ -679,11 +704,13 @@ class TokenEmbeddingsHandler:
 
             new_embeddings = (text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates])
 
-            off_ratio = std_token_embedding / new_embeddings.std()
+            off_ratio = self._compute_off_ratio(idx)
             std_penalty += (off_ratio - 1.0)**2
 
             if (off_ratio < 0.95) or (off_ratio > 1.05):
-                print(f"std-off ratio-{idx} (target-std / embedding-std) = {off_ratio:.4f}, prob not ideal...")
+                print(f"std-off ratio-{idx} (target-std / embedding-std) = {off_ratio:.4f}, prob not ideal...")                
+                print(f"std_token_embedding: {std_token_embedding}")
+                print(f"std new_embeddings: {new_embeddings.std()}")
 
             # rescale the embeddings to have a more similar std as before:
             new_embeddings = new_embeddings * (off_ratio**off_ratio_power)
@@ -701,6 +728,7 @@ class TokenEmbeddingsHandler:
 
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if text_encoder is None:
+                idx += 1
                 continue
 
             index_no_updates = self.embeddings_settings[f"index_no_updates_{idx}"]

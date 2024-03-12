@@ -403,17 +403,25 @@ def prep_img_dir(target_folder):
         print(f"An error occurred while prepping the image directory: {e}")
 
 
-def download_and_prep_training_data(piped_urls, data_dir):
+def download_and_prep_training_data(data_location, data_dir):
+    # Determine if piped_urls is an existing directory or a string of URLs:
+    if os.path.exists(data_location):
+        print("Local path detected, skipping download.")
+        data_location = os.path.abspath(data_location)
+        # Copy the data to the target directory
+        shutil.copytree(data_location, data_dir, dirs_exist_ok=True)
 
-    for url in str(piped_urls).split('|'):
-        download(url, data_dir)
-        
+    else:
+        print("Downloading training data...")
+        # we're assuming the data is prived as pipe seperated urls to .zip files
+        for url in str(data_location).split('|'):
+            download(url, data_dir)
 
-    # Loop over all files in the data directory:
-    for filename in os.listdir(data_dir):
-        filepath = os.path.join(data_dir, filename)
-        if is_zip_file(filepath):
-            unzip_to_folder(filepath, data_dir, remove_zip=True)
+        # Loop over all files in the data directory:
+        for filename in os.listdir(data_dir):
+            filepath = os.path.join(data_dir, filename)
+            if is_zip_file(filepath):
+                unzip_to_folder(filepath, data_dir, remove_zip=True)
 
     # Prep the image directory:
     prep_img_dir(data_dir)
