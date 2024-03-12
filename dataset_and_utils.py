@@ -277,11 +277,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
         text_encoder_two = pipe.text_encoder_2
         text_encoder_two.requires_grad_(False)
         text_encoder_two.to(device, dtype=weight_dtype)
-    
-    #del pipe
-    #gc.collect()
-    #torch.cuda.empty_cache()
-
+        
     return (
         pipe,
         tokenizer_one,

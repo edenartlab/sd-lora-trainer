@@ -568,6 +568,11 @@ def main(
 
         unet.set_attn_processor(unet_lora_attn_procs)
 
+        # Make sure the inference pipe is using the updated unet / text_encoder:
+        #pipe.unet = unet
+        #pipe.text_encoder = text_encoder_one
+        #pipe.tokenizer = tokenizer_one
+
         print("Creating optimizer with:")
         print(f"lora_lr: {lora_lr}, lora_weight_decay: {lora_weight_decay}")
         print(f"ti_lr: {ti_lr}, ti_weight_decay: {ti_weight_decay}")
