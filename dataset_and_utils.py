@@ -188,10 +188,13 @@ class PreprocessedDataset(Dataset):
             mask = prepare_mask(mask, self.size, self.size).to(
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
-
+            
+            mask_dtype = mask.dtype
+            mask = mask.float()
             mask = torch.nn.functional.interpolate(
                 mask, size=(vae_latent.shape[-2], vae_latent.shape[-1]), mode="nearest"
             )
+            mask = mask.to(dtype=mask_dtype)
             mask = mask.repeat(1, vae_latent.shape[1], 1, 1)
 
         assert len(mask.shape) == 4 and len(vae_latent.shape) == 4
@@ -675,19 +678,6 @@ class TokenEmbeddingsHandler:
 
         return off_ratio
 
-    def _load_embeddings(self, loaded_embeddings, tokenizer, text_encoder):
-        # Assuming new tokens are of the format <s_i>
-        self.inserting_toks = [f"<s{i}>" for i in range(loaded_embeddings.shape[0])]
-        special_tokens_dict = {"additional_special_tokens": self.inserting_toks}
-        tokenizer.add_special_tokens(special_tokens_dict)
-        text_encoder.resize_token_embeddings(len(tokenizer))
-
-        self.train_ids = tokenizer.convert_tokens_to_ids(self.inserting_toks)
-        assert self.train_ids is not None, "New tokens could not be converted to IDs."
-        text_encoder.text_model.embeddings.token_embedding.weight.data[
-            self.train_ids
-        ] = loaded_embeddings.to(device=self.device).to(dtype=self.dtype)
-
     def fix_embedding_std(self, off_ratio_power = 0.1):
         std_penalty = 0.0
         idx = 0
@@ -768,6 +758,19 @@ class TokenEmbeddingsHandler:
                     print(f"Text Encoder {idx} token embeddings:")
                     print(f" --- Means: ({mean_0:.6f}, {mean_1:.6f})")
                     print(f" --- Stds:  ({std_0:.6f}, {std_1:.6f})")
+
+    def _load_embeddings(self, loaded_embeddings, tokenizer, text_encoder):
+        # Assuming new tokens are of the format <s_i>
+        self.inserting_toks = [f"<s{i}>" for i in range(loaded_embeddings.shape[0])]
+        special_tokens_dict = {"additional_special_tokens": self.inserting_toks}
+        tokenizer.add_special_tokens(special_tokens_dict)
+        text_encoder.resize_token_embeddings(len(tokenizer))
+
+        self.train_ids = tokenizer.convert_tokens_to_ids(self.inserting_toks)
+        assert self.train_ids is not None, "New tokens could not be converted to IDs."
+        text_encoder.text_model.embeddings.token_embedding.weight.data[
+            self.train_ids
+        ] = loaded_embeddings.to(device=self.device).to(dtype=self.dtype)
 
     def load_embeddings(self, file_path: str, txt_encoder_keys = ["clip_l", "clip_g"]):
         if not os.path.exists(file_path):

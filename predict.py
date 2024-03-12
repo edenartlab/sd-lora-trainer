@@ -150,7 +150,7 @@ class Predictor(BasePredictor):
         ),
         clipseg_temperature: float = Input(
             description="How blurry you want the CLIPSeg mask to be. We recommend this value be something between `0.5` to `1.0`. If you want to have more sharp mask (but thus more errorful), you can decrease this value.",
-            default=0.6,
+            default=0.7,
         ),
         verbose: bool = Input(description="verbose output", default=True),
         run_name: str = Input(
@@ -374,7 +374,7 @@ class Predictor(BasePredictor):
             scale_lr=False,
             allow_tf32=True,
             mixed_precision="bf16",
-            #mixed_precision="fp16", # this 100% breaks training... Figure out why!!
+            #mixed_precision="fp16", # this 100% breaks training... Figure out why!!?
             device="cuda:0",
             lora_rank=lora_rank,
             is_lora=is_lora,

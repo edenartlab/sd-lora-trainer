@@ -625,7 +625,7 @@ def main(
         instance_data_dir,
         tokenizer_one,
         tokenizer_two,
-        vae.float(),
+        vae,
         do_cache=True,
         substitute_caption_map=token_dict,
     )
