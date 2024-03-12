@@ -10,18 +10,20 @@ import time
 import re
 import shutil
 import tarfile
+import base64
+import requests
+import concurrent.futures
 from pathlib import Path
 from typing import List, Literal, Optional, Tuple, Union
 from zipfile import ZipFile
 
-from PIL import ImageEnhance, ImageFilter
+from PIL import ImageEnhance, ImageFilter, Image
 import random
 import cv2
 import mediapipe as mp
 import numpy as np
 import pandas as pd
 import torch
-from PIL import Image, ImageFilter
 from tqdm import tqdm
 from transformers import (
     BlipForConditionalGeneration,
@@ -41,14 +43,18 @@ import openai
 from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
+
 try:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    print("OpenAI API key loaded")
 except:
+    OPENAI_API_KEY = None
     client = None
+    print("WARNING: Could not find OPENAI_API_KEY in .env, disabling gpt prompt generation.")
 
 MODEL_PATH = "./cache"
 MAX_GPT_PROMPTS = 40
-
 
 import re
 def fix_prompt(prompt: str):
@@ -399,20 +405,18 @@ def post_process_captions(captions, text, concept_mode, job_seed):
     return captions, trigger_text, gpt_concept_name
 
 
+def blip_caption_dataset(
+        images: List[Image.Image],
+        captions: List[str],
+        model_id: Literal[
+            "Salesforce/blip-image-captioning-large",
+            "Salesforce/blip-image-captioning-base",
+            "Salesforce/blip2-opt-2.7b",
+        ] = "Salesforce/blip-image-captioning-large"
+        ):
 
-@torch.no_grad()
-def caption_dataset(
-    images: List[Image.Image],
-    input_captions: List[str],
-    model_id: Literal[
-        "Salesforce/blip-image-captioning-large",
-        "Salesforce/blip-image-captioning-base",
-        "Salesforce/blip2-opt-2.7b",
-    ] = "Salesforce/blip-image-captioning-large",
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    n_samples_per_img: int = 1,
-    **kwargs,
-) -> List[str]:
+    print(f"Using model {model_id} for image captioning...")
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if "blip2" in model_id:
         processor = Blip2Processor.from_pretrained(model_id, cache_dir=MODEL_PATH)
@@ -425,16 +429,91 @@ def caption_dataset(
             model_id, cache_dir=MODEL_PATH, torch_dtype=torch.float16
         ).to(device)
 
-    captions = []
-
     for i, image in enumerate(tqdm(images)):
-        if input_captions[i] is None:
+        if captions[i] is None:
             inputs = processor(image, return_tensors="pt").to(device, torch.float16)
             out = model.generate(**inputs, max_length=100, do_sample=True, top_k=40, temperature=0.65)
-            caption = processor.decode(out[0], skip_special_tokens=True)
-        else:
-            caption = input_captions[i]
-        captions.append(caption)
+            captions[i] = processor.decode(out[0], skip_special_tokens=True)
+
+    return captions
+
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
+
+import uuid
+def prep_img_for_gpt_api(pil_img, max_size=(512, 512)):
+    # create a temporary file to save the resized image:
+    resized_img = pil_img.copy()
+    resized_img.thumbnail(max_size, Image.Resampling.LANCZOS)
+    output_path = f"temp_{uuid.uuid4()}.jpg"
+    resized_img.save(output_path, quality=95)
+    base64_image = encode_image(output_path)
+    os.remove(output_path)
+    return base64_image
+
+def gpt4_v_caption_dataset(
+    images, captions, 
+    batch_size=4,
+    ):
+
+    if not OPENAI_API_KEY:
+        print(f"Skipping GPT-4 Vision captioning because OPENAI_API_KEY is not set.")
+        return captions
+
+    prompt = "Accurate describe the contents of this image without assumptions. Avoid starting with statements like 'The image features...', just describe what you see."
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OPENAI_API_KEY}"
+    }
+
+    def fetch_caption(index, img):
+        base64_image = prep_img_for_gpt_api(img,  max_size=(512, 512))
+
+        payload = {
+            "model": "gpt-4-vision-preview",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "low"}}
+                    ]
+                }
+            ],
+            "max_tokens": 100
+        }
+
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        return index, response.json()["choices"][0]["message"]["content"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as executor:
+        future_to_index = {executor.submit(fetch_caption, i, img): i for i, img in enumerate(images) if captions[i] is None}
+        for future in concurrent.futures.as_completed(future_to_index):
+            index = future_to_index[future]
+            try:
+                captions[index] = future.result()[1]
+                print(f"Caption {index + 1}/{len(images)}: {captions[index]}")
+            except Exception as exc:
+                captions[index] = None
+                print(f"Caption generation for image {index + 1} failed with exception: {exc}")
+
+    return captions
+
+
+
+@torch.no_grad()
+def caption_dataset(
+        images: List[Image.Image],
+        captions: List[str],
+        model_name: Literal[str] = "blip"
+    ) -> List[str]:
+
+    if "blip" in model_name:
+        captions = blip_caption_dataset(images, captions)
+    elif "gpt4-v" in model_name:
+        captions = gpt4_v_caption_dataset(images, captions)
 
     return captions
 

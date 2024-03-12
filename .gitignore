@@ -4,5 +4,6 @@ remove
 cache
 __pycache__
 *.tar
+.env
 xander.sh
 .huggingface
