@@ -672,7 +672,6 @@ class TokenEmbeddingsHandler:
             new_embeddings = (text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates])
 
             off_ratio = std_token_embedding / new_embeddings.std()
-            print(f"---> Off-ratio[{idx}]: {off_ratio:.4f}")
 
         return off_ratio
 

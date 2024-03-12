@@ -24,6 +24,7 @@ Code / Cleanup:
 - Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops
 
 Algo:
+- add proper gradient accumulation so we can train with smaller bs if needed
 - Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
 - Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
 - Tryout DoRa: https://github.com/catid/dora/tree/main

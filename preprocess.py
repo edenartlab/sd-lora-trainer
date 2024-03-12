@@ -90,7 +90,7 @@ def preprocess(
         shutil.rmtree(working_directory)
     os.makedirs(working_directory)
 
-    # clear TEMP_IN_DIR first.
+    # Setup directories for the training data:
     TEMP_IN_DIR  = os.path.join(working_directory, "images_in")
     TEMP_OUT_DIR = os.path.join(working_directory, "images_out")
 
@@ -100,8 +100,6 @@ def preprocess(
         os.makedirs(path)
 
     download_and_prep_training_data(input_zip_path, TEMP_IN_DIR)
-
-    print(TEMP_IN_DIR)
 
     n_training_imgs, trigger_text, segmentation_prompt, captions = load_and_save_masks_and_captions(
         concept_mode, 

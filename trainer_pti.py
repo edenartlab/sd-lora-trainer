@@ -1,4 +1,3 @@
-# Bootstrapped from Huggingface diffuser's code.
 import fnmatch
 import json
 import math
@@ -15,7 +14,7 @@ import torch
 import torch.utils.checkpoint
 import torch.nn.functional as F
 
-from diffusers.models.attention_processor import LoRAAttnProcessor, LoRAAttnProcessor2_0
+from diffusers.models.attention_processor import LoRAAttnProcessor2_0
 from diffusers.optimization import get_scheduler
 from diffusers import EulerDiscreteScheduler
 from safetensors.torch import save_file
@@ -29,9 +28,7 @@ from dataset_and_utils import (
 )
 
 from io_utils import make_validation_img_grid
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
 from safetensors.torch import load_file
-
 import matplotlib.pyplot as plt
 
 def compute_snr(noise_scheduler, timesteps):
@@ -100,8 +97,6 @@ def plot_loss(losses, save_path='losses.png'):
     plt.savefig(save_path)
     plt.close()
 
-    
-
 def patch_pipe_with_lora(pipe, lora_path):
 
     with open(os.path.join(lora_path, "training_args.json"), "r") as f:
@@ -152,12 +147,15 @@ def patch_pipe_with_lora(pipe, lora_path):
         tensors = load_file(unet_path)
 
     unet.load_state_dict(tensors, strict=False)
+
+    # Load the textual_inversion token embeddings into the pipeline:
     try: #SDXL
         handler = TokenEmbeddingsHandler([pipe.text_encoder, pipe.text_encoder_2], [pipe.tokenizer, pipe.tokenizer_2])
     except: #SD15
         handler = TokenEmbeddingsHandler([pipe.text_encoder, None], [pipe.tokenizer, None])
 
     handler.load_embeddings(os.path.join(lora_path, f"{concept_name}_embeddings.safetensors"))
+
     return pipe
 
 def get_avg_lr(optimizer):
@@ -223,7 +221,6 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
     except: # fallback for old loras that dont have the name field:
         return training_args["trigger_text"] + ", " + prompt
 
-    print(f"lora name: {lora_name}")
     lora_name_encapsulated = "<" + lora_name + ">"
     trigger_text = training_args["trigger_text"]
 
@@ -236,7 +233,6 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
             mode = "object"
 
     # Handle different modes
-    print(f"lora mode: {mode}")
     if mode != "style":
         replacements = {
             "<concept>": trigger_text,
@@ -289,9 +285,9 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
     return prompt
 
-
+from val_prompts import val_prompts
 @torch.no_grad()
-def render_images(lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_imgs = 4, debug = False, device = "cuda:0"):
+def render_images(pipeline, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_imgs = 4, debug = False, device = "cuda:0"):
 
     random.seed(seed)
 
@@ -300,107 +296,39 @@ def render_images(lora_path, train_step, seed, is_lora, pretrained_model, lora_s
         concept_mode = training_args["concept_mode"]
 
     if concept_mode == "style":
-        validation_prompts = [
-                'a beautiful mountainous landscape, boulders, fresh water stream, setting sun',
-                'the stunning skyline of New York City',
-                'fruit hanging from a tree, highly detailed texture, soil, rain, drops, photo realistic, surrealism, highly detailed, 8k macrophotography',
-                'the Taj Mahal, stunning wallpaper',
-                'A majestic tree rooted in circuits, leaves shimmering with data streams, stands as a beacon where the digital dawn caresses the fog-laden, binary soil—a symphony of pixels and chlorophyll.',
-                'A beautiful octopus, with swirling tendrils and a pulsating heart of fiery opal hues, hovers ethereally against a starry void, sculpted through a meticulous flame-working technique.',
-                'a stunning image of an aston martin sportscar',
-                'the streets of new york city, traffic lights, skyline, setting sun',
-                'An ethereal, levitating monolith backlit by a supernova sky, casting iridescent light on the ice-spiked Martian terrain. Neo-futurism, Dali surrealism, wide-angle lens, chiaroscuro lighting.',
-                'a portrait of a beautiful young woman',
-                'a luminous white lotus blossom floats on rippling waters, green petals',
-                'the all seeing eye made of golden feathers, surrounded by waterfall, photorealistic, ethereal aesthetics, powerful',
-                'A luminescent glass butterfly, wings shimmering elegantly, depicts deftly the fragility yet adamantine spirit of nature. It encapsulates Atari honkaku technique, glowing embers inside capturing the sun as it gracefully clenches lifes sweet unpredictability',
-                'Glass Roots: A luminescent glass sculpture of a fully bloomed rose emerges from a broken marble pedestal, natures resilience triumphant amidst the decay. Shadows cast by a dim overhead spotlight. Delicate veins intertwine the transparent petals, illuminating from within, symbolizing fragilitys steely core.',
-                'Eternal Arbor Description: A colossal, life-size tapestry hangs majestically in a dimly lit chamber. Its profound serenity contrasts the grand spectacle it unfolds. Hundreds of intricately woven stitches meticulously portray a towering, ancient oak tree, its knotted branches embracing the heavens. ',
-                'In the heart of an ancient forest, a massive projection illuminates the darkness. A lone figure, a majestic mythical creature made of shimmering gold, materializes, casting a radiant glow amidst the towering trees. intricate geometric surfaces encasing an expanse of flora and fauna,',
-                'The Silent Of Silicon, a digital deer rendered in hyper-realistic 3D, eyes glowing in binary code, comfortably resting amidst rich motherboard-green foliage, accented under crisply fluorescent, simulated LED dawn.',
-                'owl made up of geometric shapes, contours of glowing plasma, black background, dramatic, full picture, ultra high res, octane',
-                'A twisting creature of reflective dragonglass swirling above a scorched field amidst a large clearing in a dark forest',
-                'what do i say to make me exist, oriental mythical beasts, in the golden danish age, in the history of television in the style of light violet and light red, serge najjar, playful and whimsical, associated press photo, afrofuturism-inspired, alasdair mclellan, electronic media',
-                'A towering, rusted iron monolith emerges from a desolate cityscape, piercing the horizon with audacious defiance. Amidst contrasting patches of verdant, natures forgotten touch yearns for connection, provoking intense introspection and tumultuous emotions. vibrant splatters of chaotic paint epitom',
-                'A humanoid figure with a luminous, translucent body floats in a vast, ethereal digital landscape. Strands of brilliant, iridescent code rain down, intertwining with the figure. a blend of human features and intricate circuitry, hinting at the merging of organic and digital existence',
-                'In the heart of a dense digital forest, a majestic, crystalline unicorn rises. Its translucent, pixelated mane seamlessly transitions into the vibrant greens and golds of the surrounding floating circuit board leaves. Soft moonlight filters through the gaps, creating a breathtaking',
-                'Silver mushroom with gem spots emerging from water',
-                'Binary Love: A heart-shaped composition made up of glowing binary code, symbolizing the merging of human emotion and technology, incredible digital art, cyberpunk, neon colors, glitch effects, 3D octane render, HD',
-                'A labyrinthine maze representing the search for answers and understanding, Abstract expressionism, muted color palette, heavy brushstrokes, textured surfaces, somber atmosphere, symbolic elements',
-                'A solitary tree standing tall amidst a sea of buildings, Urban nature photography, vibrant colors, juxtaposition of natural elements with urban landscapes, play of light and shadow, storytelling through compositions',
-                ]
-        validation_prompts = random.sample(validation_prompts, n_imgs)
-        validation_prompts[0] = ''
+        validation_prompts_raw = random.sample(val_prompts['style'], n_imgs)
+        validation_prompts_raw[0] = ''
 
     elif concept_mode == "face":
-        validation_prompts = [
-                "an intricate wood carving of <concept> in a historic temple",
-                '<concept> as pixel art, 8-bit video game style',
-                'painting of <concept> by Vincent van Gogh',
-                '<concept> as a superhero, wearing a cape',
-                '<concept> as a statue made of marble',
-                '<concept> as a character in a noir graphic novel, under a rain-soaked streetlamp',
-                'stop motion animation of <concept> using clay, Wallace and Gromit style',
-                '<concept> portrayed in a famous renaissance painting, replacing Mona Lisas face',
-                'a photo of <concept> attending the Oscars, walking down the red carpet with sunglasses',
-                '<concept> as a pop vinyl figure, complete with oversized head and small body',
-                '<concept> as a retro holographic sticker, shimmering in bright colors',
-                '<concept> as a bobblehead on a car dashboard, nodding incessantly',
-                "<concept> captured in a snow globe, complete with intricate details",
-                "a photo of <concept> climbing mount Everest in the snow, alpinism",
-                "<concept> as an action figure superhero, lego toy, toy story",
-                'a photo of a massive statue of <concept> in the middle of the city',
-                'a masterful oil painting portraying <concept> with vibrant colors, brushstrokes and textures',
-                'a vibrant low-poly artwork of <concept>, rendered in SVG, vector graphics',
-                '<concept>, polaroid photograph',
-                'a huge <concept> sand sculpture on a sunny beach, made of sand',
-                '<concept> immortalized as an exquisite marble statue with masterful chiseling, swirling marble patterns and textures',
-                ]
-        validation_prompts = random.sample(validation_prompts, n_imgs)
-        validation_prompts[0] = '<concept>'
+        validation_prompts_raw = random.sample(val_prompts['face'], n_imgs)
+        validation_prompts_raw[0] = '<concept>'
     else:
-        validation_prompts = [
-                "an intricate wood carving of <concept> in a historic temple",
-                "<concept> captured in a snow globe, complete with intricate details",
-                "<concept> as a retro holographic sticker, shimmering in bright colors",
-                "a painting of <concept> by Vincent van Gogh, impressionism, oil painting, vibrant colors, texture",
-                "<concept> as an action figure superhero, lego toy, toy story",
-                'a photo of a massive statue of <concept> in the middle of the city',
-                'a masterful oil painting portraying <concept> with vibrant colors, thick brushstrokes, abstract, surrealism',
-                'an intricate origami paper sculpture of <concept>',
-                'a vibrant low-poly artwork of <concept>, rendered in SVG, vector graphics',
-                'an artistic polaroid photograph of <concept>, vintage',
-                '<concept> immortalized as an exquisite marble statue with masterful chiseling, swirling marble patterns and textures',
-                'a colorful and dynamic <concept> mural sprawling across the side of a building in a city pulsing with life',
-                "<concept> transformed into a stained glass window, casting vibrant colors in the light",
-                "A whimsical papier-mâché sculpture of <concept>, bursting with color and whimsy.",
-                "<concept> as a futuristic neon sign, glowing vividly in the night, cyberpunk, vaporwave",
-                "A detailed graphite pencil sketch of <concept>, showcasing shadows and depth, pencil drawing, grayscale",
-                "<concept> reimagined as a detailed mechanical model, complete with moving parts, metal, gears, steampunk",
-                "A vibrant pixel art representation of <concept>, classic 8-bit video game",
-                "A breathtaking ice sculpture of <concept>, carved with precision and clarity, ice carving, frozen",
-        ]
-        validation_prompts = random.sample(validation_prompts, n_imgs)
-        validation_prompts[0] = '<concept>'
+        validation_prompts_raw = random.sample(val_prompts['object'], n_imgs)
+        validation_prompts_raw[0] = '<concept>'
 
+    # Try to free up some memory before rendering the images
+    gc.collect()
     torch.cuda.empty_cache()
-    print(f"Loading inference pipeline from {pretrained_model['path']}...")
 
-    (pipeline,
-        tokenizer_one,
-        tokenizer_two,
-        noise_scheduler,
-        text_encoder_one,
-        text_encoder_two,
-        vae,
-        unet) = load_models(pretrained_model, device, torch.float16)
+    if 1: # reload the entire pipeline from disk and load in the lora module
+        (pipeline,
+            tokenizer_one,
+            tokenizer_two,
+            noise_scheduler,
+            text_encoder_one,
+            text_encoder_two,
+            vae,
+            unet) = load_models(pretrained_model, device, torch.float16)
+
+        pipeline = pipeline.to(device)
+        pipeline = patch_pipe_with_lora(pipeline, lora_path)
+        pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
+
+    else:
+        print(f"Re-using training pipeline for inference")
            
-    pipeline = pipeline.to(device)
-    pipeline = patch_pipe_with_lora(pipeline, lora_path)
-    pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
 
-    validation_prompts_raw = validation_prompts
-    validation_prompts = [prepare_prompt_for_lora(prompt, lora_path) for prompt in validation_prompts]
+    validation_prompts = [prepare_prompt_for_lora(prompt, lora_path) for prompt in validation_prompts_raw]
     generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 
@@ -519,6 +447,8 @@ def main(
         weight_dtype = torch.float16
     elif mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
+
+    print(f"Loading models with weight_dtype: {weight_dtype}")
 
     if scale_lr:
         unet_learning_rate = (
@@ -752,18 +682,11 @@ def main(
         shutil.rmtree(checkpoint_dir)
     os.makedirs(f"{checkpoint_dir}")
 
-    # Experimental: warmup the token embeddings using CLIP-similarity:
+    # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
     
     ti_lrs, lora_lrs = [], []
-    
-    # Count the total number of lora parameters
-    total_n_lora_params = sum(p.numel() for p in unet_lora_parameters)
-
-    #output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
-    #save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_param_to_optimize_names)
     losses = []
-
     start_time, images_done = time.time(), 0
 
     for epoch in range(first_epoch, num_train_epochs):
@@ -902,23 +825,8 @@ def main(
 
             if l1_penalty > 0.0:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
-                l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / total_n_lora_params
-                #print(f"Loss: {loss.item():.6f}, L1-penalty: {(l1_penalty * l1_norm).item():.6f}")
+                l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss += l1_penalty * l1_norm
-
-            if global_step % 100 == 0 and debug:
-                embedding_handler.print_token_info()
-
-            if global_step % (max_train_steps//3) == 0 and debug:
-                plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
-                
-                token_embeddings = embedding_handler.get_trainable_embeddings()
-                for i, token_embeddings_i in enumerate(token_embeddings):
-                    plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
-                    plot_torch_hist(token_embeddings_i[1], global_step, output_dir, f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
-                
-                plot_loss(losses, save_path=f'{output_dir}/losses.png')
-                plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
 
             losses.append(loss.item())
             loss.backward()
@@ -943,14 +851,22 @@ def main(
             lora_lrs.append(get_avg_lr(optimizer_prod))
 
             # Print some statistics:
-            if (global_step % checkpointing_steps == 0) and (global_step > 0):
+            if (global_step % checkpointing_steps == 0):
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
+                validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
                 last_save_step = global_step
+
                 if debug:
+                    token_embeddings = embedding_handler.get_trainable_embeddings()
+                    for i, token_embeddings_i in enumerate(token_embeddings):
+                        plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
+                        plot_torch_hist(token_embeddings_i[1], global_step, output_dir, f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
+                    
+                    embedding_handler.print_token_info()
+                    plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
-                    validation_prompts = render_images(output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
             
             images_done += train_batch_size
             global_step += 1
@@ -991,7 +907,7 @@ def main(
     gc.collect()
     torch.cuda.empty_cache()
 
-    validation_prompts = render_images(output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
+    validation_prompts = render_images(pipe, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
     
     with open(f"{output_save_dir}/training_args.json", "w") as f:
         args_dict["grid_prompts"] = validation_prompts

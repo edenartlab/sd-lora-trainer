@@ -11,7 +11,6 @@ build:
     - "libsm6"
     - "libxext6"
   python_packages:
-    #- "diffusers==0.19.3" 
     - "diffusers==0.25.1"
     - "peft==0.8.2"
     - "torch==2.0.1"
