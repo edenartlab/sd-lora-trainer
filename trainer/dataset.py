@@ -32,22 +32,24 @@ class ImageCaptionDataset(Dataset):
         assert os.path.exists(csv_filename), f"Invalid csv_filename: {csv_filename}"
         df = pd.read_csv(csv_filename)
         assert (
-            "caption" in df.columns
-        ), f"Expected column: 'caption' to exist but got columns: {df.columns}"
+            "caption" in list(df.columns)
+        ), f"Expected column: 'caption' to exist but got columns: {list(df.columns)}"
         assert (
-            "image_path" in df.columns
-        ), f"Expected column: 'image_path' to exist but got columns: {df.columns}"
+            "image_path" in list(df.columns)
+        ), f"Expected column: 'image_path' to exist but got columns: {list(df.columns)}"
 
         self.csv_filename = csv_filename
-        self.captions = df.captions.values
+        self.captions = df.caption.values
         self.image_path = df.image_path.values
         self.size = size
+        self.image_folder = image_folder
+        self.mask_folder = mask_folder
 
 
         if mask_folder is not None:
             assert (
-            "image_path" in df.columns
-            ), f"Expected column: 'image_path' to exist but got columns: {df.columns}"
+            "mask_path" in list(df.columns)
+            ), f"Expected column: 'mask_path' to exist but got columns: {list(df.columns)}"
             self.mask_path = df.mask_path
         else:
             self.mask_path = None
@@ -82,7 +84,20 @@ class ImageCaptionDataset(Dataset):
         image = image.convert("RGB")
         caption = self.captions[idx]
 
-        return {"image": image, "caption": caption}
+        if self.mask_path is not None:
+            image_width, image_height = image.size
+            mask_filename = os.path.join(self.mask_folder, self.mask_path[idx])
+            mask = Image.open(mask_filename)
+            mask = mask.convert("L")
+            mask = mask.resize(
+                (image_width, image_height),
+                resample=Image.BICUBIC,
+                reducing_gap=1,
+            )
+        else:
+            mask  = None
+
+        return {"image": image, "caption": caption, "mask": mask}
 
     def __len__(self) -> int:
         return len(self.captions)
@@ -127,11 +142,6 @@ class PreprocessedDataset(Dataset):
 
         if self.scale_vae_latents:
             vae_latent = vae_latent * self.vae.config.scaling_factor
-
-        """
-        TODO
-        load and return mask
-        """
 
         return {
             "tokenized_captions": tokenized_captions,
