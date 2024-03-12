@@ -4,6 +4,9 @@ from PIL import Image
 from torch.utils.data import Dataset
 from typing import Union
 from dataclasses import dataclass
+import torchvision.transforms as transforms
+import numpy as np
+import torch
 
 @dataclass
 class ImageSize:
@@ -17,6 +20,16 @@ default_tokenizer_kwargs = dict(
     add_special_tokens=True,
     return_tensors="pt"
 )
+
+default_image_transforms =  transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+])
+
+def convert_pil_mask_to_tensor(mask):
+    arr = np.array(mask)
+    arr = arr.astype(np.float32) / 255.0
+    return torch.tensor(arr).unsqueeze(0).unsqueeze(0)
 
 class ImageCaptionDataset(Dataset):
     def __init__(
@@ -125,7 +138,7 @@ class PreprocessedDataset(Dataset):
     def __getitem__(self, idx: int):
         
         data = self.image_caption_dataset[idx]
-        image, caption = data["image"], data["caption"], data["mask"]
+        image, caption, mask = data["image"], data["caption"], data["mask"]
 
         tokenized_captions = []
 
@@ -138,12 +151,18 @@ class PreprocessedDataset(Dataset):
                 tokenized_text
             )
 
-        vae_latent = self.vae.encode(image).latent_dist.sample()
+        image_tensor = default_image_transforms(image).unsqueeze(0).to(self.vae.device, dtype = self.vae.dtype)
 
+        if mask is not None:
+            mask = convert_pil_mask_to_tensor(mask)
+
+        # raise ValueError(image_tensor.mean(), image_tensor.var())
+        vae_latent = self.vae.encode(image_tensor).latent_dist.sample()
         if self.scale_vae_latents:
             vae_latent = vae_latent * self.vae.config.scaling_factor
 
         return {
             "tokenized_captions": tokenized_captions,
             "vae_latent": vae_latent.squeeze(),
+            "mask": mask
         }
