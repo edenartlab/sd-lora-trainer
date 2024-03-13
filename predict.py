@@ -92,7 +92,7 @@ class Predictor(BasePredictor):
         ),
         prodigy_d_coef: float = Input(
             description="Multiplier for internal learning rate of Prodigy optimizer",
-            default=0.7,
+            default=0.5,
         ),
         ti_lr: float = Input(
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",

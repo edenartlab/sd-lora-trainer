@@ -38,6 +38,7 @@ but it then recovers. Can we avoid this collapse? Is the learning rate too high?
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
 - try-out conditioning noise injection during training to increase robustness
+- re-test adaptive learning rates instead of hard-pivot
 
 Bigger improvements:
 - Add multi-token training

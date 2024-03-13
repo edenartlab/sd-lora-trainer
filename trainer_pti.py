@@ -856,7 +856,7 @@ def main(
 
     if not os.path.exists(output_save_dir):
         save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 30, debug=debug)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35, debug=debug)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
