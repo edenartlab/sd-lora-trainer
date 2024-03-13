@@ -18,6 +18,9 @@ sudo chmod +x /usr/local/bin/cog
 
 ## TODO's
 
+Bugfixing:
+- try swapping prodigy for Adam to see if that fixes sd15 bug
+
 Code / Cleanup:
 - make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)
 - integrate PEFT (https://github.com/huggingface/peft) instead of the hacky, ad-hoc lora stuff
