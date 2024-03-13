@@ -15,7 +15,7 @@ import torch.utils.checkpoint
 import torch.nn.functional as F
 
 from diffusers.models.attention_processor import LoRAAttnProcessor2_0
-from peft import LoraConfig
+from peft import LoraConfig, get_peft_model, PeftModel
 from diffusers.optimization import get_scheduler
 from diffusers import EulerDiscreteScheduler
 from safetensors.torch import save_file
@@ -89,73 +89,36 @@ def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
     plt.savefig(save_path)
     plt.close()
 
-def plot_loss(losses, save_path='losses.png'):
+from scipy.signal import savgol_filter
+def plot_loss(losses, save_path='losses.png', window_length=21, polyorder=3):
+    if len(losses) < window_length:
+        return
+    
+    smoothed_losses = savgol_filter(losses, window_length, polyorder)
+    
     plt.figure()
-    plt.plot(losses)
-    #plt.yscale('log')  # Set y-axis to log scale
+    plt.plot(losses, label='Actual Losses')
+    plt.plot(smoothed_losses, label='Smoothed Losses', color='red')
+    # plt.yscale('log')  # Uncomment if log scale is desired
     plt.xlabel('Step')
     plt.ylabel('Training Loss')
+    plt.legend()
     plt.savefig(save_path)
     plt.close()
 
 def patch_pipe_with_lora(pipe, lora_path):
 
-    with open(os.path.join(lora_path, "training_args.json"), "r") as f:
-        training_args  = json.load(f)
-        lora_rank      = training_args["lora_rank"]
-        try:
-            concept_name = training_args["name"].lower()
-        except:
-            concept_name = "eden_concept_lora"
-
-        # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
-        concept_name = concept_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
-
-    unet = pipe.unet
-    lora_safetensors_path = os.path.join(lora_path, f"{concept_name}_lora.safetensors")
-
-    if os.path.exists(lora_safetensors_path):
-        tensors = load_file(lora_safetensors_path)
-        unet_lora_attn_procs = {}
-        for name, attn_processor in unet.attn_processors.items():
-            cross_attention_dim = (
-                None
-                if name.endswith("attn1.processor")
-                else unet.config.cross_attention_dim
-            )
-            if name.startswith("mid_block"):
-                hidden_size = unet.config.block_out_channels[-1]
-            elif name.startswith("up_blocks"):
-                block_id = int(name[len("up_blocks.")])
-                hidden_size = list(reversed(unet.config.block_out_channels))[
-                    block_id
-                ]
-            elif name.startswith("down_blocks"):
-                block_id = int(name[len("down_blocks.")])
-                hidden_size = unet.config.block_out_channels[block_id]
-
-            module = LoRAAttnProcessor2_0(
-                hidden_size=hidden_size,
-                cross_attention_dim=cross_attention_dim,
-                rank=lora_rank,
-            )
-            unet_lora_attn_procs[name] = module.to("cuda")
-
-        unet.set_attn_processor(unet_lora_attn_procs)
-
-    else:
-        unet_path = os.path.join(lora_path, "unet.safetensors")
-        tensors = load_file(unet_path)
-
-    unet.load_state_dict(tensors, strict=False)
-
+    pipe.unet = PeftModel.from_pretrained(pipe.unet, lora_path)
+    pipe.unet.merge_adapter()
+    
     # Load the textual_inversion token embeddings into the pipeline:
     try: #SDXL
         handler = TokenEmbeddingsHandler([pipe.text_encoder, pipe.text_encoder_2], [pipe.tokenizer, pipe.tokenizer_2])
     except: #SD15
         handler = TokenEmbeddingsHandler([pipe.text_encoder, None], [pipe.tokenizer, None])
 
-    handler.load_embeddings(os.path.join(lora_path, f"{concept_name}_embeddings.safetensors"))
+    embeddings_path = [f for f in os.listdir(lora_path) if f.endswith("embeddings.safetensors")][0]
+    handler.load_embeddings(os.path.join(lora_path, embeddings_path))
 
     return pipe
 
@@ -198,6 +161,19 @@ def replace_in_string(s, replacements):
             break
     return s
 
+def print_trainable_parameters(model):
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    line_delimiter = "#" * 50
+    print(line_delimiter)
+    print(
+        f"Trainable params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
+    )
+    print(line_delimiter)
 
 def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
     if "_no_token" in lora_path:
@@ -308,7 +284,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
         validation_prompts_raw[0] = '<concept>'
 
 
-    reload_entire_pipeline = False
+    reload_entire_pipeline = True
     if reload_entire_pipeline: # reload the entire pipeline from disk and load in the lora module
 
         # Try to free up some memory before rendering the images
@@ -323,12 +299,13 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
             text_encoder_two,
             vae,
             unet) = load_models(pretrained_model, device, torch.float16)
+            #unet) = load_models(pretrained_model, device, torch.bfloat16)
 
         pipeline = pipeline.to(device)
         pipeline = patch_pipe_with_lora(pipeline, lora_path)
 
     else:
-        print(f"Re-using training pipeline for inference")
+        print(f"Re-using training pipeline for inference, just swapping the scheduler..")
         pipeline = training_pipeline
         training_scheduler = pipeline.scheduler
     
@@ -348,7 +325,6 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
     else:
         cross_attention_kwargs = None
 
-    #with torch.cuda.amp.autocast():
     for i in range(n_imgs):
         pipeline_args["prompt"] = validation_prompts[i]
         print(f"Rendering validation img with prompt: {validation_prompts[i]}")
@@ -382,13 +358,8 @@ def save(output_dir, global_step, unet, embedding_handler, token_dict, args_dict
         }
         save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
     elif len(unet_lora_parameters) > 0:
-        lora_tensors = {}
-        unet_state_dict = unet.state_dict()
-        for key in unet_state_dict.keys():
-            if "lora" in key:
-                lora_tensors[key] = unet_state_dict[key]
-    else:
-        lora_tensors = {}
+        unet.save_pretrained(save_directory = output_dir)
+
     try:
         concept_name = args_dict["name"].lower()
     except:
@@ -397,7 +368,6 @@ def save(output_dir, global_step, unet, embedding_handler, token_dict, args_dict
     # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
     concept_name = concept_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
 
-    save_file(lora_tensors, f"{output_dir}/{concept_name}_lora.safetensors")
     embedding_handler.save_embeddings(f"{output_dir}/{concept_name}_embeddings.safetensors",)
 
     with open(f"{output_dir}/special_params.json", "w") as f:
@@ -548,8 +518,13 @@ def main(
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
             use_rslora=True,
         )
-        unet.add_adapter(unet_lora_config)
+        #unet.add_adapter(unet_lora_config)
+        
+        unet = get_peft_model(unet, unet_lora_config)
+        print_trainable_parameters(unet)
+
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
+
         params_to_optimize = [
             {
                 "params": text_encoder_parameters,
@@ -565,12 +540,6 @@ def main(
                 "weight_decay": lora_weight_decay,
             },
         ]
-
-        n_unet_lora_params = sum(p.numel() for p in unet_lora_parameters)
-        n_text_encoder_params = sum(p.numel() for p in text_encoder_parameters)
-
-        print(f"Training {n_unet_lora_params} LORA parameters")
-        print(f"Training {n_text_encoder_params} text-encoder parameters")
     
     optimizer_type = "prodigy" # hardcode for now
 
@@ -875,7 +844,7 @@ def main(
 
 
     # final_save
-    if (global_step - last_save_step) > 101:
+    if (global_step - last_save_step) > 51:
         output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
     else:
         output_save_dir = f"{checkpoint_dir}/checkpoint-{last_save_step}"
@@ -888,6 +857,7 @@ def main(
 
     if not os.path.exists(output_save_dir):
         save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 30, debug=debug)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
@@ -902,8 +872,6 @@ def main(
     gc.collect()
     torch.cuda.empty_cache()
 
-    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 30, debug=debug)
-    
     with open(f"{output_save_dir}/training_args.json", "w") as f:
         args_dict["grid_prompts"] = validation_prompts
         json.dump(args_dict, f, indent=4)

@@ -3,6 +3,8 @@ import shutil
 import tarfile
 import json
 import time
+import random
+import torch
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
@@ -90,7 +92,7 @@ class Predictor(BasePredictor):
         ),
         prodigy_d_coef: float = Input(
             description="Multiplier for internal learning rate of Prodigy optimizer",
-            default=0.8,
+            default=0.7,
         ),
         ti_lr: float = Input(
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
@@ -185,6 +187,12 @@ class Predictor(BasePredictor):
 
         if seed is None:
             seed = np.random.randint(0, 2**32 - 1)
+
+        # Try to make the training reproducible:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
 
         if concept_mode == "face":
             left_right_flip_augmentation = False  # always disable lr flips for face mode!
