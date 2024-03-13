@@ -382,7 +382,11 @@ def save(output_dir, global_step, unet, embedding_handler, token_dict, args_dict
         }
         save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
     elif len(unet_lora_parameters) > 0:
-        lora_tensors = unet_attn_processors_state_dict(unet)
+        lora_tensors = {}
+        unet_state_dict = unet.state_dict()
+        for key in unet_state_dict.keys():
+            if "lora" in key:
+                lora_tensors[key] = unet_state_dict[key]
     else:
         lora_tensors = {}
     try:
