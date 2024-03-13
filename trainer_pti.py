@@ -284,7 +284,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
         validation_prompts_raw[0] = '<concept>'
 
 
-    reload_entire_pipeline = True
+    reload_entire_pipeline = False
     if reload_entire_pipeline: # reload the entire pipeline from disk and load in the lora module
         print(f"Reloading entire pipeline from disk..")
         gc.collect()
@@ -705,8 +705,15 @@ def main(
                 bs_embed, 1
             )
 
-            # Sample noise that we'll add to the latents
+            # Sample noise that we'll add to the latents:
             noise = torch.randn_like(vae_latent)
+
+            noise_offset = 0.1 # TODO, turn this into an input arg
+            if noise_offset > 0.0:
+                # https://www.crosslabs.org//blog/diffusion-with-offset-noise
+                noise += noise_offset * torch.randn(
+                    (noise.shape[0], noise.shape[1], 1, 1), device=noise.device)
+
             bsz = vae_latent.shape[0]
 
             timesteps = torch.randint(
