@@ -90,7 +90,7 @@ def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
     plt.close()
 
 from scipy.signal import savgol_filter
-def plot_loss(losses, save_path='losses.png', window_length=21, polyorder=3):
+def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
     if len(losses) < window_length:
         return
     
@@ -286,8 +286,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
 
     reload_entire_pipeline = True
     if reload_entire_pipeline: # reload the entire pipeline from disk and load in the lora module
-
-        # Try to free up some memory before rendering the images
+        print(f"Reloading entire pipeline from disk..")
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -299,7 +298,6 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
             text_encoder_two,
             vae,
             unet) = load_models(pretrained_model, device, torch.float16)
-            #unet) = load_models(pretrained_model, device, torch.bfloat16)
 
         pipeline = pipeline.to(device)
         pipeline = patch_pipe_with_lora(pipeline, lora_path)
@@ -516,7 +514,8 @@ def main(
             lora_alpha=lora_rank,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-            use_rslora=True,
+            #use_rslora=True,
+            use_dora=True,
         )
         #unet.add_adapter(unet_lora_config)
         
@@ -861,7 +860,6 @@ def main(
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
-    # clear the model cache and save grid imgs:
     del unet
     del vae
     del text_encoder_one
@@ -869,6 +867,7 @@ def main(
     del tokenizer_one
     del tokenizer_two
     del embedding_handler
+    del pipe
     gc.collect()
     torch.cuda.empty_cache()
 
