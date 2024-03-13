@@ -7,3 +7,6 @@ __pycache__
 .env
 xander.sh
 .huggingface
+tests/
+trainer/
+train.py
