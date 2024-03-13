@@ -161,19 +161,19 @@ def replace_in_string(s, replacements):
             break
     return s
 
-def print_trainable_parameters(model):
+def print_trainable_parameters(model, name = ''):
     trainable_params = 0
     all_param = 0
     for _, param in model.named_parameters():
         all_param += param.numel()
         if param.requires_grad:
             trainable_params += param.numel()
-    line_delimiter = "#" * 50
-    print(line_delimiter)
+    line_delimiter = "#" * 70
+    print('\n', line_delimiter)
     print(
-        f"Trainable params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
+        f"Trainable {name} params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
     )
-    print(line_delimiter)
+    print(line_delimiter, '\n')
 
 def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
     if "_no_token" in lora_path:
@@ -264,7 +264,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
 from val_prompts import val_prompts
 @torch.no_grad()
-def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, debug = False, device = "cuda:0"):
+def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0"):
 
     random.seed(seed)
 
@@ -520,7 +520,7 @@ def main(
         #unet.add_adapter(unet_lora_config)
         
         unet = get_peft_model(unet, unet_lora_config)
-        print_trainable_parameters(unet)
+        print_trainable_parameters(unet, name = 'unet')
 
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
 
@@ -825,9 +825,6 @@ def main(
                 last_save_step = global_step
 
                 if debug:
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, debug=debug)
-                    gc.collect()
-                    torch.cuda.empty_cache()
                     token_embeddings = embedding_handler.get_trainable_embeddings()
                     for i, token_embeddings_i in enumerate(token_embeddings):
                         plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
@@ -837,6 +834,9 @@ def main(
                     plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4)
+                    gc.collect()
+                    torch.cuda.empty_cache()
             
             images_done += train_batch_size
             global_step += 1
@@ -863,7 +863,7 @@ def main(
 
     if not os.path.exists(output_save_dir):
         save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35, debug=debug)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

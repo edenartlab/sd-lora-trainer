@@ -107,7 +107,7 @@ class Predictor(BasePredictor):
             default=0.002,
         ),
         l1_penalty: float = Input(
-            description="Sparsity penalty for the LoRA matrices, increases merge-ability and maybe generalization",
+            description="Sparsity penalty for the LoRA matrices, possibly improves merge-ability and generalization",
             default=0.1,
         ),
         lora_param_scaler: float = Input(
