@@ -15,6 +15,7 @@ import torch.utils.checkpoint
 import torch.nn.functional as F
 
 from diffusers.models.attention_processor import LoRAAttnProcessor2_0
+from peft import LoraConfig
 from diffusers.optimization import get_scheduler
 from diffusers import EulerDiscreteScheduler
 from safetensors.torch import save_file
@@ -535,48 +536,14 @@ def main(
         
         # Do lora-training instead.
         unet.requires_grad_(False)
-        unet_lora_attn_procs = {}
-
-        for name, attn_processor in unet.attn_processors.items():
-            cross_attention_dim = (
-                None
-                if name.endswith("attn1.processor")
-                else unet.config.cross_attention_dim
-            )
-            if name.startswith("mid_block"):
-                hidden_size = unet.config.block_out_channels[-1]
-            elif name.startswith("up_blocks"):
-                block_id = int(name[len("up_blocks.")])
-                hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-            elif name.startswith("down_blocks"):
-                block_id = int(name[len("down_blocks.")])
-                hidden_size = unet.config.block_out_channels[block_id]
-
-            module = LoRAAttnProcessor2_0(
-                hidden_size=hidden_size,
-                cross_attention_dim=cross_attention_dim,
-                rank=lora_rank,
-            )
-
-            # scale all the parameters inside the lora module by lora_param_scaler
-            for param in module.parameters():
-                param.data = param.data * args_dict['lora_param_scaler']
-
-            unet_lora_attn_procs[name] = module
-            module.to(device)
-            unet_lora_parameters.extend(module.parameters())
-
-        unet.set_attn_processor(unet_lora_attn_procs)
-
-        # Make sure the inference pipe is using the updated unet / text_encoder:
-        #pipe.unet = unet
-        #pipe.text_encoder = text_encoder_one
-        #pipe.tokenizer = tokenizer_one
-
-        print("Creating optimizer with:")
-        print(f"lora_lr: {lora_lr}, lora_weight_decay: {lora_weight_decay}")
-        print(f"ti_lr: {ti_lr}, ti_weight_decay: {ti_weight_decay}")
-
+        unet_lora_config = LoraConfig(
+            r=lora_rank,
+            lora_alpha=args_dict['lora_param_scaler'],
+            init_lora_weights="gaussian",
+            target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+        )
+        unet.add_adapter(unet_lora_config)
+        unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
         params_to_optimize = [
             {
                 "params": text_encoder_parameters,
