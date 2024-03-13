@@ -166,3 +166,6 @@ class PreprocessedDataset(Dataset):
             "vae_latent": vae_latent.squeeze(),
             "mask": mask
         }
+
+    def __len__(self):
+        return len(self.image_caption_dataset)
