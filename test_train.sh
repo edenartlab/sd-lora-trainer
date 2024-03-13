@@ -1,4 +1,4 @@
-cog predict \
+cog predict --gpus device=2\
     -i run_name="clipx_sdxl" \
     -i caption_prefix="in the style of TOK, " \
     -i concept_mode="style" \
@@ -21,4 +21,3 @@ cog predict \
     -i debug="True" \
     -i lora_training_urls="https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip" \
     -i seed="0"
-
