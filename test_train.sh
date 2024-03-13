@@ -21,4 +21,3 @@ cog predict --gpus device=3 \
     -i debug="True" \
     -i lora_training_urls="https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip" \
     -i seed="0"
-
