@@ -82,10 +82,10 @@ class Predictor(BasePredictor):
             description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need one.",
             default=10000,
         ),
-        # gradient_accumulation_steps: int = Input(
-        #     description="Number of training steps to accumulate before a backward pass. Effective batch size = gradient_accumulation_steps * batch_size",
-        #     default=1,
-        # ), # todo.
+        gradient_accumulation_steps: int = Input(
+             description="Number of training steps to accumulate before a backward pass. Effective batch size = gradient_accumulation_steps * batch_size",
+             default=2,
+         ),
         is_lora: bool = Input(
             description="Whether to use LoRA training. If set to False, will use Full fine tuning",
             default=True,
@@ -368,7 +368,7 @@ class Predictor(BasePredictor):
             train_batch_size=train_batch_size,
             num_train_epochs=num_train_epochs,
             max_train_steps=max_train_steps,
-            gradient_accumulation_steps=1,
+            gradient_accumulation_steps=gradient_accumulation_steps,
             l1_penalty=l1_penalty,
             prodigy_d_coef=prodigy_d_coef,
             ti_lr=ti_lr,
