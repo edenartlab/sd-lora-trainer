@@ -84,7 +84,7 @@ class Predictor(BasePredictor):
         ),
         gradient_accumulation_steps: int = Input(
              description="Number of training steps to accumulate before a backward pass. Effective batch size = gradient_accumulation_steps * batch_size",
-             default=2,
+             default=1,
          ),
         is_lora: bool = Input(
             description="Whether to use LoRA training. If set to False, will use Full fine tuning",
