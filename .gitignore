@@ -10,3 +10,4 @@ xander.sh
 tests/
 trainer/
 train.py
+debug/random_images
