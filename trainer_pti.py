@@ -835,14 +835,23 @@ def main(
                 loss += l1_penalty * l1_norm
 
             losses.append(loss.item())
+
+            loss = loss / gradient_accumulation_steps
             loss.backward()
 
-            if optimizer is not None:
-                optimizer.step()
-                optimizer.zero_grad()
-            
-            optimizer_prod.step()
-            optimizer_prod.zero_grad()
+            '''
+            apart from the usual gradient accumulation steps,
+            we also do a backward pass after computing the last forward pass in the epoch (last_batch == True)
+            this is to make sure that we're not missing out on any data 
+            '''
+            last_batch = (step + 1 == len(train_dataloader))
+            if (step + 1) % gradient_accumulation_steps == 0 or last_batch:
+                if optimizer is not None:
+                    optimizer.step()
+                    optimizer.zero_grad()
+                
+                optimizer_prod.step()
+                optimizer_prod.zero_grad()
 
             # every step, we reset the non-trainable embeddings to the original embeddings
             embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
