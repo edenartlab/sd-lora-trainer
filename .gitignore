@@ -5,6 +5,7 @@ cache
 __pycache__
 *.tar
 .env
+.cog
 xander.sh
 .huggingface
 tests/
