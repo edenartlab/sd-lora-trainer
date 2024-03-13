@@ -708,7 +708,7 @@ def main(
             # Sample noise that we'll add to the latents:
             noise = torch.randn_like(vae_latent)
 
-            noise_offset = 0.1 # TODO, turn this into an input arg
+            noise_offset = 0.075 # TODO, turn this into an input arg and do a grid search
             if noise_offset > 0.0:
                 # https://www.crosslabs.org//blog/diffusion-with-offset-noise
                 noise += noise_offset * torch.randn(
