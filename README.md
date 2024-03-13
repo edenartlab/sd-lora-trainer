@@ -25,6 +25,7 @@ Code / Cleanup:
 - make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)
 - integrate PEFT (https://github.com/huggingface/peft) instead of the hacky, ad-hoc lora stuff
 - Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops
+- make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later
 
 Algo:
 - add & test proper gradient accumulation so we can train with smaller bs if needed

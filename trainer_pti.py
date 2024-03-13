@@ -540,11 +540,13 @@ def main(
         
         # Do lora-training instead.
         unet.requires_grad_(False)
+        # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
         unet_lora_config = LoraConfig(
             r=lora_rank,
-            lora_alpha=args_dict['lora_param_scaler'],
+            lora_alpha=lora_rank,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+            use_rslora=True,
         )
         unet.add_adapter(unet_lora_config)
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
@@ -563,6 +565,12 @@ def main(
                 "weight_decay": lora_weight_decay,
             },
         ]
+
+        n_unet_lora_params = sum(p.numel() for p in unet_lora_parameters)
+        n_text_encoder_params = sum(p.numel() for p in text_encoder_parameters)
+
+        print(f"Training {n_unet_lora_params} LORA parameters")
+        print(f"Training {n_text_encoder_params} text-encoder parameters")
     
     optimizer_type = "prodigy" # hardcode for now
 
