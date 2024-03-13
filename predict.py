@@ -360,7 +360,7 @@ class Predictor(BasePredictor):
             train_batch_size=train_batch_size,
             num_train_epochs=num_train_epochs,
             max_train_steps=max_train_steps,
-            gradient_accumulation_steps=1,
+            gradient_accumulation_steps=4,
             l1_penalty=l1_penalty,
             prodigy_d_coef=prodigy_d_coef,
             ti_lr=ti_lr,
