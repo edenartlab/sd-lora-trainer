@@ -853,9 +853,9 @@ def main(
                 optimizer_prod.step()
                 optimizer_prod.zero_grad()
 
-            # every step, we reset the non-trainable embeddings to the original embeddings
-            embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
-            embedding_handler.fix_embedding_std(off_ratio_power)
+                # after every optimizer step, we reset the non-trainable embeddings to the original embeddings
+                embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
+                embedding_handler.fix_embedding_std(off_ratio_power)
             
             # Track the learning rates for final plotting:
             lora_lrs.append(get_avg_lr(optimizer_prod))
