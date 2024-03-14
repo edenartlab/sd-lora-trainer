@@ -454,6 +454,13 @@ class Trainer:
                         unet_lora_parameters=unet_lora_parameters, 
                         unet_param_to_optimize_names=unet_param_to_optimize_names
                     )
+
+                    self.config.save_as_json(
+                        os.path.join(
+                            output_save_dir,
+                            "training_args.json"
+                        )
+                    )
                     last_save_step = global_step
 
                     if self.config.debug:
