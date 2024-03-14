@@ -555,4 +555,4 @@ class Trainer:
             )
         )
 
-        return output_save_dir, validation_prompts
+        return output_save_dir
