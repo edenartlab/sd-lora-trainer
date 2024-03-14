@@ -7,7 +7,6 @@ from diffusers.optimization import get_scheduler
 from tqdm import tqdm
 import shutil
 import time
-from .val_prompts import val_prompts
 import gc
 
 from .config import (
@@ -549,7 +548,6 @@ class Trainer:
         gc.collect()
         torch.cuda.empty_cache()
 
-        self.config.args_dict["grid_prompts"] = validation_prompts
         self.config.save_as_json(
             os.path.join(
                 output_save_dir,
