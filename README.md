@@ -57,3 +57,4 @@ but it then recovers. Can we avoid this collapse? Is the learning rate too high?
 - gradient_accumulation
 - offset noise
 - AB test Dora vs Lora
+- sweep n_trainable_tokens to inject

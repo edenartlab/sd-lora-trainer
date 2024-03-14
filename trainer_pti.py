@@ -14,23 +14,32 @@ import torch
 import torch.utils.checkpoint
 import torch.nn.functional as F
 
-from diffusers.models.attention_processor import LoRAAttnProcessor2_0
 from peft import LoraConfig, get_peft_model, PeftModel
 from diffusers.optimization import get_scheduler
 from diffusers import EulerDiscreteScheduler
 from safetensors.torch import save_file
 from tqdm import tqdm
 
-from dataset_and_utils import (
-    PreprocessedDataset,
-    TokenEmbeddingsHandler,
-    load_models,
-    unet_attn_processors_state_dict
-)
-
+from dataset_and_utils import *
+from lora_utils import *
 from io_utils import make_validation_img_grid
-from safetensors.torch import load_file
 import matplotlib.pyplot as plt
+
+
+def print_trainable_parameters(model, name = ''):
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    line_delimiter = "#" * 70
+    print('\n', line_delimiter)
+    print(
+        f"Trainable {name} params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
+    )
+    print(line_delimiter, '\n')
+
 
 def compute_snr(noise_scheduler, timesteps):
     """
@@ -56,71 +65,6 @@ def compute_snr(noise_scheduler, timesteps):
     # Compute SNR.
     snr = (alpha / sigma) ** 2
     return snr
-
-def plot_torch_hist(parameters, epoch, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
-    # Flatten and concatenate all parameters into a single tensor
-    all_params = torch.cat([p.data.view(-1) for p in parameters])
-
-    # Convert to CPU for plotting
-    all_params_cpu = all_params.cpu().float().numpy()
-
-    # Plot histogram
-    plt.figure()
-    plt.hist(all_params_cpu, bins=bins, density=False)
-    plt.ylim(0, ymax_f * len(all_params_cpu))
-    plt.xlim(min_val, max_val)
-    plt.xlabel('Weight Value')
-    plt.ylabel('Count')
-    plt.title(f'Epoch {epoch} {name} Histogram (std = {np.std(all_params_cpu):.4f})')
-    plt.savefig(f"{checkpoint_dir}/{name}_histogram_{epoch:04d}.png")
-    plt.close()
-
-# plot the learning rates:
-def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
-    plt.figure()
-    plt.plot(range(len(lora_lrs)), lora_lrs, label='LoRA LR')
-    plt.plot(range(len(lora_lrs)), ti_lrs, label='TI LR')
-    plt.yscale('log')  # Set y-axis to log scale
-    plt.ylim(1e-6, 3e-3)
-    plt.xlabel('Step')
-    plt.ylabel('Learning Rate')
-    plt.title('Learning Rate Curves')
-    plt.legend()
-    plt.savefig(save_path)
-    plt.close()
-
-from scipy.signal import savgol_filter
-def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
-    if len(losses) < window_length:
-        return
-    
-    smoothed_losses = savgol_filter(losses, window_length, polyorder)
-    
-    plt.figure()
-    plt.plot(losses, label='Actual Losses')
-    plt.plot(smoothed_losses, label='Smoothed Losses', color='red')
-    # plt.yscale('log')  # Uncomment if log scale is desired
-    plt.xlabel('Step')
-    plt.ylabel('Training Loss')
-    plt.legend()
-    plt.savefig(save_path)
-    plt.close()
-
-def patch_pipe_with_lora(pipe, lora_path):
-
-    pipe.unet = PeftModel.from_pretrained(pipe.unet, lora_path)
-    pipe.unet.merge_adapter()
-    
-    # Load the textual_inversion token embeddings into the pipeline:
-    try: #SDXL
-        handler = TokenEmbeddingsHandler([pipe.text_encoder, pipe.text_encoder_2], [pipe.tokenizer, pipe.tokenizer_2])
-    except: #SD15
-        handler = TokenEmbeddingsHandler([pipe.text_encoder, None], [pipe.tokenizer, None])
-
-    embeddings_path = [f for f in os.listdir(lora_path) if f.endswith("embeddings.safetensors")][0]
-    handler.load_embeddings(os.path.join(lora_path, embeddings_path))
-
-    return pipe
 
 def get_avg_lr(optimizer):
     # Calculate the weighted average effective learning rate
@@ -160,20 +104,6 @@ def replace_in_string(s, replacements):
         if not replaced:
             break
     return s
-
-def print_trainable_parameters(model, name = ''):
-    trainable_params = 0
-    all_param = 0
-    for _, param in model.named_parameters():
-        all_param += param.numel()
-        if param.requires_grad:
-            trainable_params += param.numel()
-    line_delimiter = "#" * 70
-    print('\n', line_delimiter)
-    print(
-        f"Trainable {name} params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
-    )
-    print(line_delimiter, '\n')
 
 def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
     if "_no_token" in lora_path:
@@ -337,41 +267,6 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
 
     return validation_prompts_raw
 
-def save(output_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names):
-    """
-    Save the LORA model to output_dir, optionally with some example images
-
-    """
-    print(f"Saving checkpoint at step.. {global_step}")
-    os.makedirs(output_dir, exist_ok=True)
-
-    args_dict["n_training_steps"] = global_step
-    args_dict["total_n_imgs_seen"] = global_step * args_dict["train_batch_size"]
-
-    if not is_lora:
-        lora_tensors = {
-            name: param
-            for name, param in unet.named_parameters()
-            if name in unet_param_to_optimize_names
-        }
-        save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
-    elif len(unet_lora_parameters) > 0:
-        unet.save_pretrained(save_directory = output_dir)
-
-    try:
-        concept_name = args_dict["name"].lower()
-    except:
-        concept_name = "eden_concept_lora"
-
-    # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
-    concept_name = concept_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
-
-    embedding_handler.save_embeddings(f"{output_dir}/{concept_name}_embeddings.safetensors",)
-
-    with open(f"{output_dir}/special_params.json", "w") as f:
-        json.dump(token_dict, f)
-    with open(f"{output_dir}/training_args.json", "w") as f:
-        json.dump(args_dict, f, indent=4)
 
 def main(
     pretrained_model,
@@ -821,7 +716,7 @@ def main(
             # Print some statistics:
             if (global_step % checkpointing_steps == 0):
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
-                save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
+                save_lora(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
                 last_save_step = global_step
 
                 if debug:
@@ -862,7 +757,7 @@ def main(
         plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
     if not os.path.exists(output_save_dir):
-        save(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
+        save_lora(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
         validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")

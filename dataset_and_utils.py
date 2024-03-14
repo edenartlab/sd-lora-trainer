@@ -15,8 +15,13 @@ from safetensors.torch import save_file
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PretrainedConfig
 
+
+import torch
+import torch.nn.functional as F
+
 import matplotlib.pyplot as plt
-def plot_torch_hist(parameters, epoch, save_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
+
+def plot_torch_hist(parameters, epoch, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
     # Flatten and concatenate all parameters into a single tensor
     all_params = torch.cat([p.data.view(-1) for p in parameters])
 
@@ -31,7 +36,38 @@ def plot_torch_hist(parameters, epoch, save_dir, name, bins=100, min_val=-1, max
     plt.xlabel('Weight Value')
     plt.ylabel('Count')
     plt.title(f'Epoch {epoch} {name} Histogram (std = {np.std(all_params_cpu):.4f})')
-    plt.savefig(f"{save_dir}/{name}_histogram_{epoch:04d}.png")
+    plt.savefig(f"{checkpoint_dir}/{name}_histogram_{epoch:04d}.png")
+    plt.close()
+
+# plot the learning rates:
+def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
+    plt.figure()
+    plt.plot(range(len(lora_lrs)), lora_lrs, label='LoRA LR')
+    plt.plot(range(len(lora_lrs)), ti_lrs, label='TI LR')
+    plt.yscale('log')  # Set y-axis to log scale
+    plt.ylim(1e-6, 3e-3)
+    plt.xlabel('Step')
+    plt.ylabel('Learning Rate')
+    plt.title('Learning Rate Curves')
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
+
+from scipy.signal import savgol_filter
+def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
+    if len(losses) < window_length:
+        return
+    
+    smoothed_losses = savgol_filter(losses, window_length, polyorder)
+    
+    plt.figure()
+    plt.plot(losses, label='Actual Losses')
+    plt.plot(smoothed_losses, label='Smoothed Losses', color='red')
+    # plt.yscale('log')  # Uncomment if log scale is desired
+    plt.xlabel('Step')
+    plt.ylabel('Training Loss')
+    plt.legend()
+    plt.savefig(save_path)
     plt.close()
 
 
@@ -289,25 +325,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
         unet,
     )
 
-def unet_attn_processors_state_dict(unet) -> Dict[str, torch.tensor]:
-    """
-    Returns:
-        a state dict containing just the attention processor parameters.
-    """
-    attn_processors = unet.attn_processors
 
-    attn_processors_state_dict = {}
-
-    for attn_processor_key, attn_processor in attn_processors.items():
-        for parameter_key, parameter in attn_processor.state_dict().items():
-            attn_processors_state_dict[
-                f"{attn_processor_key}.{parameter_key}"
-            ] = parameter
-
-    return attn_processors_state_dict
-
-import torch
-import torch.nn.functional as F
 
 class TokenEmbeddingsHandler:
     def __init__(self, text_encoders, tokenizers):
