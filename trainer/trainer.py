@@ -7,7 +7,7 @@ from diffusers.optimization import get_scheduler
 from tqdm import tqdm
 import shutil
 import time
-import numpy as np
+from .val_prompts import val_prompts
 import gc
 
 from .config import (
