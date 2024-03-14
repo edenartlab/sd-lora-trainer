@@ -9,7 +9,5 @@ __pycache__
 xander*.sh
 .huggingface
 tests/
-trainer/
-train.py
 debug/*
 !debug/*.py
