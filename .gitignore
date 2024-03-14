@@ -6,9 +6,10 @@ __pycache__
 *.tar
 .env
 .cog
-xander.sh
+xander*.sh
 .huggingface
 tests/
 trainer/
 train.py
-debug/random_images
+debug/*
+!debug/*.py

@@ -18,7 +18,7 @@ sudo chmod +x /usr/local/bin/cog
 ## TODO's
 
 Code / Cleanup:
-- turn all/most of the args of the main() function in trainer_pti.py and the preprocess() function into a clean args_dict that makes it easy to add and distribute new parameters over the code
+- turn all/most of the args of the main() function in trainer_pti.py and the preprocess() function into a clean args_dict that makes it easy to add and distribute new parameters over the code and save these args to a .json file at the end.
 - Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops
 - make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)
 - make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later
@@ -32,7 +32,7 @@ this random variance, eg CLIP_similarity pretraining.
 - Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
 
 Bugfixing:
-https://discord.com/channels/573691888050241543/1184175211998883950/1217550596878373037
+see msgs at: https://discord.com/channels/573691888050241543/1184175211998883950/1217550596878373037
 - check how the pipe() objects work under the hood in HF diffusers library, is there a difference w how the unet is called in the training loop / which args it gets?
 - Try to find out why the diffusers training script works for sd15 and ours doesnt:
 See here: https://huggingface.co/blog/sdxl_lora_advanced_script
