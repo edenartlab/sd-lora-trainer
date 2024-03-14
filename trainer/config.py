@@ -56,7 +56,3 @@ class TrainerConfig(BaseModel):
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
             json.dump(self.dict(), f, indent=4)
-
-# # Example usage:
-# args = TrainerArgs(pretrained_model="your_model_here")
-# args.save_as_json("trainer_args.json")
