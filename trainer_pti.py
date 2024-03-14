@@ -14,10 +14,9 @@ import torch
 import torch.utils.checkpoint
 import torch.nn.functional as F
 
-from peft import LoraConfig, get_peft_model, PeftModel
+from peft import LoraConfig, get_peft_model
 from diffusers.optimization import get_scheduler
 from diffusers import EulerDiscreteScheduler
-from safetensors.torch import save_file
 from tqdm import tqdm
 
 from dataset_and_utils import *
