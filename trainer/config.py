@@ -14,6 +14,7 @@ precision_map = {
 class TrainerConfig(BaseModel):
     pretrained_model: Dict[str, str] # should be a dict with keys "path" and "version"
     instance_data_dir: str = "./dataset/zeke/captions.csv"
+    concept_mode: Literal["face", "concept", "object", "style"]
     output_dir: str = "lora_output"
     seed: Optional[int] = Field(default_factory=lambda: random.randint(0, 2**32 - 1))
     resolution: int = 768

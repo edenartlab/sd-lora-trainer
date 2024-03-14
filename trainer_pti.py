@@ -66,6 +66,7 @@ config = TrainerConfig(
     debug = False,
     hard_pivot = True,
     off_ratio_power = 0.1,
+    concept_mode="style"
 )
 
 trainer = Trainer(
