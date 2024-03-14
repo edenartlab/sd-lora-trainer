@@ -88,6 +88,7 @@ def preprocess(
     temp: float,
     left_right_flip_augmentation: bool = False,
     augment_imgs_up_to_n: int = 0,
+    caption_model: str = "blip",
     seed: int = 0,
 ) -> Path:
 
@@ -120,6 +121,7 @@ def preprocess(
         temp=temp,
         add_lr_flips = left_right_flip_augmentation,
         augment_imgs_up_to_n = augment_imgs_up_to_n,
+        caption_model = caption_model
     )
 
     return Path(TEMP_OUT_DIR), n_training_imgs, trigger_text, segmentation_prompt, captions
@@ -507,12 +509,12 @@ def gpt4_v_caption_dataset(
 def caption_dataset(
         images: List[Image.Image],
         captions: List[str],
-        model_name: Literal[str] = "blip"
+        caption_model: Literal[str] = "blip"
     ) -> List[str]:
 
-    if "blip" in model_name:
+    if "blip" in caption_model:
         captions = blip_caption_dataset(images, captions)
-    elif "gpt4-v" in model_name:
+    elif "gpt4-v" in caption_model:
         captions = gpt4_v_caption_dataset(images, captions)
 
     return captions
@@ -655,6 +657,7 @@ def load_and_save_masks_and_captions(
     add_lr_flips: bool = False,
     augment_imgs_up_to_n: int = 0,
     use_dataset_captions: bool = True, # load captions from the dataset if they exist
+    caption_model: str = "blip"
 ):
     """
     Loads images from the given files, generates masks for them, and saves the masks and captions and upscale images
@@ -711,7 +714,7 @@ def load_and_save_masks_and_captions(
 
     # Use BLIP for autocaptioning:
     print(f"Generating {len(images)} captions using mode: {concept_mode}...")
-    captions = caption_dataset(images, captions)
+    captions = caption_dataset(images, captions, caption_model = caption_model)
 
     # Cleanup prompts using chatgpt:
     captions, trigger_text, gpt_concept_name = post_process_captions(captions, caption_text, concept_mode, seed)

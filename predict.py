@@ -126,6 +126,10 @@ class Predictor(BasePredictor):
             description="Prefix text prepended to automatic captioning. Must contain the 'TOK'. Example is 'a photo of TOK, '.  If empty, chatgpt will take care of this automatically",
             default="",
         ),
+        caption_model: str = Input(
+            description="Which captioning model to use. ['gpt4-v', 'blip'] are supported right now",
+            default="blip",
+        ),
         left_right_flip_augmentation: bool = Input(
             description="Add left-right flipped version of each img to the training data, recommended for most cases. If you are learning a face, you prob want to disable this",
             default=True,
@@ -260,6 +264,7 @@ class Predictor(BasePredictor):
                 left_right_flip_augmentation=left_right_flip_augmentation,
                 augment_imgs_up_to_n = augment_imgs_up_to_n,
                 seed = seed,
+                caption_model = caption_model
             )
 
             lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene_5.zip"
