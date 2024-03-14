@@ -463,6 +463,16 @@ class Trainer:
                     )
                     last_save_step = global_step
 
+                    validation_prompts = render_images(
+                        pipe, target_size, 
+                        output_save_dir, 
+                        global_step, 
+                        self.config.seed, 
+                        self.config.is_lora, 
+                        self.config.pretrained_model, 
+                        n_imgs = 4
+                    )
+
                     if self.config.debug:
                         token_embeddings = embedding_handler.get_trainable_embeddings()
                         for i, token_embeddings_i in enumerate(token_embeddings):
@@ -497,15 +507,6 @@ class Trainer:
                         )
                         plot_loss(losses, save_path=f'{self.config.output_dir}/losses.png')
                         plot_lrs(lora_lrs, ti_lrs, save_path=f'{self.config.output_dir}/learning_rates.png')
-                        validation_prompts = render_images(
-                            pipe, target_size, 
-                            output_save_dir, 
-                            global_step, 
-                            self.config.seed, 
-                            self.config.is_lora, 
-                            self.config.pretrained_model, 
-                            n_imgs = 4
-                        )
                         gc.collect()
                         torch.cuda.empty_cache()
                 
