@@ -22,6 +22,7 @@ input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
     left_right_flip_augmentation=True,
     augment_imgs_up_to_n = 20,
     seed = 0,
+    caption_model = "blip"
 )
 
 print('-------------------------------------------')
@@ -41,7 +42,8 @@ config = (TrainerConfig)(
     resolution= 960,
     train_batch_size = 4,
     max_train_steps = 420,
-    checkpointing_steps = 140, 
+    checkpointing_steps = 140,
+    num_train_epochs = 10000,
     gradient_accumulation_steps = 1,
     textual_inversion_lr = 1e-3,
     textual_inversion_weight_decay = 3e-4,
