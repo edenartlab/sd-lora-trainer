@@ -1,5 +1,7 @@
 import os
 import math
+import random
+import numpy as np
 import torch
 import fnmatch
 from peft import LoraConfig, get_peft_model
@@ -29,11 +31,22 @@ from .utils.lora import save_lora
 from .utils.rendering import render_images
 from io_utils import download_weights
 
-class Trainer:
-    def __init__(self):
-        print("Trainer initialized")
+from preprocess import preprocess
 
-    def train(self, args):
+class Trainer:
+    def __init__(self, args):
+        self.args = args
+
+        random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+
+        print("Trainer initialized!")
+
+    def train(self):
+        args = self.args
+
         if args.allow_tf32:
             torch.backends.cuda.matmul.allow_tf32 = True
 

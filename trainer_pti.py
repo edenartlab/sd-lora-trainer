@@ -1,11 +1,11 @@
 from trainer import TrainerConfig, Trainer
 from preprocess import preprocess
 import os
+from io_utils import MODEL_DICT
 
 out_root_dir = "./lora_models"
-run_name     = "clipx_test"
+run_name     = "clipx_testing"
 concept_mode = "style"
-
 
 output_dir = os.path.join(out_root_dir, run_name)
 
@@ -21,7 +21,7 @@ input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
     temp=0.7,
     left_right_flip_augmentation=True,
     augment_imgs_up_to_n = 20,
-    seed = 1,
+    seed = 0,
 )
 
 print('-------------------------------------------')
@@ -32,17 +32,12 @@ print('-------------------------------------------')
 
 
 config = (TrainerConfig)(
-    pretrained_model = {
-        "path": "models/juggernaut_v6.safetensors",
-        "url": "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors",
-        "version": "sdxl"
-    },
+    pretrained_model = MODEL_DICT['sdxl'],
     name='unnamed',
     concept_mode=concept_mode,
     trigger_text=trigger_text,
     instance_data_dir = os.path.join(input_dir, "captions.csv"),
     output_dir = output_dir,
-    seed = 0,
     resolution= 960,
     train_batch_size = 4,
     max_train_steps = 500,
@@ -63,9 +58,10 @@ config = (TrainerConfig)(
     hard_pivot = False,
     off_ratio_power = 0.1,
     args_dict = {},
-    debug = True
+    debug = True,
+    seed = 0
 )
 
-trainer = Trainer()
-trainer.train(config)
+trainer = Trainer(config)
+trainer.train()
 print("DONE")

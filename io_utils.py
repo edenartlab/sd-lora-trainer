@@ -13,13 +13,12 @@ SDXL_MODEL_CACHE = "./models/juggernaut_v6.safetensors"
 SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors"
 
 SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
-# TODO point this url to the correct full folder structure containing the CLIP text-encoder (this wont actually work rn)
 SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
 
 # Define model paths and URLs in a dictionary
-MODEL_INFO = {
-    "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL},
-    "sd15": {"path": SD15_MODEL_CACHE, "url": SD15_URL}
+MODEL_DICT = {
+    "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL, "version": "sdxl"},
+    "sd15": {"path": SD15_MODEL_CACHE, "url": SD15_URL, "version": "sd15"}
 }
 
 def download_weights(url, dest):
