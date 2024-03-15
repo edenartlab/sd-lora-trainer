@@ -31,7 +31,7 @@ class TrainerConfig(BaseModel):
     unet_learning_rate: float = 1.0
     textual_inversion_lr: float = 1e-3
     textual_inversion_weight_decay: float = 3e-4
-    prodigy_d_coef: float = 1.0,
+    prodigy_d_coef: float = 0.5,
     l1_penalty: float = 0.0
     lora_weight_decay: float = 0.005
     scale_lr_based_on_grad_acc: bool = False
