@@ -11,7 +11,7 @@ precision_map = {
     "fp32": torch.float32
 }
 
-class TrainerConfig(BaseModel):
+class TrainerConfig(BaseModel, extra = "forbid"):
     pretrained_model: Dict[str, str] # should be a dict with keys "path" and "version"
     name: str='unnamed',
     trigger_text: str='a photo of TOK, ',
