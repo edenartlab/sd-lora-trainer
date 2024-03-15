@@ -337,8 +337,8 @@ class Predictor(BasePredictor):
             
             output_dir = os.path.join(out_root_dir, run_name)
             input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
-                output_dir,
-                concept_mode,
+                working_directory=output_dir,
+                concept_mode=concept_mode,
                 input_zip_path=lora_training_urls,
                 caption_text=caption_prefix,
                 mask_target_prompts=mask_target_prompts,
