@@ -22,9 +22,10 @@ input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
 )
 
 
-config = TrainerConfig(
+config = (TrainerConfig)(
     pretrained_model = {
         "path": "models/juggernaut_v6.safetensors",
+        "url": "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors",
         "version": "sdxl"
     },
     optimizer_name = "prodigy",

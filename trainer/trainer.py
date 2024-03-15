@@ -26,6 +26,7 @@ from .utils.snr import compute_snr
 from .utils.learning_rate import get_avg_lr
 from .utils.lora import save_lora
 from .utils.rendering import render_images
+from io_utils import download_weights
 
 class Trainer:
     def __init__(
@@ -47,6 +48,10 @@ class Trainer:
             unet_learning_rate = (
                 unet_learning_rate * self.config.gradient_accumulation_steps * self.config.train_batch_size
             )
+
+        # Download the weights if they don't exist locally
+        if not os.path.exists(self.config.pretrained_model['path']):
+            download_weights(self.config.pretrained_model['url'], self.config.pretrained_model['path'])
 
         (   
             pipe,
