@@ -32,14 +32,6 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
     token_map = read_json_from_path(os.path.join(lora_path, "special_params.json"))
     training_args = read_json_from_path(os.path.join(lora_path, "training_args.json"))
-
-    if 0:
-        # Hardcoded line just to test the style_mode:
-        return "in the style of <s0><s1>, " + prompt
-    else:
-        print("MESSAGE from XANDER:")
-        print("You can activate this temporary hack to test-render images by setting the if 0: to if 1: in the function.")
-
     
     try:
         lora_name = str(training_args["name"])

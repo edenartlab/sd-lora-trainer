@@ -13,11 +13,13 @@ precision_map = {
 
 class TrainerConfig(BaseModel):
     pretrained_model: Dict[str, str] # should be a dict with keys "path" and "version"
+    name: str='unnamed',
+    trigger_text: str='a photo of TOK, ',
     instance_data_dir: str = "./dataset/zeke/captions.csv"
     concept_mode: Literal["face", "concept", "object", "style"]
     output_dir: str = "lora_output"
     seed: Optional[int] = Field(default_factory=lambda: random.randint(0, 2**32 - 1))
-    resolution: int = 768
+    resolution: int = 960
     crops_coords_top_left_h: int = 0
     crops_coords_top_left_w: int = 0
     train_batch_size: int = 1
@@ -43,12 +45,12 @@ class TrainerConfig(BaseModel):
     precision: Literal["bf16", "fp16", "fp32"] = "bf16"
     optimizer_name: Literal["prodigy", "adamw"]
     device: str = "cuda:0"
-    token_dict: Dict[str, str] = {"TOKEN": "<s0>"}
-    inserting_list_tokens: List[str] = ["<s0>"]
+    token_dict: Dict[str, str] = {"TOK": "<s0><s1>"}
+    inserting_list_tokens: List[str] = ["<s0><s1>"]
     verbose: bool = True
     is_lora: bool = True
-    lora_rank: int = 8
-    lora_alpha: float = 8.
+    lora_rank: int = 12
+    lora_alpha: int = 12
     args_dict: Dict[str, Any] = {}
     debug: bool = False
     hard_pivot: bool = True

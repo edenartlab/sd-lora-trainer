@@ -485,7 +485,7 @@ class Trainer:
                             plot_torch_hist(
                                 token_embeddings_i[0], 
                                 global_step, 
-                                self.config.checkpointing_stepsoutput_dir, 
+                                self.config.output_dir, 
                                 f"embeddings_weights_token_0_{i}", 
                                 min_val=-0.05, 
                                 max_val=0.05, 
@@ -547,6 +547,13 @@ class Trainer:
                 unet_lora_parameters=unet_lora_parameters, 
                 unet_param_to_optimize_names=unet_param_to_optimize_names
             )
+
+            self.config.save_as_json(
+                os.path.join(
+                    output_save_dir,
+                    "training_args.json"
+                )
+            )
             
             validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, self.config.seed, self.config.is_lora, self.config.pretrained_model, n_imgs = 4, n_steps = 35)
         else:
@@ -562,12 +569,5 @@ class Trainer:
         del pipe
         gc.collect()
         torch.cuda.empty_cache()
-
-        self.config.save_as_json(
-            os.path.join(
-                output_save_dir,
-                "training_args.json"
-            )
-        )
 
         return output_save_dir

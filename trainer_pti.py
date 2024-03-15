@@ -3,7 +3,7 @@ from preprocess import preprocess
 import os
 
 out_root_dir = "./lora_models"
-run_name = "test"
+run_name = "clipx_test"
 output_dir = os.path.join(out_root_dir, run_name)
 
 input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
@@ -28,17 +28,16 @@ config = (TrainerConfig)(
         "url": "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors",
         "version": "sdxl"
     },
+    name='unnamed',
+    trigger_text=trigger_text,
     optimizer_name = "prodigy",
     instance_data_dir = os.path.join(input_dir, "captions.csv"),
-    output_dir = "lora_models/clip_sdxl",
+    output_dir = output_dir,
     seed = 0,
     resolution= 960,
-    crops_coords_top_left_h = 0,
-    crops_coords_top_left_w = 0,
     train_batch_size = 4,
-    do_cache = True,
     num_train_epochs = 10000,
-    max_train_steps = 750,
+    max_train_steps = 500,
     checkpointing_steps = 125, 
     gradient_accumulation_steps = 1,
     ti_lr = 1e-3,
@@ -48,23 +47,19 @@ config = (TrainerConfig)(
     prodigy_d_coef = 0.5,
     l1_penalty = 0.1,
     lora_weight_decay = 0.002,
-    scale_lr = False,
-    lr_scheduler = "constant",
-    lr_warmup_steps = 50,
-    lr_num_cycles = 1,
-    lr_power = 1.0,
     snr_gamma = 5.0,
-    dataloader_num_workers = 0,
+    dataloader_num_workers = 4,
     allow_tf32 = True,
     mixed_precision = "bf16",
     device = "cuda:0",
     token_dict = {"TOK": "<s0><s1>"},
-    inserting_list_tokens = ["<s0><s1>"],
+    inserting_list_tokens = ["<s0>","<s1>"],
     verbose = True,
     is_lora = True,
     lora_rank = 12,
+    lora_alpha = 12,
     args_dict = {},
-    debug = False,
+    debug = True,
     hard_pivot = False,
     off_ratio_power = 0.1,
     concept_mode="style"

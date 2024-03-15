@@ -344,7 +344,7 @@ class TokenEmbeddingsHandler:
             if text_encoder is None:
                 continue
             trainable_embeddings.append(text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids])
-
+        
         return trainable_embeddings
 
     def find_nearest_tokens(self, query_embedding, tokenizer, text_encoder, idx, distance_metric, top_k = 5):
