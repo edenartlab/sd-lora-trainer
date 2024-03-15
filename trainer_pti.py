@@ -4,7 +4,7 @@ import os
 from io_utils import MODEL_DICT
 
 out_root_dir = "./lora_models"
-run_name     = "clipx_testing"
+run_name     = "clipx_ti_only"
 concept_mode = "style"
 
 output_dir = os.path.join(out_root_dir, run_name)
@@ -46,7 +46,7 @@ config = (TrainerConfig)(
     textual_inversion_lr = 1e-3,
     textual_inversion_weight_decay = 3e-4,
     lora_weight_decay = 0.002,
-    prodigy_d_coef = 0.0,
+    prodigy_d_coef = 1.0,
     l1_penalty = 0.1,
     snr_gamma = 5.0,
     mixed_precision = "bf16",
@@ -54,7 +54,7 @@ config = (TrainerConfig)(
     inserting_list_tokens = ["<s0>","<s1>"],
     is_lora = True,
     lora_rank = 12,
-    lora_alpha = 12 * 10,
+    lora_alpha = 12,
     hard_pivot = False,
     off_ratio_power = 0.1,
     args_dict = {},

@@ -35,7 +35,7 @@ def plot_torch_hist(parameters, epoch, checkpoint_dir, name, bins=100, min_val=-
     plt.xlim(min_val, max_val)
     plt.xlabel('Weight Value')
     plt.ylabel('Count')
-    plt.title(f'Epoch {epoch} {name} Histogram (std = {np.std(all_params_cpu):.4f})')
+    plt.title(f'Epoch {epoch} {name} Histogram (std = {np.std(all_params_cpu):.4f}, min = {np.min(all_params_cpu):.2f}, max = {np.max(all_params_cpu):.2f})')
     plt.savefig(f"{checkpoint_dir}/{name}_histogram_{epoch:04d}.png")
     plt.close()
 

@@ -48,6 +48,8 @@ def make_validation_img_grid(img_folder):
 @torch.no_grad()
 def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0"):
 
+    random.seed(seed)
+    
     with open(os.path.join(lora_path, "training_args.json"), "r") as f:
         training_args = json.load(f)
         concept_mode = training_args["concept_mode"]
@@ -89,7 +91,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
     
     pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
     validation_prompts = [prepare_prompt_for_lora(prompt, lora_path) for prompt in validation_prompts_raw]
-    generator = torch.Generator(device=device).manual_seed(seed)
+    generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 
                 "num_inference_steps": n_steps,
