@@ -15,6 +15,7 @@ from preprocess import preprocess
 from trainer_pti import main
 from typing import Iterator, Optional
 from io_utils import MODEL_INFO, download_weights, clean_filename
+from trainer.utils.seed import seed_everything
 
 DEBUG_MODE = False
 
@@ -232,10 +233,7 @@ class Predictor(BasePredictor):
             config.seed = np.random.randint(0, 2**32 - 1)
 
         # Try to make the training reproducible:
-        random.seed(config.seed)
-        np.random.seed(config.seed)
-        torch.manual_seed(config.seed)
-        torch.cuda.manual_seed_all(config.seed)
+        seed_everything(seed = config.seed)
 
         if config.concept_mode == "face":
             config.left_right_flip_augmentation = False  # always disable lr flips for face mode!
