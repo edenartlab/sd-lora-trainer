@@ -40,7 +40,10 @@ class Trainer:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
         np.random.seed(args.seed)
+        torch.cuda.manual_seed(args.seed)
         torch.cuda.manual_seed_all(args.seed)
+
+        #torch.backends.cudnn.deterministic = True
 
         print("Trainer initialized!")
 
@@ -50,7 +53,6 @@ class Trainer:
         if args.allow_tf32:
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        torch.manual_seed(args.seed)
         weight_dtype = precision_map[args.precision]
 
         print(f"Loading models with weight_dtype: {weight_dtype}")
@@ -83,7 +85,7 @@ class Trainer:
         starting_toks = None
         embedding_handler.initialize_new_tokens(
             inserting_toks=args.inserting_list_tokens, 
-            starting_toks=starting_toks, seed=args.seed
+            starting_toks=starting_toks
         )
         text_encoders = [text_encoder_one, text_encoder_two]
 
@@ -452,7 +454,7 @@ class Trainer:
                     ti_lrs.append(0.0)
 
                 # Print some statistics:
-                if (global_step % args.checkpointing_steps == 0):
+                if (global_step % args.checkpointing_steps == 0): # and (global_step > 0):
                     output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                     save_lora(
                         output_dir=output_save_dir, 
@@ -466,12 +468,7 @@ class Trainer:
                         unet_param_to_optimize_names=unet_param_to_optimize_names
                     )
 
-                    args.save_as_json(
-                        os.path.join(
-                            output_save_dir,
-                            "training_args.json"
-                        )
-                    )
+                    args.save_as_json(os.path.join(output_save_dir,"training_args.json"))
                     last_save_step = global_step
 
                     validation_prompts = render_images(
@@ -527,18 +524,17 @@ class Trainer:
                 if global_step % 100 == 0:
                     print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
 
+        if args.debug:
+            plot_loss(losses, save_path=f'{args.output_dir}/losses.png')
+            plot_lrs(lora_lrs, ti_lrs, save_path=f'{args.output_dir}/learning_rates.png')
+            plot_torch_hist(unet_lora_parameters, global_step, args.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
+            plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, args.output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
         # final_save
         if (global_step - last_save_step) > 51:
             output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
         else:
             output_save_dir = f"{checkpoint_dir}/checkpoint-{last_save_step}"
-
-        if args.debug:
-            plot_loss(losses, save_path=f'{args.output_dir}/losses.png')
-            plot_lrs(lora_lrs, ti_lrs, save_path=f'{args.output_dir}/learning_rates.png')
-            plot_torch_hist(unet_lora_parameters, global_step, args.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
-            plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, args.output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
         if not os.path.exists(output_save_dir):
             save_lora(
@@ -553,13 +549,7 @@ class Trainer:
                 unet_param_to_optimize_names=unet_param_to_optimize_names
             )
 
-            args.save_as_json(
-                os.path.join(
-                    output_save_dir,
-                    "training_args.json"
-                )
-            )
-            
+            args.save_as_json(os.path.join(output_save_dir,"training_args.json"))
             validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, args.seed, args.is_lora, args.pretrained_model, n_imgs = 4, n_steps = 35)
         else:
             print(f"Skipping final save, {output_save_dir} already exists")

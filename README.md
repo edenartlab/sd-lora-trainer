@@ -30,6 +30,7 @@ Algo:
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
 - Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
+- it looks the like gpu-utilization is only like 65-70% during training: whats the bottleneck? Can we speed this up?
 
 Bugfixing:
 see msgs at: https://discord.com/channels/573691888050241543/1184175211998883950/1217550596878373037
@@ -50,6 +51,7 @@ Bigger improvements:
 
 Tuning Experiments once code is fully ready:
 
+- test if VAE weight_type actually matters for training
 - try-out conditioning noise injection during training to increase robustness
 - re-test / tweak the adaptive learning rates instead of hard-pivot (also test Prodigy vs Adam)
 - right now it looks like the diffusion model gets partially "destroyed" in the beginning of training (outputs from steps 100-200 look terrible), 

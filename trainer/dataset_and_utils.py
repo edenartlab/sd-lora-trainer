@@ -480,13 +480,11 @@ class TokenEmbeddingsHandler:
 
     def initialize_new_tokens(self, 
         inserting_toks: List[str],
-        starting_toks:  Optional[List[str]] = None,
-        seed: int = 0,
+        starting_toks:  Optional[List[str]] = None
         ):
 
         print("Initializing new tokens...")
         print(inserting_toks)
-        torch.manual_seed(seed)
 
         idx = 0
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
