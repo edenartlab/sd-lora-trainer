@@ -79,7 +79,11 @@ class Trainer:
             text_encoder_two,
             vae,
             unet,
-        ) = load_models(args.pretrained_model, args.device, weight_dtype)
+        ) = load_models(
+            pretrained_model = args.pretrained_model, 
+            device=args.device, 
+            weight_dtype=weight_dtype
+        )
 
         # Initialize new tokens for training.
         embedding_handler = TokenEmbeddingsHandler(
