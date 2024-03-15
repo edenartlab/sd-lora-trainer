@@ -23,6 +23,7 @@ input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
     left_right_flip_augmentation=True,
     augment_imgs_up_to_n = 20,
     seed = 0,
+    caption_model = "blip"
 )
 
 print('-------------------------------------------')
@@ -31,7 +32,8 @@ print(f'n_imgs: {n_imgs}')
 print(f'concept_mode: {concept_mode}')
 print('-------------------------------------------')
 
-config = (TrainerConfig)(
+
+config = TrainerConfig(
     pretrained_model = MODEL_DICT['sdxl'],
     name='unnamed',
     concept_mode=concept_mode,
@@ -40,16 +42,17 @@ config = (TrainerConfig)(
     output_dir = output_dir,
     resolution= 960,
     train_batch_size = 4,
-    max_train_steps = 600,
-    checkpointing_steps = 200, 
+    max_train_steps = 500,
+    checkpointing_steps = 140,
+    num_train_epochs = 10000,
     gradient_accumulation_steps = 1,
     textual_inversion_lr = 1e-6,
     textual_inversion_weight_decay = 3e-4,
     lora_weight_decay = 0.002,
-    prodigy_d_coef = 1.25,
-    l1_penalty = 0.5,
+    prodigy_d_coef = 0.5,
+    l1_penalty = 0.1,
     snr_gamma = 5.0,
-    mixed_precision = "fp32",
+    precision = "bf16",
     token_dict = {"TOK": "<s0><s1>"},
     inserting_list_tokens = ["<s0>","<s1>"],
     is_lora = True,

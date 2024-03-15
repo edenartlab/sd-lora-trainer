@@ -48,6 +48,10 @@ class Trainer:
         print("Trainer initialized!")
 
     def train(self):
+
+        if self.args.concept_mode == "style": # for styles you usually want the LoRA matrices to absorb a lot (instead of just the token embedding)
+            self.args.l1_penalty = 0.05
+
         args = self.args
 
         if args.allow_tf32:
@@ -56,10 +60,10 @@ class Trainer:
         weight_dtype = precision_map[args.precision]
 
         print(f"Loading models with weight_dtype: {weight_dtype}")
-
         if args.scale_lr_based_on_grad_acc:
+
             unet_learning_rate = (
-                unet_learning_rate * args.gradient_accumulation_steps * args.train_batch_size
+                args.unet_learning_rate * args.gradient_accumulation_steps * args.train_batch_size
             )
 
         # Download the weights if they don't exist locally
@@ -75,7 +79,11 @@ class Trainer:
             text_encoder_two,
             vae,
             unet,
-        ) = load_models(args.pretrained_model, args.device, weight_dtype)
+        ) = load_models(
+            pretrained_model = args.pretrained_model, 
+            device=args.device, 
+            weight_dtype=weight_dtype
+        )
 
         # Initialize new tokens for training.
         embedding_handler = TokenEmbeddingsHandler(
