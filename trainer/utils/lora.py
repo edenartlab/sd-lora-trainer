@@ -167,3 +167,8 @@ def save_lora(output_dir, global_step, unet, embedding_handler, args_dict, is_lo
     concept_name = concept_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
 
     embedding_handler.save_embeddings(f"{output_dir}/{concept_name}_embeddings.safetensors",)
+
+    with open(f"{output_dir}/special_params.json", "w") as f:
+        json.dump(token_dict, f)
+    with open(f"{output_dir}/training_args.json", "w") as f:
+        json.dump(args_dict, f, indent=4)
