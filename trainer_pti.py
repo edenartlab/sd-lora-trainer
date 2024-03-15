@@ -4,7 +4,7 @@ import os
 from io_utils import MODEL_DICT
 
 out_root_dir = "./lora_models"
-run_name     = "clipx_ti_only"
+run_name     = "clipx_good_dora_only"
 concept_mode = "style"
 
 output_dir = os.path.join(out_root_dir, run_name)
@@ -12,7 +12,8 @@ output_dir = os.path.join(out_root_dir, run_name)
 input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
     output_dir,
     concept_mode = concept_mode,
-    input_zip_path = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip" ,
+    input_zip_path = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
+    #input_zip_path = "/home/xander/Downloads/beeple",
     caption_text="in the style of TOK, ",
     mask_target_prompts=None,
     target_size=960,
@@ -30,7 +31,6 @@ print(f'n_imgs: {n_imgs}')
 print(f'concept_mode: {concept_mode}')
 print('-------------------------------------------')
 
-
 config = (TrainerConfig)(
     pretrained_model = MODEL_DICT['sdxl'],
     name='unnamed',
@@ -40,14 +40,14 @@ config = (TrainerConfig)(
     output_dir = output_dir,
     resolution= 960,
     train_batch_size = 4,
-    max_train_steps = 420,
-    checkpointing_steps = 140, 
+    max_train_steps = 600,
+    checkpointing_steps = 200, 
     gradient_accumulation_steps = 1,
-    textual_inversion_lr = 1e-3,
+    textual_inversion_lr = 1e-6,
     textual_inversion_weight_decay = 3e-4,
     lora_weight_decay = 0.002,
-    prodigy_d_coef = 1.0,
-    l1_penalty = 0.1,
+    prodigy_d_coef = 1.25,
+    l1_penalty = 0.5,
     snr_gamma = 5.0,
     mixed_precision = "fp32",
     token_dict = {"TOK": "<s0><s1>"},

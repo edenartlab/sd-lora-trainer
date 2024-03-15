@@ -85,7 +85,8 @@ class Trainer:
         starting_toks = None
         embedding_handler.initialize_new_tokens(
             inserting_toks=args.inserting_list_tokens, 
-            starting_toks=starting_toks
+            starting_toks=starting_toks,
+            seed=args.seed
         )
         text_encoders = [text_encoder_one, text_encoder_two]
 
@@ -158,6 +159,11 @@ class Trainer:
 
             unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
 
+            # Loop over the unet_lora_parameters and print their names and shapes:
+            for name, param in unet.named_parameters():
+                if param.requires_grad:
+                    print(name, param.shape)
+
             params_to_optimize = [
                 {
                     "params": text_encoder_parameters,
@@ -193,7 +199,8 @@ class Trainer:
                             safeguard_warmup=True,
                             weight_decay=args.lora_weight_decay,
                             betas=(0.9, 0.99),
-                            growth_rate=1.025,  # this slows down the lr_rampup
+                            #growth_rate=1.025,  # this slows down the lr_rampup
+                            growth_rate=1.1,  # this slows down the lr_rampup
                         )
             
             optimizer = torch.optim.AdamW(
@@ -421,6 +428,12 @@ class Trainer:
                     # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                     l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                     loss += args.l1_penalty * l1_norm
+
+                    # Print the relative L1 norm:
+                    if global_step % 50 == 0:
+                        print(f" ---- L1 norm: {l1_norm.item():.4f}")
+                        print(f" ---- L1 loss: {args.l1_penalty * l1_norm.item():.4f}")
+                        print(f" ---- Total loss: {loss.item():.4f}")
 
                 losses.append(loss.item())
 

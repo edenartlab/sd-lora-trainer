@@ -480,7 +480,8 @@ class TokenEmbeddingsHandler:
 
     def initialize_new_tokens(self, 
         inserting_toks: List[str],
-        starting_toks:  Optional[List[str]] = None
+        starting_toks:  Optional[List[str]] = None,
+        seed: int = 0,
         ):
 
         print("Initializing new tokens...")
@@ -539,6 +540,7 @@ class TokenEmbeddingsHandler:
             else:
 
                 if 1: # random initialization:
+                    torch.manual_seed(seed)
                     init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding * 1.0)
                 else: 
                     # Test code to initialize the new tokens with some specific tokens
