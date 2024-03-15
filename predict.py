@@ -14,9 +14,12 @@ from dotenv import load_dotenv
 from preprocess import preprocess
 from trainer_pti import main
 from typing import Iterator, Optional
-from io_utils import MODEL_INFO, download_weights, clean_filename
+from io_utils import clean_filename
+
 from trainer.utils.seed import seed_everything
+from trainer.utils.download import download_weights
 from trainer.utils.config_modification import modify_config_based_on_concept_mode
+from trainer.models import pretrained_models
 
 DEBUG_MODE = False
 
@@ -243,8 +246,7 @@ class Predictor(BasePredictor):
             yield CogOutput(name=config.name, progress=0.0)
 
         # Initialize pretrained_model dictionary
-        pretrained_model = {"version": sd_model_version}
-        pretrained_model.update(MODEL_INFO[pretrained_model['version']])
+        pretrained_model = pretrained_models[config.sd_model_version]
 
         # Download the weights if they don't exist locally
         if not os.path.exists(pretrained_model['path']):
