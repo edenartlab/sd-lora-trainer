@@ -16,6 +16,7 @@ from trainer_pti import main
 from typing import Iterator, Optional
 from io_utils import MODEL_INFO, download_weights, clean_filename
 from trainer.utils.seed import seed_everything
+from trainer.utils.config_modification import modify_config_based_on_concept_mode
 
 DEBUG_MODE = False
 
@@ -234,17 +235,7 @@ class Predictor(BasePredictor):
 
         # Try to make the training reproducible:
         seed_everything(seed = config.seed)
-
-        if config.concept_mode == "face":
-            config.left_right_flip_augmentation = False  # always disable lr flips for face mode!
-            config.mask_target_prompts = "face"
-            clipseg_temperature = 0.4
-
-        if config.concept_mode == "concept": # gracefully catch any old versions of concept_mode
-            config.concept_mode = "object"
-
-        if config.concept_mode == "style": # for styles you usually want the LoRA matrices to absorb a lot (instead of just the token embedding)
-            config.l1_penalty = 0.05
+        config = modify_config_based_on_concept_mode(config = config)
 
         print(f"cog:predict:train_lora:{config.concept_mode}")
 
