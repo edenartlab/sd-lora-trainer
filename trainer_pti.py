@@ -32,7 +32,7 @@ print(f'concept_mode: {concept_mode}')
 print('-------------------------------------------')
 
 
-config = (TrainerConfig)(
+config = TrainerConfig(
     pretrained_model = MODEL_DICT['sdxl'],
     name='unnamed',
     concept_mode=concept_mode,
@@ -41,7 +41,7 @@ config = (TrainerConfig)(
     output_dir = output_dir,
     resolution= 960,
     train_batch_size = 4,
-    max_train_steps = 420,
+    max_train_steps = 500,
     checkpointing_steps = 140,
     num_train_epochs = 10000,
     gradient_accumulation_steps = 1,
@@ -51,7 +51,7 @@ config = (TrainerConfig)(
     prodigy_d_coef = 0.5,
     l1_penalty = 0.1,
     snr_gamma = 5.0,
-    mixed_precision = "fp32",
+    precision = "bf16",
     token_dict = {"TOK": "<s0><s1>"},
     inserting_list_tokens = ["<s0>","<s1>"],
     is_lora = True,
