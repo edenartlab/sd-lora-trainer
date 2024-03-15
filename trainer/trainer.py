@@ -8,6 +8,7 @@ from tqdm import tqdm
 import shutil
 import time
 import gc
+import prodigyopt
 
 from .config import (
     TrainerConfig, 
@@ -29,29 +30,26 @@ from .utils.rendering import render_images
 from io_utils import download_weights
 
 class Trainer:
-    def __init__(
-        self,
-        config: TrainerConfig
-    ):
-        self.config = config
+    def __init__(self):
+        print("Trainer initialized")
 
-    def train(self):
-        if self.config.allow_tf32:
+    def train(self, args):
+        if args.allow_tf32:
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        torch.manual_seed(self.config.seed)
-        weight_dtype = precision_map[self.config.precision]
+        torch.manual_seed(args.seed)
+        weight_dtype = precision_map[args.precision]
 
         print(f"Loading models with weight_dtype: {weight_dtype}")
 
-        if self.config.scale_lr_based_on_grad_acc:
+        if args.scale_lr_based_on_grad_acc:
             unet_learning_rate = (
-                unet_learning_rate * self.config.gradient_accumulation_steps * self.config.train_batch_size
+                unet_learning_rate * args.gradient_accumulation_steps * args.train_batch_size
             )
 
         # Download the weights if they don't exist locally
-        if not os.path.exists(self.config.pretrained_model['path']):
-            download_weights(self.config.pretrained_model['url'], self.config.pretrained_model['path'])
+        if not os.path.exists(args.pretrained_model['path']):
+            download_weights(args.pretrained_model['url'], args.pretrained_model['path'])
 
         (   
             pipe,
@@ -62,7 +60,7 @@ class Trainer:
             text_encoder_two,
             vae,
             unet,
-        ) = load_models(self.config.pretrained_model, self.config.device, weight_dtype)
+        ) = load_models(args.pretrained_model, args.device, weight_dtype)
 
         # Initialize new tokens for training.
         embedding_handler = TokenEmbeddingsHandler(
@@ -71,8 +69,8 @@ class Trainer:
     
         starting_toks = None
         embedding_handler.initialize_new_tokens(
-            inserting_toks=self.config.inserting_list_tokens, 
-            starting_toks=starting_toks, seed=self.config.seed
+            inserting_toks=args.inserting_list_tokens, 
+            starting_toks=starting_toks, seed=args.seed
         )
         text_encoders = [text_encoder_one, text_encoder_two]
 
@@ -90,7 +88,7 @@ class Trainer:
         unet_param_to_optimize_names = []
         unet_lora_parameters = []
 
-        if not self.config.is_lora:
+        if not args.is_lora:
             WHITELIST_PATTERNS = [
                 # "*.attn*.weight",
                 # "*ff*.weight",
@@ -113,8 +111,8 @@ class Trainer:
             params_to_optimize = [
                 {
                     "params": text_encoder_parameters,
-                    "lr": self.config.textual_inversion_lr,
-                    "weight_decay": self.config.textual_inversion_weight_decay,
+                    "lr": args.textual_inversion_lr,
+                    "weight_decay": args.textual_inversion_weight_decay,
                 },
             ]
 
@@ -122,7 +120,7 @@ class Trainer:
                 {
                     "params": unet_param_to_optimize,
                     "lr": unet_learning_rate,
-                    "weight_decay": self.config.lora_weight_decay,
+                    "weight_decay": args.lora_weight_decay,
                 },
             ]
 
@@ -132,8 +130,8 @@ class Trainer:
             unet.requires_grad_(False)
             # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
             unet_lora_config = LoraConfig(
-                r=self.config.lora_rank,
-                lora_alpha=self.config.lora_alpha,
+                r=args.lora_rank,
+                lora_alpha=args.lora_alpha,
                 init_lora_weights="gaussian",
                 target_modules=["to_k", "to_q", "to_v", "to_out.0"],
                 use_dora=True,
@@ -148,8 +146,8 @@ class Trainer:
             params_to_optimize = [
                 {
                     "params": text_encoder_parameters,
-                    "lr": self.config.textual_inversion_lr,
-                    "weight_decay": self.config.textual_inversion_weight_decay,
+                    "lr": args.textual_inversion_lr,
+                    "weight_decay": args.textual_inversion_weight_decay,
                 },
             ]
 
@@ -157,92 +155,86 @@ class Trainer:
                 {
                     "params": unet_lora_parameters,
                     "lr": 1.0,
-                    "weight_decay": self.config.lora_weight_decay,
+                    "weight_decay": args.lora_weight_decay,
                 },
             ]
         
 
-        if self.config.optimizer_name == "adamw":
+        if args.optimizer_name == "adamw":
             optimizer = torch.optim.AdamW(
                 params_to_optimize,
                 weight_decay=0.0, # this wd doesn't matter, I think
             )
             optimizer_prod = None
-        elif self.config.optimizer_name == "prodigy":        
-            try:
-                import prodigyopt
-            except ImportError:
-                raise ImportError("To use Prodigy, please install the prodigyopt library: `pip install prodigyopt`")
+        elif args.optimizer_name == "prodigy":        
 
             # Note: the specific settings of Prodigy seem to matter A LOT
             optimizer_prod = prodigyopt.Prodigy(
                             params_to_optimize_prodigy,
-                            d_coef = 0.33,
+                            d_coef = args.prodigy_d_coef,
                             lr=1.0,
                             decouple=True,
                             use_bias_correction=True,
                             safeguard_warmup=True,
-                            weight_decay=self.config.lora_weight_decay,
+                            weight_decay=args.lora_weight_decay,
                             betas=(0.9, 0.99),
                             growth_rate=1.025,  # this slows down the lr_rampup
                         )
             
             optimizer = torch.optim.AdamW(
                 params_to_optimize,
-                weight_decay=self.config.textual_inversion_weight_decay,
+                weight_decay=args.textual_inversion_weight_decay,
             )
             
         train_dataset = PreprocessedDataset(
-            self.config.instance_data_dir,
+            args.instance_data_dir,
             tokenizer_one,
             tokenizer_two,
             vae,
-            do_cache=self.config.train_dataset_cache,
-            substitute_caption_map=self.config.token_dict,
+            do_cache=args.train_dataset_cache,
+            substitute_caption_map=args.token_dict,
         )
 
-        print(f"# PTI : Loaded dataset, do_cache: {self.config.train_dataset_cache}")
+        print(f"# PTI : Loaded dataset, do_cache: {args.train_dataset_cache}")
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=self.config.train_batch_size,
+            batch_size=args.train_batch_size,
             shuffle=True,
-            num_workers=self.config.dataloader_num_workers,
+            num_workers=args.dataloader_num_workers,
         )
 
         num_update_steps_per_epoch = math.ceil(
-            len(train_dataloader) / self.config.gradient_accumulation_steps
+            len(train_dataloader) / args.gradient_accumulation_steps
         )
-        if self.config.max_train_steps is None:
+        if args.max_train_steps is None:
             max_train_steps = num_train_epochs * num_update_steps_per_epoch
         else:
-            max_train_steps = self.config.max_train_steps
+            max_train_steps = args.max_train_steps
 
         lr_scheduler = get_scheduler(
-            self.config.lr_scheduler_name,
+            args.lr_scheduler_name,
             optimizer=optimizer,
-            num_warmup_steps=self.config.lr_warmup_steps * self.config.gradient_accumulation_steps,
-            num_training_steps=max_train_steps * self.config.gradient_accumulation_steps,
-            num_cycles=self.config.lr_num_cycles,
-            power=self.config.lr_power,
+            num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
+            num_training_steps=max_train_steps * args.gradient_accumulation_steps,
+            num_cycles=args.lr_num_cycles,
+            power=args.lr_power,
         )
 
         num_update_steps_per_epoch = math.ceil(
-            len(train_dataloader) / self.config.gradient_accumulation_steps
+            len(train_dataloader) / args.gradient_accumulation_steps
         )
         num_train_epochs = math.ceil(max_train_steps / num_update_steps_per_epoch)
 
-        total_batch_size = self.config.train_batch_size * self.config.gradient_accumulation_steps
+        total_batch_size = args.train_batch_size * args.gradient_accumulation_steps
 
-        if self.config.verbose:
+        if args.verbose:
             print(f"# PTI :  Running training ")
             print(f"# PTI :  Num examples = {len(train_dataset)}")
             print(f"# PTI :  Num batches each epoch = {len(train_dataloader)}")
             print(f"# PTI :  Num Epochs = {num_train_epochs}")
-            print(f"# PTI :  Instantaneous batch size per device = {self.config.train_batch_size}")
-            print(
-                f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
-            )
-            print(f"# PTI :  Gradient Accumulation steps = {self.config.gradient_accumulation_steps}")
+            print(f"# PTI :  Instantaneous batch size per device = {args.train_batch_size}")
+            print(f"# PTI :  Total train batch size (distributed & accumulation) = {total_batch_size}")
+            print(f"# PTI :  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
             print(f"# PTI :  Total optimization steps = {max_train_steps}")
 
         global_step = 0
@@ -250,7 +242,7 @@ class Trainer:
         last_save_step = 0
 
         progress_bar = tqdm(range(global_step, max_train_steps), position=0, leave=True)
-        checkpoint_dir = os.path.join(self.config.output_dir, "checkpoints")
+        checkpoint_dir = os.path.join(args.output_dir, "checkpoints")
         if os.path.exists(checkpoint_dir):
             shutil.rmtree(checkpoint_dir)
         os.makedirs(f"{checkpoint_dir}")
@@ -269,7 +261,7 @@ class Trainer:
             for step, batch in enumerate(train_dataloader):
                 progress_bar.update(1)
 
-                if self.config.hard_pivot:
+                if args.hard_pivot:
                     if epoch >= num_train_epochs // 2:
                         if optimizer is not None:
                             print("----------------------")
@@ -287,7 +279,7 @@ class Trainer:
                     finegrained_epoch = epoch + step / len(train_dataloader)
                     completion_f = finegrained_epoch / num_train_epochs
                     # param_groups[1] goes from ti_lr to 0.0 over the course of training
-                    optimizer.param_groups[0]['lr'] = self.config.textual_inversion_lr * (1 - completion_f) ** 2.0
+                    optimizer.param_groups[0]['lr'] = args.textual_inversion_lr * (1 - completion_f) ** 2.0
 
             
                 try: #sdxl
@@ -319,16 +311,16 @@ class Trainer:
                 pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
                 # Create Spatial-dimensional conditions.
-                original_size = (self.config.resolution, self.config.resolution)
-                target_size   = (self.config.resolution, self.config.resolution)
+                original_size = (args.resolution, args.resolution)
+                target_size   = (args.resolution, args.resolution)
                 crops_coords_top_left = (
-                    self.config.crops_coords_top_left_h, 
-                    self.config.crops_coords_top_left_w
+                    args.crops_coords_top_left_h, 
+                    args.crops_coords_top_left_w
                 )
                 add_time_ids = list(original_size + crops_coords_top_left + target_size)
                 add_time_ids = torch.tensor([add_time_ids])
                 add_time_ids = add_time_ids.to(
-                    self.config.device, 
+                    args.device, 
                     dtype=prompt_embeds.dtype
                 ).repeat(
                     bs_embed, 1
@@ -373,7 +365,7 @@ class Trainer:
                     raise NotImplementedError(f"Not implemented for noise_scheduler.config.prediction_type: {noise_scheduler.config.prediction_type}")
 
                 # Compute the loss:
-                if self.config.snr_gamma is None:
+                if args.snr_gamma is None:
                     loss = (model_pred - target).pow(2) * mask
 
                     # modulate loss by the inverse of the mask's mean value
@@ -390,7 +382,7 @@ class Trainer:
                     # This is discussed in Section 4.2 of the same paper.
                     snr = compute_snr(noise_scheduler, timesteps)
                     base_weight = (
-                        torch.stack([snr, self.config.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
+                        torch.stack([snr, args.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
                     )
                     if noise_scheduler.config.prediction_type == "v_prediction":
                         # Velocity objective needs to be floored to an SNR weight of one.
@@ -410,14 +402,14 @@ class Trainer:
 
                     loss = loss.mean()
 
-                if self.config.l1_penalty > 0.0:
+                if args.l1_penalty > 0.0:
                     # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                     l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
-                    loss += self.config.l1_penalty * l1_norm
+                    loss += args.l1_penalty * l1_norm
 
                 losses.append(loss.item())
 
-                loss = loss / self.config.gradient_accumulation_steps
+                loss = loss / args.gradient_accumulation_steps
                 loss.backward()
 
                 '''
@@ -426,7 +418,7 @@ class Trainer:
                 this is to make sure that we're not missing out on any data 
                 '''
                 last_batch = (step + 1 == len(train_dataloader))
-                if (step + 1) % self.config.gradient_accumulation_steps == 0 or last_batch:
+                if (step + 1) % args.gradient_accumulation_steps == 0 or last_batch:
                     if optimizer is not None:
                         optimizer.step()
                         optimizer.zero_grad()
@@ -437,7 +429,7 @@ class Trainer:
 
                     # after every optimizer step, we reset the non-trainable embeddings to the original embeddings
                     embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
-                    embedding_handler.fix_embedding_std(self.config.off_ratio_power)
+                    embedding_handler.fix_embedding_std(args.off_ratio_power)
             
                 # Track the learning rates for final plotting:
                 lora_lrs.append(get_avg_lr(optimizer_prod))
@@ -447,21 +439,21 @@ class Trainer:
                     ti_lrs.append(0.0)
 
                 # Print some statistics:
-                if (global_step % self.config.checkpointing_steps == 0):
+                if (global_step % args.checkpointing_steps == 0):
                     output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                     save_lora(
                         output_dir=output_save_dir, 
                         global_step=global_step, 
                         unet=unet, 
                         embedding_handler=embedding_handler,
-                        token_dict=self.config.token_dict,
-                        args_dict=self.config.args_dict,
-                        is_lora= self.config.is_lora, 
+                        token_dict=args.token_dict,
+                        args_dict=args.args_dict,
+                        is_lora= args.is_lora, 
                         unet_lora_parameters=unet_lora_parameters, 
                         unet_param_to_optimize_names=unet_param_to_optimize_names
                     )
 
-                    self.config.save_as_json(
+                    args.save_as_json(
                         os.path.join(
                             output_save_dir,
                             "training_args.json"
@@ -473,19 +465,19 @@ class Trainer:
                         pipe, target_size, 
                         output_save_dir, 
                         global_step, 
-                        self.config.seed, 
-                        self.config.is_lora, 
-                        self.config.pretrained_model, 
+                        args.seed, 
+                        args.is_lora, 
+                        args.pretrained_model, 
                         n_imgs = 4
                     )
 
-                    if self.config.debug:
+                    if args.debug:
                         token_embeddings = embedding_handler.get_trainable_embeddings()
                         for i, token_embeddings_i in enumerate(token_embeddings):
                             plot_torch_hist(
                                 token_embeddings_i[0], 
                                 global_step, 
-                                self.config.output_dir, 
+                                args.output_dir, 
                                 f"embeddings_weights_token_0_{i}", 
                                 min_val=-0.05, 
                                 max_val=0.05, 
@@ -494,7 +486,7 @@ class Trainer:
                             plot_torch_hist(
                                 token_embeddings_i[1], 
                                 global_step, 
-                                self.config.output_dir, 
+                                args.output_dir, 
                                 f"embeddings_weights_token_1_{i}", 
                                 min_val=-0.05, 
                                 max_val=0.05, 
@@ -505,18 +497,18 @@ class Trainer:
                         plot_torch_hist(
                             unet_lora_parameters, 
                             global_step, 
-                            self.config.output_dir, 
+                            args.output_dir, 
                             "lora_weights", 
                             min_val=-0.3, 
                             max_val=0.3, 
                             ymax_f = 0.05
                         )
-                        plot_loss(losses, save_path=f'{self.config.output_dir}/losses.png')
-                        plot_lrs(lora_lrs, ti_lrs, save_path=f'{self.config.output_dir}/learning_rates.png')
+                        plot_loss(losses, save_path=f'{args.output_dir}/losses.png')
+                        plot_lrs(lora_lrs, ti_lrs, save_path=f'{args.output_dir}/learning_rates.png')
                         gc.collect()
                         torch.cuda.empty_cache()
                 
-                images_done += self.config.train_batch_size
+                images_done += args.train_batch_size
                 global_step += 1
 
                 if global_step % 100 == 0:
@@ -529,11 +521,11 @@ class Trainer:
         else:
             output_save_dir = f"{checkpoint_dir}/checkpoint-{last_save_step}"
 
-        if self.config.debug:
-            plot_loss(losses, save_path=f'{self.config.output_dir}/losses.png')
-            plot_lrs(lora_lrs, ti_lrs, save_path=f'{self.config.output_dir}/learning_rates.png')
-            plot_torch_hist(unet_lora_parameters, global_step, self.config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
-            plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, self.config.output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
+        if args.debug:
+            plot_loss(losses, save_path=f'{args.output_dir}/losses.png')
+            plot_lrs(lora_lrs, ti_lrs, save_path=f'{args.output_dir}/learning_rates.png')
+            plot_torch_hist(unet_lora_parameters, global_step, args.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
+            plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, args.output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
         if not os.path.exists(output_save_dir):
             save_lora(
@@ -541,21 +533,21 @@ class Trainer:
                 global_step=global_step, 
                 unet=unet, 
                 embedding_handler=embedding_handler,
-                token_dict=self.config.token_dict,
-                args_dict=self.config.args_dict,
-                is_lora= self.config.is_lora, 
+                token_dict=args.token_dict,
+                args_dict=args.args_dict,
+                is_lora= args.is_lora, 
                 unet_lora_parameters=unet_lora_parameters, 
                 unet_param_to_optimize_names=unet_param_to_optimize_names
             )
 
-            self.config.save_as_json(
+            args.save_as_json(
                 os.path.join(
                     output_save_dir,
                     "training_args.json"
                 )
             )
             
-            validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, self.config.seed, self.config.is_lora, self.config.pretrained_model, n_imgs = 4, n_steps = 35)
+            validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, args.seed, args.is_lora, args.pretrained_model, n_imgs = 4, n_steps = 35)
         else:
             print(f"Skipping final save, {output_save_dir} already exists")
 

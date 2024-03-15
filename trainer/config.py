@@ -29,9 +29,9 @@ class TrainerConfig(BaseModel):
     checkpointing_steps: int = 500000
     gradient_accumulation_steps: int = 1
     unet_learning_rate: float = 1.0
-    textual_inversion_lr: float = 3e-4
-    textual_inversion_weight_decay: float = 0.001
-    lora_lr: float = 1.0
+    textual_inversion_lr: float = 1e-3
+    textual_inversion_weight_decay: float = 3e-4
+    prodigy_d_coef: float = 1.0,
     l1_penalty: float = 0.0
     lora_weight_decay: float = 0.005
     scale_lr_based_on_grad_acc: bool = False
@@ -43,8 +43,8 @@ class TrainerConfig(BaseModel):
     dataloader_num_workers: int = 0
     allow_tf32: bool = True
     precision: Literal["bf16", "fp16", "fp32"] = "bf16"
-    optimizer_name: Literal["prodigy", "adamw"]
-    device: str = "cuda:0"
+    optimizer_name: Literal["prodigy", "adamw"] = "prodigy"
+    device: str = "cuda"
     token_dict: Dict[str, str] = {"TOK": "<s0><s1>"}
     inserting_list_tokens: List[str] = ["<s0><s1>"]
     verbose: bool = True
