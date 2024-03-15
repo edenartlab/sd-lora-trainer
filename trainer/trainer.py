@@ -56,10 +56,10 @@ class Trainer:
         weight_dtype = precision_map[args.precision]
 
         print(f"Loading models with weight_dtype: {weight_dtype}")
-
         if args.scale_lr_based_on_grad_acc:
+
             unet_learning_rate = (
-                unet_learning_rate * args.gradient_accumulation_steps * args.train_batch_size
+                args.unet_learning_rate * args.gradient_accumulation_steps * args.train_batch_size
             )
 
         # Download the weights if they don't exist locally
@@ -85,7 +85,7 @@ class Trainer:
         starting_toks = None
         embedding_handler.initialize_new_tokens(
             inserting_toks=args.inserting_list_tokens, 
-            starting_toks=starting_toks
+            starting_toks=starting_toks,
         )
         text_encoders = [text_encoder_one, text_encoder_two]
 
