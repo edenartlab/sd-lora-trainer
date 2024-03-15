@@ -49,8 +49,8 @@ class Trainer:
 
     def train(self):
 
-        if args.concept_mode == "style": # for styles you usually want the LoRA matrices to absorb a lot (instead of just the token embedding)
-            args.l1_penalty = 0.05
+        if self.args.concept_mode == "style": # for styles you usually want the LoRA matrices to absorb a lot (instead of just the token embedding)
+            self.args.l1_penalty = 0.05
 
         args = self.args
 
