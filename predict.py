@@ -403,30 +403,11 @@ class Predictor(BasePredictor):
                 output_save_dir, validation_prompts = e.value  # Capture the return value
                 break
 
-        if not debug:
-            keys_to_keep = [
-                "name",
-                "checkpoint",
-                "concept_mode",
-                "input_images",
-                "num_training_images",
-                "seed",
-                "resolution",
-                "max_train_steps",
-                "lora_rank",
-                "trigger_text",
-                "left_right_flip_augmentation",
-                "run_name",
-                "trainig_captions"]
-            args_dict = {k: v for k, v in args_dict.items() if k in keys_to_keep}
-
-        args_dict["grid_prompts"] = validation_prompts
-
         # save final training_args:
         final_args_dict_path = os.path.join(output_dir, "training_args.json")
-        with open(final_args_dict_path, "w") as f:
-            json.dump(args_dict, f, indent=4)
-
+        config.save_as_json(
+            final_args_dict_path
+        )
         validation_grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
         out_path = f"{clean_filename(name)}_eden_concept_lora_{int(time.time())}.tar"
         directory = cogPath(output_save_dir)
@@ -454,4 +435,4 @@ class Predictor(BasePredictor):
         else:
             # clear the output_directory to avoid running out of space on the machine:
             #shutil.rmtree(output_dir)
-            yield CogOutput(files=[cogPath(out_path)], name=name, thumbnails=[cogPath(validation_grid_img_path)], attributes=args_dict, isFinal=True, progress=1.0)
+            yield CogOutput(files=[cogPath(out_path)], name=name, thumbnails=[cogPath(validation_grid_img_path)], attributes=config.dict(), isFinal=True, progress=1.0)
