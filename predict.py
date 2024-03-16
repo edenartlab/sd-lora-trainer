@@ -7,7 +7,6 @@ import random
 import torch
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
 
 from cog import BasePredictor, BaseModel, File, Input, Path as cogPath
 from dotenv import load_dotenv
@@ -18,10 +17,13 @@ from io_utils import clean_filename
 
 from trainer.utils.seed import seed_everything
 from trainer.utils.download import download_weights
-from trainer.utils.config_modification import modify_config_based_on_concept_mode
+from trainer.utils.config_modification import modify_args_based_on_concept_mode
+from trainer.utils.tokens import obtain_inserting_list_tokens
 from trainer.models import pretrained_models
+from trainer.config import TrainingConfig
 
 DEBUG_MODE = False
+XANDER_EXPERIMENT = False
 
 load_dotenv()
 
@@ -191,62 +193,31 @@ class Predictor(BasePredictor):
         bs=6: 8.0 imgs/s,
         """
 
-        from trainer.config import TrainingConfig
-
-        config = TrainingConfig(
-            name=name,
-            lora_training_urls=lora_training_urls,
-            concept_mode=concept_mode,
-            sd_model_version=sd_model_version,
-            seed=seed,
-            resolution=resolution,
-            train_batch_size=train_batch_size,
-            num_train_epochs=num_train_epochs,
-            max_train_steps=max_train_steps,
-            checkpointing_steps=checkpointing_steps,
-            gradient_accumulation_steps=gradient_accumulation_steps,
-            is_lora=is_lora,
-            prodigy_d_coef=prodigy_d_coef,
-            ti_lr=ti_lr,
-            ti_weight_decay=ti_weight_decay,
-            lora_weight_decay=lora_weight_decay,
-            l1_penalty=l1_penalty,
-            lora_param_scaler=lora_param_scaler,
-            snr_gamma=snr_gamma,
-            lora_rank=lora_rank,
-            caption_prefix=caption_prefix,
-            caption_model=caption_model,
-            left_right_flip_augmentation=left_right_flip_augmentation,
-            augment_imgs_up_to_n=augment_imgs_up_to_n,
-            n_tokens=n_tokens,
-            mask_target_prompts=mask_target_prompts,
-            crop_based_on_salience=crop_based_on_salience,
-            use_face_detection_instead=use_face_detection_instead,
-            clipseg_temperature=clipseg_temperature,
-            verbose=verbose,
-            run_name=run_name,
-            debug=debug,
-            hard_pivot=hard_pivot,
-            off_ratio_power=off_ratio_power,
-        )
-
         start_time = time.time()
         out_root_dir = "lora_models"
 
-        if config.seed is None:
-            config.seed = np.random.randint(0, 2**32 - 1)
+        if seed is None:
+            seed = np.random.randint(0, 2**32 - 1)
 
         # Try to make the training reproducible:
-        seed_everything(seed = config.seed)
-        config = modify_config_based_on_concept_mode(config = config)
+        seed_everything(seed = seed)
+        (
+            concept_mode, left_right_flip_augmentation, mask_target_prompts, clipseg_temperature, l1_penalty
+        ) = modify_args_based_on_concept_mode(
+            concept_mode=concept_mode,
+            left_right_flip_augmentation=left_right_flip_augmentation,
+            mask_target_prompts=mask_target_prompts,
+            clipseg_temperature=clipseg_temperature,
+            l1_penalty=l1_penalty
+        )
 
-        print(f"cog:predict:train_lora:{config.concept_mode}")
+        print(f"cog:predict:train_lora:{concept_mode}")
 
         if not debug:
-            yield CogOutput(name=config.name, progress=0.0)
+            yield CogOutput(name=name, progress=0.0)
 
         # Initialize pretrained_model dictionary
-        pretrained_model = pretrained_models[config.sd_model_version]
+        pretrained_model = pretrained_models[sd_model_version]
 
         # Download the weights if they don't exist locally
         if not os.path.exists(pretrained_model['path']):
@@ -254,20 +225,11 @@ class Predictor(BasePredictor):
         
         # hardcoded for now:
         token_list = [f"TOK:{n_tokens}"]
-        #token_list = ["TOK1:2", "TOK2:2"]
 
-        token_dict = OrderedDict({})
-        all_token_lists = []
-        running_tok_cnt = 0
-        for token in token_list:
-            token_name, n_tok = token.split(":")
-            n_tok = int(n_tok)
-            special_tokens = [f"<s{i + running_tok_cnt}>" for i in range(n_tok)]
-            token_dict[token_name] = "".join(special_tokens)
-            all_token_lists.extend(special_tokens)
-            running_tok_cnt += n_tok
+        all_token_lists, token_dict = obtain_inserting_list_tokens(token_list=token_list)
 
-        if 0:
+
+        if XANDER_EXPERIMENT:
             # overwrite some settings for experimentation:
             lora_param_scaler = 0.1
             l1_penalty = 0.2
@@ -351,9 +313,8 @@ class Predictor(BasePredictor):
                 seed = seed,
             )
 
-
         if not debug:
-            yield CogOutput(name=name, progress=0.05)       
+            yield CogOutput(name=name, progress=0.05)  
 
         # Make a dict of all the arguments and save it to args.json: 
         args_dict = {
@@ -388,8 +349,49 @@ class Predictor(BasePredictor):
             "run_name": run_name,
             "hard_pivot": hard_pivot,
             "off_ratio_power": off_ratio_power,
-            "trainig_captions": captions[:50], # avoid sending back too many captions
+            "training_captions": captions[:50], # avoid sending back too many captions
         }
+
+        config = TrainingConfig(
+            name=name,
+            lora_training_urls=lora_training_urls,
+            concept_mode=concept_mode,
+            sd_model_version=sd_model_version,
+            seed=seed,
+            resolution=resolution,
+            train_batch_size=train_batch_size,
+            num_train_epochs=num_train_epochs,
+            max_train_steps=max_train_steps,
+            checkpointing_steps=checkpointing_steps,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            is_lora=is_lora,
+            prodigy_d_coef=prodigy_d_coef,
+            ti_lr=ti_lr,
+            ti_weight_decay=ti_weight_decay,
+            lora_weight_decay=lora_weight_decay,
+            l1_penalty=l1_penalty,
+            lora_param_scaler=lora_param_scaler,
+            snr_gamma=snr_gamma,
+            lora_rank=lora_rank,
+            caption_prefix=caption_prefix,
+            caption_model=caption_model,
+            left_right_flip_augmentation=left_right_flip_augmentation,
+            augment_imgs_up_to_n=augment_imgs_up_to_n,
+            n_tokens=n_tokens,
+            mask_target_prompts=mask_target_prompts,
+            crop_based_on_salience=crop_based_on_salience,
+            use_face_detection_instead=use_face_detection_instead,
+            clipseg_temperature=clipseg_temperature,
+            verbose=verbose,
+            run_name=run_name,
+            debug=debug,
+            hard_pivot=hard_pivot,
+            off_ratio_power=off_ratio_power,
+        )
+
+        config.save_as_json(
+            os.path.join(output_dir, "training_args.json")
+        )
 
         with open(os.path.join(output_dir, "training_args.json"), "w") as f:
             json.dump(args_dict, f, indent=4)
