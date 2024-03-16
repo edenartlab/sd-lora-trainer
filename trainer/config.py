@@ -40,3 +40,7 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     debug: bool = False
     hard_pivot: bool = False
     off_ratio_power: float = False
+
+    def save_as_json(self, file_path: str) -> None:
+        with open(file_path, 'w') as f:
+            json.dump(self.dict(), f, indent=4)
