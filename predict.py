@@ -353,7 +353,7 @@ class Predictor(BasePredictor):
         }
 
         config = TrainingConfig(
-            name=name,
+            name=name, 
             lora_training_urls=lora_training_urls,
             concept_mode=concept_mode,
             sd_model_version=sd_model_version,
@@ -387,6 +387,10 @@ class Predictor(BasePredictor):
             debug=debug,
             hard_pivot=hard_pivot,
             off_ratio_power=off_ratio_power,
+            num_training_images=n_imgs, 
+            trigger_text=trigger_text,  
+            segmentation_prompt=segmentation_prompt,
+            training_captions=captions[:50]
         )
 
         config.save_as_json(

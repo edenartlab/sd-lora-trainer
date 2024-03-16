@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 from pydantic import BaseModel
 import random
 import json
@@ -40,6 +40,10 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     debug: bool = False
     hard_pivot: bool = False
     off_ratio_power: float = False
+    num_training_images: int
+    trigger_text: str
+    segmentation_prompt: str
+    training_captions: List[str]
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
