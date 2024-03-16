@@ -316,42 +316,6 @@ class Predictor(BasePredictor):
         if not debug:
             yield CogOutput(name=name, progress=0.05)  
 
-        # Make a dict of all the arguments and save it to args.json: 
-        args_dict = {
-            "name": name,
-            "checkpoint": "juggernaut",
-            "concept_mode": concept_mode,
-            "input_images": str(lora_training_urls),
-            "num_training_images": n_imgs,
-            "num_augmented_images": len(captions),
-            "seed": seed,
-            "resolution": resolution,
-            "train_batch_size": train_batch_size,
-            "num_train_epochs": num_train_epochs,
-            "max_train_steps": max_train_steps,
-            "is_lora": is_lora,
-            "prodigy_d_coef": prodigy_d_coef,
-            "ti_lr": ti_lr,
-            "ti_weight_decay": ti_weight_decay,
-            "lora_weight_decay": lora_weight_decay,
-            "l1_penalty": l1_penalty,
-            "lora_param_scaler": lora_param_scaler,
-            "lora_rank": lora_rank,
-            "snr_gamma": snr_gamma,
-            "trigger_text": trigger_text,
-            "segmentation_prompt": segmentation_prompt,
-            "crop_based_on_salience": crop_based_on_salience,
-            "use_face_detection_instead": use_face_detection_instead,
-            "clipseg_temperature": clipseg_temperature,
-            "left_right_flip_augmentation": left_right_flip_augmentation,
-            "augment_imgs_up_to_n": augment_imgs_up_to_n,
-            "checkpointing_steps": checkpointing_steps,
-            "run_name": run_name,
-            "hard_pivot": hard_pivot,
-            "off_ratio_power": off_ratio_power,
-            "training_captions": captions[:50], # avoid sending back too many captions
-        }
-
         config = TrainingConfig(
             name=name, 
             lora_training_urls=lora_training_urls,
@@ -397,9 +361,6 @@ class Predictor(BasePredictor):
             os.path.join(output_dir, "training_args.json")
         )
 
-        with open(os.path.join(output_dir, "training_args.json"), "w") as f:
-            json.dump(args_dict, f, indent=4)
-
         train_generator = main(
             pretrained_model,
             instance_data_dir=os.path.join(input_dir, "captions.csv"),
@@ -427,10 +388,10 @@ class Predictor(BasePredictor):
             device="cuda:0",
             lora_rank=lora_rank,
             is_lora=is_lora,
-            args_dict=args_dict,
             debug=debug,
             hard_pivot=hard_pivot,
             off_ratio_power=off_ratio_power,
+            config=config
         )
 
         while True:

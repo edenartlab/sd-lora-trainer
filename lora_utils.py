@@ -52,16 +52,22 @@ def unet_attn_processors_state_dict(unet) -> Dict[str, torch.tensor]:
     return attn_processors_state_dict
 
 
-def save_lora(output_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names):
+def save_lora(
+        output_dir, 
+        global_step, 
+        unet, 
+        embedding_handler, 
+        token_dict, 
+        seed, 
+        is_lora, 
+        unet_lora_parameters, 
+        unet_param_to_optimize_names,
+        name: str = None
+    ):
     """
     Save the LORA model to output_dir, optionally with some example images
-
     """
     print(f"Saving checkpoint at step.. {global_step}")
-    os.makedirs(output_dir, exist_ok=True)
-
-    args_dict["n_training_steps"] = global_step
-    args_dict["total_n_imgs_seen"] = global_step * args_dict["train_batch_size"]
 
     if not is_lora:
         lora_tensors = {
@@ -73,17 +79,10 @@ def save_lora(output_dir, global_step, unet, embedding_handler, token_dict, args
     elif len(unet_lora_parameters) > 0:
         unet.save_pretrained(save_directory = output_dir)
 
-    try:
-        concept_name = args_dict["name"].lower()
-    except:
-        concept_name = "eden_concept_lora"
-
     # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
-    concept_name = concept_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
+    name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
 
-    embedding_handler.save_embeddings(f"{output_dir}/{concept_name}_embeddings.safetensors",)
+    embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors",)
 
     with open(f"{output_dir}/special_params.json", "w") as f:
         json.dump(token_dict, f)
-    with open(f"{output_dir}/training_args.json", "w") as f:
-        json.dump(args_dict, f, indent=4)

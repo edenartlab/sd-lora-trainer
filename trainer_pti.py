@@ -303,10 +303,10 @@ def main(
     verbose: bool = True,
     is_lora: bool = True,
     lora_rank: int = 8,
-    args_dict: dict = {},
     debug: bool = False,
     hard_pivot: bool = True,
     off_ratio_power: float = 0.1,
+    config = None
 ) -> None:
     if allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -524,6 +524,7 @@ def main(
     checkpoint_dir = os.path.join(str(output_dir), "checkpoints")
     if os.path.exists(checkpoint_dir):
         shutil.rmtree(checkpoint_dir)
+    
     os.makedirs(f"{checkpoint_dir}")
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
@@ -715,7 +716,22 @@ def main(
             # Print some statistics:
             if (global_step % checkpointing_steps == 0):
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
-                save_lora(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
+                os.makedirs(output_save_dir, exist_ok=True)
+                config.save_as_json(
+                    os.path.join(output_save_dir, "training_args.json")
+                )
+                save_lora(
+                    output_dir=output_save_dir, 
+                    global_step=global_step, 
+                    unet=unet, 
+                    embedding_handler=embedding_handler, 
+                    token_dict=token_dict, 
+                    seed=seed, 
+                    is_lora=is_lora, 
+                    unet_lora_parameters=unet_lora_parameters,
+                    unet_param_to_optimize_names=unet_param_to_optimize_names,
+                    name=name
+                )
                 last_save_step = global_step
 
                 if debug:
@@ -756,7 +772,23 @@ def main(
         plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
     if not os.path.exists(output_save_dir):
-        save_lora(output_save_dir, global_step, unet, embedding_handler, token_dict, args_dict, seed, is_lora, unet_lora_parameters, unet_param_to_optimize_names)
+        os.makedirs(output_save_dir, exist_ok=True)
+        config.save_as_json(
+            os.path.join(output_save_dir, "training_args.json")
+        )
+        save_lora(
+            output_dir=output_save_dir, 
+            global_step=global_step, 
+            unet=unet, 
+            embedding_handler=embedding_handler, 
+            token_dict=token_dict, 
+            seed=seed, 
+            is_lora=is_lora, 
+            unet_lora_parameters=unet_lora_parameters,
+            unet_param_to_optimize_names=unet_param_to_optimize_names,
+            name=name
+        )
+        
         validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
@@ -772,9 +804,9 @@ def main(
     gc.collect()
     torch.cuda.empty_cache()
 
-    with open(f"{output_save_dir}/training_args.json", "w") as f:
-        args_dict["grid_prompts"] = validation_prompts
-        json.dump(args_dict, f, indent=4)
+    config.save_as_json(
+            os.path.join(output_save_dir, "training_args.json")
+        )
 
     return output_save_dir, validation_prompts
 
