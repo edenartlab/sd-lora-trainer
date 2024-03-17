@@ -23,7 +23,7 @@ from dataset_and_utils import *
 from lora_utils import *
 from io_utils import make_validation_img_grid
 import matplotlib.pyplot as plt
-
+from trainer.utils.dtype import dtype_map
 
 def print_trainable_parameters(model, name = ''):
     trainable_params = 0
@@ -313,11 +313,7 @@ def main(
     print("Using seed", seed)
     torch.manual_seed(seed)
 
-    weight_dtype = torch.float32
-    if mixed_precision == "fp16":
-        weight_dtype = torch.float16
-    elif mixed_precision == "bf16":
-        weight_dtype = torch.bfloat16
+    weight_dtype = dtype_map[mixed_precision]
 
     print(f"Loading models with weight_dtype: {weight_dtype}")
 
