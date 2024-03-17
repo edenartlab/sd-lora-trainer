@@ -283,7 +283,6 @@ def main(
     gradient_accumulation_steps: int = 1,  # todo
     unet_learning_rate: float = 1.0,
     ti_lr: float = 3e-4,
-    lora_lr: float = 1.0,
     prodigy_d_coef: float = 0.33,
     l1_penalty: float = 0.0,
     lora_weight_decay: float = 0.005,
