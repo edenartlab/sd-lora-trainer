@@ -310,16 +310,16 @@ def main(
     if allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
 
-    print("Using seed", seed)
-    torch.manual_seed(seed)
+    print("Using seed", config.seed)
+    torch.manual_seed(config.seed)
 
     weight_dtype = dtype_map[mixed_precision]
 
     print(f"Loading models with weight_dtype: {weight_dtype}")
 
     if scale_lr:
-        unet_learning_rate = (
-            unet_learning_rate * gradient_accumulation_steps * train_batch_size
+        config.unet_learning_rate = (
+            config.unet_learning_rate * config.gradient_accumulation_steps * config.train_batch_size
         )
 
     (   
@@ -340,7 +340,7 @@ def main(
     
     #starting_toks = ["person", "face"]
     starting_toks = None
-    embedding_handler.initialize_new_tokens(inserting_toks=inserting_list_tokens, starting_toks=starting_toks, seed=seed)
+    embedding_handler.initialize_new_tokens(inserting_toks=inserting_list_tokens, starting_toks=starting_toks, seed=config.seed)
     text_encoders = [text_encoder_one, text_encoder_two]
 
     unet_param_to_optimize = []
