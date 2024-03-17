@@ -630,8 +630,6 @@ def main(
             # Get the unet prediction target depending on the prediction type:
             if noise_scheduler.config.prediction_type == "epsilon":
                 target = noise
-            elif noise_scheduler.config.prediction_type == "v_prediction":
-                target = noise_scheduler.get_velocity(model_input, noise, timesteps)
             else:
                 raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
