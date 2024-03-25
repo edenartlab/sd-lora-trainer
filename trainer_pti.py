@@ -295,11 +295,6 @@ def main(
     token_dict: dict = {"TOKEN": "<s0>"},
     inserting_list_tokens: List[str] = ["<s0>"],
     verbose: bool = True,
-    is_lora: bool = True,
-    lora_rank: int = 8,
-    debug: bool = False,
-    hard_pivot: bool = True,
-    off_ratio_power: float = 0.1,
     config = None
 ) -> None:
     if config.allow_tf32:
@@ -352,7 +347,7 @@ def main(
     unet_param_to_optimize_names = []
     unet_lora_parameters = []
 
-    if not is_lora:
+    if not config.is_lora:
         WHITELIST_PATTERNS = [
             # "*.attn*.weight",
             # "*ff*.weight",
@@ -394,8 +389,8 @@ def main(
         unet.requires_grad_(False)
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
         unet_lora_config = LoraConfig(
-            r=lora_rank,
-            lora_alpha=lora_rank,
+            r=config.lora_rank,
+            lora_alpha=config.lora_rank,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
             #use_rslora=True,
@@ -531,7 +526,7 @@ def main(
         for step, batch in enumerate(train_dataloader):
             progress_bar.update(1)
 
-            if hard_pivot:
+            if config.hard_pivot:
                 if epoch >= num_train_epochs // 2:
                     if optimizer is not None:
                         print("----------------------")
@@ -692,7 +687,7 @@ def main(
 
                 # after every optimizer step, we reset the non-trainable embeddings to the original embeddings
                 embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
-                embedding_handler.fix_embedding_std(off_ratio_power)
+                embedding_handler.fix_embedding_std(config.off_ratio_power)
             
             # Track the learning rates for final plotting:
             lora_lrs.append(get_avg_lr(optimizer_prod))
@@ -715,14 +710,14 @@ def main(
                     embedding_handler=embedding_handler, 
                     token_dict=token_dict, 
                     seed=config.seed, 
-                    is_lora=is_lora, 
+                    is_lora=config.is_lora, 
                     unet_lora_parameters=unet_lora_parameters,
                     unet_param_to_optimize_names=unet_param_to_optimize_names,
                     name=name
                 )
                 last_save_step = global_step
 
-                if debug:
+                if config.debug:
                     token_embeddings = embedding_handler.get_trainable_embeddings()
                     for i, token_embeddings_i in enumerate(token_embeddings):
                         plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
@@ -732,7 +727,7 @@ def main(
                     plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, is_lora, pretrained_model, n_imgs = 4)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4)
                     gc.collect()
                     torch.cuda.empty_cache()
             
@@ -753,7 +748,7 @@ def main(
     else:
         output_save_dir = f"{checkpoint_dir}/checkpoint-{last_save_step}"
 
-    if debug:
+    if config.debug:
         plot_loss(losses, save_path=f'{output_dir}/losses.png')
         plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
         plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
@@ -771,13 +766,13 @@ def main(
             embedding_handler=embedding_handler, 
             token_dict=token_dict, 
             seed=config.seed, 
-            is_lora=is_lora, 
+            is_lora=config.is_lora, 
             unet_lora_parameters=unet_lora_parameters,
             unet_param_to_optimize_names=unet_param_to_optimize_names,
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

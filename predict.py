@@ -383,11 +383,6 @@ class Predictor(BasePredictor):
             checkpointing_steps=checkpointing_steps,
             scale_lr=False,
             device="cuda:0",
-            lora_rank=lora_rank,
-            is_lora=is_lora,
-            debug=debug,
-            hard_pivot=hard_pivot,
-            off_ratio_power=off_ratio_power,
             config=config
         )
 
