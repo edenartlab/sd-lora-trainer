@@ -48,6 +48,7 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     mixed_precision: Literal["fp16", "bf16", "fp32"] = "bf16"
     instance_data_dir: str
     inserting_list_tokens: List[str] = ["<s0>"]
+    token_dict: dict = {"TOKEN": "<s0>"}
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:

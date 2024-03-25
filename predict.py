@@ -358,6 +358,7 @@ class Predictor(BasePredictor):
             mixed_precision="bf16",
             instance_data_dir=os.path.join(input_dir, "captions.csv"),
             inserting_list_tokens=inserting_list_tokens,
+            token_dict=token_dict,
             training_captions=captions[:50]
         )
 
@@ -378,7 +379,6 @@ class Predictor(BasePredictor):
             ti_weight_decay=ti_weight_decay,
             snr_gamma=snr_gamma,
             lora_weight_decay=lora_weight_decay,
-            token_dict=token_dict,
             checkpointing_steps=checkpointing_steps,
             scale_lr=False,
             device="cuda:0",

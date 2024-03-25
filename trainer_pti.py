@@ -292,7 +292,6 @@ def main(
     snr_gamma: float = 5.0,
     dataloader_num_workers: int = 0,
     device: str = "cuda:0",
-    token_dict: dict = {"TOKEN": "<s0>"},
     config = None
 ) -> None:
     if config.allow_tf32:
@@ -454,7 +453,7 @@ def main(
         tokenizer_two,
         vae,
         do_cache=True,
-        substitute_caption_map=token_dict,
+        substitute_caption_map=config.token_dict,
     )
 
     print(f"# PTI : Loaded dataset, do_cache: {do_cache}")
@@ -706,7 +705,7 @@ def main(
                     global_step=global_step, 
                     unet=unet, 
                     embedding_handler=embedding_handler, 
-                    token_dict=token_dict, 
+                    token_dict=config.token_dict, 
                     seed=config.seed, 
                     is_lora=config.is_lora, 
                     unet_lora_parameters=unet_lora_parameters,
@@ -762,7 +761,7 @@ def main(
             global_step=global_step, 
             unet=unet, 
             embedding_handler=embedding_handler, 
-            token_dict=token_dict, 
+            token_dict=config.token_dict, 
             seed=config.seed, 
             is_lora=config.is_lora, 
             unet_lora_parameters=unet_lora_parameters,
