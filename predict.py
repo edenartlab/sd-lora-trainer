@@ -384,9 +384,6 @@ class Predictor(BasePredictor):
             verbose=verbose,
             checkpointing_steps=checkpointing_steps,
             scale_lr=False,
-            allow_tf32=True,
-            mixed_precision="bf16",
-            #mixed_precision="fp16", # this 100% breaks training... Figure out why!!?
             device="cuda:0",
             lora_rank=lora_rank,
             is_lora=is_lora,
