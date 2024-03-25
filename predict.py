@@ -226,7 +226,7 @@ class Predictor(BasePredictor):
         # hardcoded for now:
         token_list = [f"TOK:{n_tokens}"]
 
-        all_token_lists, token_dict = obtain_inserting_list_tokens(token_list=token_list)
+        inserting_list_tokens, token_dict = obtain_inserting_list_tokens(token_list=token_list)
 
 
         if XANDER_EXPERIMENT:
@@ -357,6 +357,7 @@ class Predictor(BasePredictor):
             allow_tf32 = True,
             mixed_precision="bf16",
             instance_data_dir=os.path.join(input_dir, "captions.csv"),
+            inserting_list_tokens=inserting_list_tokens,
             training_captions=captions[:50]
         )
 
@@ -378,8 +379,6 @@ class Predictor(BasePredictor):
             snr_gamma=snr_gamma,
             lora_weight_decay=lora_weight_decay,
             token_dict=token_dict,
-            inserting_list_tokens=all_token_lists,
-            verbose=verbose,
             checkpointing_steps=checkpointing_steps,
             scale_lr=False,
             device="cuda:0",

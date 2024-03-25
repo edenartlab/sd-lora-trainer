@@ -193,7 +193,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
 from val_prompts import val_prompts
 @torch.no_grad()
-def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0"):
+def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
 
     random.seed(seed)
 
@@ -237,7 +237,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
         training_scheduler = pipeline.scheduler
     
     pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
-    validation_prompts = [prepare_prompt_for_lora(prompt, lora_path) for prompt in validation_prompts_raw]
+    validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=verbose) for prompt in validation_prompts_raw]
     generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 
@@ -293,8 +293,6 @@ def main(
     dataloader_num_workers: int = 0,
     device: str = "cuda:0",
     token_dict: dict = {"TOKEN": "<s0>"},
-    inserting_list_tokens: List[str] = ["<s0>"],
-    verbose: bool = True,
     config = None
 ) -> None:
     if config.allow_tf32:
@@ -330,7 +328,7 @@ def main(
     
     #starting_toks = ["person", "face"]
     starting_toks = None
-    embedding_handler.initialize_new_tokens(inserting_toks=inserting_list_tokens, starting_toks=starting_toks, seed=config.seed)
+    embedding_handler.initialize_new_tokens(inserting_toks=config.inserting_list_tokens, starting_toks=starting_toks, seed=config.seed)
     text_encoders = [text_encoder_one, text_encoder_two]
 
     unet_param_to_optimize = []
@@ -489,7 +487,7 @@ def main(
 
     total_batch_size = train_batch_size * config.gradient_accumulation_steps
 
-    if verbose:
+    if config.verbose:
         print(f"# PTI :  Running training ")
         print(f"# PTI :  Num examples = {len(train_dataset)}")
         print(f"# PTI :  Num batches each epoch = {len(train_dataloader)}")
@@ -727,7 +725,7 @@ def main(
                     plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4, verbose=config.verbose)
                     gc.collect()
                     torch.cuda.empty_cache()
             
@@ -772,7 +770,7 @@ def main(
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4, n_steps = 35, verbose=config.verbose)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
