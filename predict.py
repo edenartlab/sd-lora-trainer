@@ -356,6 +356,7 @@ class Predictor(BasePredictor):
             segmentation_prompt=segmentation_prompt,
             allow_tf32 = True,
             mixed_precision="bf16",
+            instance_data_dir=os.path.join(input_dir, "captions.csv"),
             training_captions=captions[:50]
         )
 
@@ -365,14 +366,11 @@ class Predictor(BasePredictor):
 
         train_generator = main(
             pretrained_model,
-            instance_data_dir=os.path.join(input_dir, "captions.csv"),
             output_dir=output_dir,
-            seed=seed,
             resolution=resolution,
             train_batch_size=train_batch_size,
             num_train_epochs=num_train_epochs,
             max_train_steps=max_train_steps,
-            gradient_accumulation_steps=gradient_accumulation_steps,
             l1_penalty=l1_penalty,
             prodigy_d_coef=prodigy_d_coef,
             ti_lr=ti_lr,

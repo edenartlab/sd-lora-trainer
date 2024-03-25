@@ -269,9 +269,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
 
 def main(
     pretrained_model,
-    instance_data_dir: Optional[str] = "./dataset/zeke/captions.csv",
     output_dir: str = "lora_output",
-    seed: Optional[int] = random.randint(0, 2**32 - 1),
     resolution: int = 768,
     crops_coords_top_left_h: int = 0,
     crops_coords_top_left_w: int = 0,
@@ -280,7 +278,6 @@ def main(
     num_train_epochs: int = 10000,
     max_train_steps: Optional[int] = None,
     checkpointing_steps: int = 500000,  # default to no checkpoints
-    gradient_accumulation_steps: int = 1,  # todo
     unet_learning_rate: float = 1.0,
     ti_lr: float = 3e-4,
     prodigy_d_coef: float = 0.33,
@@ -294,8 +291,6 @@ def main(
     lr_power: float = 1.0,
     snr_gamma: float = 5.0,
     dataloader_num_workers: int = 0,
-    allow_tf32: bool = True,
-    mixed_precision: Optional[str] = "bf16",
     device: str = "cuda:0",
     token_dict: dict = {"TOKEN": "<s0>"},
     inserting_list_tokens: List[str] = ["<s0>"],
@@ -461,7 +456,7 @@ def main(
         )
         
     train_dataset = PreprocessedDataset(
-        instance_data_dir,
+        config.instance_data_dir,
         tokenizer_one,
         tokenizer_two,
         vae,
@@ -478,7 +473,7 @@ def main(
     )
 
     num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / gradient_accumulation_steps
+        len(train_dataloader) / config.gradient_accumulation_steps
     )
     if max_train_steps is None:
         max_train_steps = num_train_epochs * num_update_steps_per_epoch
@@ -486,18 +481,18 @@ def main(
     lr_scheduler = get_scheduler(
         lr_scheduler,
         optimizer=optimizer,
-        num_warmup_steps=lr_warmup_steps * gradient_accumulation_steps,
-        num_training_steps=max_train_steps * gradient_accumulation_steps,
+        num_warmup_steps=lr_warmup_steps * config.gradient_accumulation_steps,
+        num_training_steps=max_train_steps * config.gradient_accumulation_steps,
         num_cycles=lr_num_cycles,
         power=lr_power,
     )
 
     num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / gradient_accumulation_steps
+        len(train_dataloader) / config.gradient_accumulation_steps
     )
     num_train_epochs = math.ceil(max_train_steps / num_update_steps_per_epoch)
 
-    total_batch_size = train_batch_size * gradient_accumulation_steps
+    total_batch_size = train_batch_size * config.gradient_accumulation_steps
 
     if verbose:
         print(f"# PTI :  Running training ")
@@ -508,7 +503,7 @@ def main(
         print(
             f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
         )
-        print(f"# PTI :  Gradient Accumulation steps = {gradient_accumulation_steps}")
+        print(f"# PTI :  Gradient Accumulation steps = {config.gradient_accumulation_steps}")
         print(f"# PTI :  Total optimization steps = {max_train_steps}")
 
     global_step = 0
@@ -678,7 +673,7 @@ def main(
 
             losses.append(loss.item())
 
-            loss = loss / gradient_accumulation_steps
+            loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
             '''
@@ -687,7 +682,7 @@ def main(
             this is to make sure that we're not missing out on any data 
             '''
             last_batch = (step + 1 == len(train_dataloader))
-            if (step + 1) % gradient_accumulation_steps == 0 or last_batch:
+            if (step + 1) % config.gradient_accumulation_steps == 0 or last_batch:
                 if optimizer is not None:
                     optimizer.step()
                     optimizer.zero_grad()
@@ -719,7 +714,7 @@ def main(
                     unet=unet, 
                     embedding_handler=embedding_handler, 
                     token_dict=token_dict, 
-                    seed=seed, 
+                    seed=config.seed, 
                     is_lora=is_lora, 
                     unet_lora_parameters=unet_lora_parameters,
                     unet_param_to_optimize_names=unet_param_to_optimize_names,
@@ -737,7 +732,7 @@ def main(
                     plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, is_lora, pretrained_model, n_imgs = 4)
                     gc.collect()
                     torch.cuda.empty_cache()
             
@@ -775,14 +770,14 @@ def main(
             unet=unet, 
             embedding_handler=embedding_handler, 
             token_dict=token_dict, 
-            seed=seed, 
+            seed=config.seed, 
             is_lora=is_lora, 
             unet_lora_parameters=unet_lora_parameters,
             unet_param_to_optimize_names=unet_param_to_optimize_names,
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, is_lora, pretrained_model, n_imgs = 4, n_steps = 35)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
