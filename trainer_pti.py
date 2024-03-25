@@ -307,13 +307,13 @@ def main(
     off_ratio_power: float = 0.1,
     config = None
 ) -> None:
-    if allow_tf32:
+    if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
 
     print("Using seed", config.seed)
     torch.manual_seed(config.seed)
 
-    weight_dtype = dtype_map[mixed_precision]
+    weight_dtype = dtype_map[config.mixed_precision]
 
     print(f"Loading models with weight_dtype: {weight_dtype}")
 

@@ -354,6 +354,8 @@ class Predictor(BasePredictor):
             num_training_images=n_imgs, 
             trigger_text=trigger_text,  
             segmentation_prompt=segmentation_prompt,
+            allow_tf32 = True,
+            mixed_precision="bf16",
             training_captions=captions[:50]
         )
 

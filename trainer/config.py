@@ -44,6 +44,8 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     trigger_text: str
     segmentation_prompt: str
     training_captions: List[str]
+    allow_tf32: bool = True
+    mixed_precision: Literal["fp16", "bf16", "fp32"] = "bf16"
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
