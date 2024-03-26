@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Dict
 from pydantic import BaseModel
 import random
 import json
@@ -6,6 +6,7 @@ from typing import Literal
 import torch
 
 class TrainingConfig(BaseModel, extra = "forbid"):
+    pretrained_model: Dict[str, str]
     name: str = "unnamed"
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
@@ -49,6 +50,7 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     instance_data_dir: str
     inserting_list_tokens: List[str] = ["<s0>"]
     token_dict: dict = {"TOKEN": "<s0>"}
+    device: str = "cuda:0"
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:

@@ -317,7 +317,8 @@ class Predictor(BasePredictor):
             yield CogOutput(name=name, progress=0.05)  
 
         config = TrainingConfig(
-            name=name, 
+            name=name,
+            pretrained_model=pretrained_model,
             lora_training_urls=lora_training_urls,
             concept_mode=concept_mode,
             sd_model_version=sd_model_version,
@@ -359,6 +360,7 @@ class Predictor(BasePredictor):
             instance_data_dir=os.path.join(input_dir, "captions.csv"),
             inserting_list_tokens=inserting_list_tokens,
             token_dict=token_dict,
+            device="cuda:0",
             training_captions=captions[:50]
         )
 
@@ -367,7 +369,6 @@ class Predictor(BasePredictor):
         )
 
         train_generator = main(
-            pretrained_model,
             output_dir=output_dir,
             resolution=resolution,
             train_batch_size=train_batch_size,
@@ -381,7 +382,6 @@ class Predictor(BasePredictor):
             lora_weight_decay=lora_weight_decay,
             checkpointing_steps=checkpointing_steps,
             scale_lr=False,
-            device="cuda:0",
             config=config
         )
 

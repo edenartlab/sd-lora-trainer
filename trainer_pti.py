@@ -266,9 +266,10 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
 
     return validation_prompts_raw
 
+from trainer.config import TrainingConfig
 
 def main(
-    pretrained_model,
+    config: TrainingConfig,
     output_dir: str = "lora_output",
     resolution: int = 768,
     crops_coords_top_left_h: int = 0,
@@ -291,8 +292,6 @@ def main(
     lr_power: float = 1.0,
     snr_gamma: float = 5.0,
     dataloader_num_workers: int = 0,
-    device: str = "cuda:0",
-    config = None
 ) -> None:
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -318,7 +317,7 @@ def main(
         text_encoder_two,
         vae,
         unet,
-    ) = load_models(pretrained_model, device, weight_dtype)
+    ) = load_models(config.pretrained_model, config.device, weight_dtype)
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
@@ -578,7 +577,7 @@ def main(
             crops_coords_top_left = (crops_coords_top_left_h, crops_coords_top_left_w)
             add_time_ids = list(original_size + crops_coords_top_left + target_size)
             add_time_ids = torch.tensor([add_time_ids])
-            add_time_ids = add_time_ids.to(device, dtype=prompt_embeds.dtype).repeat(
+            add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
                 bs_embed, 1
             )
 
@@ -724,7 +723,7 @@ def main(
                     plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4, verbose=config.verbose)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose)
                     gc.collect()
                     torch.cuda.empty_cache()
             
@@ -769,7 +768,7 @@ def main(
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, pretrained_model, n_imgs = 4, n_steps = 35, verbose=config.verbose)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, n_steps = 35, verbose=config.verbose)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
