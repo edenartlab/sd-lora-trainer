@@ -363,6 +363,9 @@ class Predictor(BasePredictor):
             device="cuda:0",
             output_dir=output_dir,
             scale_lr=False,
+            crops_coords_top_left_h = 0,
+            crops_coords_top_left_w = 0,
+            do_cache = True,
             training_captions=captions[:50]
         )
 

@@ -270,9 +270,6 @@ from trainer.config import TrainingConfig
 
 def main(
     config: TrainingConfig,
-    crops_coords_top_left_h: int = 0,
-    crops_coords_top_left_w: int = 0,
-    do_cache: bool = True,
     unet_learning_rate: float = 1.0,
     lr_scheduler: str = "constant",
     lr_warmup_steps: int = 50,
@@ -438,11 +435,11 @@ def main(
         tokenizer_one,
         tokenizer_two,
         vae,
-        do_cache=True,
+        do_cache=config.do_cache,
         substitute_caption_map=config.token_dict,
     )
 
-    print(f"# PTI : Loaded dataset, do_cache: {do_cache}")
+    print(f"# PTI : Loaded dataset, do_cache: {config.do_cache}")
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=config.train_batch_size,
@@ -561,7 +558,7 @@ def main(
             # Create Spatial-dimensional conditions.
             original_size = (config.resolution, config.resolution)
             target_size   = (config.resolution, config.resolution)
-            crops_coords_top_left = (crops_coords_top_left_h, crops_coords_top_left_w)
+            crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
             add_time_ids = list(original_size + crops_coords_top_left + target_size)
             add_time_ids = torch.tensor([add_time_ids])
             add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(

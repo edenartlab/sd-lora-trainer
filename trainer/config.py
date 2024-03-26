@@ -53,6 +53,9 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     token_dict: dict = {"TOKEN": "<s0>"}
     device: str = "cuda:0"
     scale_lr: bool
+    crops_coords_top_left_h: int = 0
+    crops_coords_top_left_w: int = 0
+    do_cache: bool = True
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
