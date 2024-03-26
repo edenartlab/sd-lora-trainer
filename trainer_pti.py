@@ -270,8 +270,6 @@ from trainer.config import TrainingConfig
 
 def main(
     config: TrainingConfig,
-    unet_learning_rate: float = 1.0,
-    lr_scheduler: str = "constant",
     lr_warmup_steps: int = 50,
     lr_num_cycles: int = 1,
     lr_power: float = 1.0,
@@ -358,7 +356,7 @@ def main(
         params_to_optimize_prodigy = [
             {
                 "params": unet_param_to_optimize,
-                "lr": unet_learning_rate,
+                "lr": config.unet_learning_rate,
                 "weight_decay": config.lora_weight_decay,
             },
         ]
@@ -454,7 +452,7 @@ def main(
         config.max_train_steps = config.num_train_epochs * num_update_steps_per_epoch
 
     lr_scheduler = get_scheduler(
-        lr_scheduler,
+        config.lr_scheduler,
         optimizer=optimizer,
         num_warmup_steps=lr_warmup_steps * config.gradient_accumulation_steps,
         num_training_steps=config.max_train_steps * config.gradient_accumulation_steps,

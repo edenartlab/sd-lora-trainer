@@ -56,6 +56,8 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     crops_coords_top_left_h: int = 0
     crops_coords_top_left_w: int = 0
     do_cache: bool = True
+    unet_learning_rate: float = 1.0
+    lr_scheduler: str = "constant"
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:

@@ -366,6 +366,8 @@ class Predictor(BasePredictor):
             crops_coords_top_left_h = 0,
             crops_coords_top_left_w = 0,
             do_cache = True,
+            unet_learning_rate = 1.0,
+            lr_scheduler = "constant",
             training_captions=captions[:50]
         )
 
