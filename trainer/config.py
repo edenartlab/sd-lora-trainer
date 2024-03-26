@@ -6,6 +6,7 @@ from typing import Literal
 import torch
 
 class TrainingConfig(BaseModel, extra = "forbid"):
+    output_dir: str
     pretrained_model: Dict[str, str]
     name: str = "unnamed"
     lora_training_urls: str
@@ -51,6 +52,7 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     inserting_list_tokens: List[str] = ["<s0>"]
     token_dict: dict = {"TOKEN": "<s0>"}
     device: str = "cuda:0"
+    scale_lr: bool
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:

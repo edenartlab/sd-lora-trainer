@@ -361,6 +361,8 @@ class Predictor(BasePredictor):
             inserting_list_tokens=inserting_list_tokens,
             token_dict=token_dict,
             device="cuda:0",
+            output_dir=output_dir,
+            scale_lr=False,
             training_captions=captions[:50]
         )
 
@@ -369,19 +371,6 @@ class Predictor(BasePredictor):
         )
 
         train_generator = main(
-            output_dir=output_dir,
-            resolution=resolution,
-            train_batch_size=train_batch_size,
-            num_train_epochs=num_train_epochs,
-            max_train_steps=max_train_steps,
-            l1_penalty=l1_penalty,
-            prodigy_d_coef=prodigy_d_coef,
-            ti_lr=ti_lr,
-            ti_weight_decay=ti_weight_decay,
-            snr_gamma=snr_gamma,
-            lora_weight_decay=lora_weight_decay,
-            checkpointing_steps=checkpointing_steps,
-            scale_lr=False,
             config=config
         )
 

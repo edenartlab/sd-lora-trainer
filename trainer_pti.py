@@ -270,27 +270,14 @@ from trainer.config import TrainingConfig
 
 def main(
     config: TrainingConfig,
-    output_dir: str = "lora_output",
-    resolution: int = 768,
     crops_coords_top_left_h: int = 0,
     crops_coords_top_left_w: int = 0,
-    train_batch_size: int = 1,
     do_cache: bool = True,
-    num_train_epochs: int = 10000,
-    max_train_steps: Optional[int] = None,
-    checkpointing_steps: int = 500000,  # default to no checkpoints
     unet_learning_rate: float = 1.0,
-    ti_lr: float = 3e-4,
-    prodigy_d_coef: float = 0.33,
-    l1_penalty: float = 0.0,
-    lora_weight_decay: float = 0.005,
-    ti_weight_decay: float = 0.001,
-    scale_lr: bool = False,
     lr_scheduler: str = "constant",
     lr_warmup_steps: int = 50,
     lr_num_cycles: int = 1,
     lr_power: float = 1.0,
-    snr_gamma: float = 5.0,
     dataloader_num_workers: int = 0,
 ) -> None:
     if config.allow_tf32:
@@ -303,7 +290,7 @@ def main(
 
     print(f"Loading models with weight_dtype: {weight_dtype}")
 
-    if scale_lr:
+    if config.scale_lr:
         config.unet_learning_rate = (
             config.unet_learning_rate * config.gradient_accumulation_steps * config.train_batch_size
         )
@@ -366,8 +353,8 @@ def main(
         params_to_optimize = [
             {
                 "params": text_encoder_parameters,
-                "lr": ti_lr,
-                "weight_decay": ti_weight_decay,
+                "lr": config.ti_lr,
+                "weight_decay": config.ti_weight_decay,
             },
         ]
 
@@ -375,7 +362,7 @@ def main(
             {
                 "params": unet_param_to_optimize,
                 "lr": unet_learning_rate,
-                "weight_decay": lora_weight_decay,
+                "weight_decay": config.lora_weight_decay,
             },
         ]
 
@@ -402,8 +389,8 @@ def main(
         params_to_optimize = [
             {
                 "params": text_encoder_parameters,
-                "lr": ti_lr,
-                "weight_decay": ti_weight_decay,
+                "lr": config.ti_lr,
+                "weight_decay": config.ti_weight_decay,
             },
         ]
 
@@ -411,7 +398,7 @@ def main(
             {
                 "params": unet_lora_parameters,
                 "lr": 1.0,
-                "weight_decay": lora_weight_decay,
+                "weight_decay": config.lora_weight_decay,
             },
         ]
     
@@ -431,19 +418,19 @@ def main(
         # Note: the specific settings of Prodigy seem to matter A LOT
         optimizer_prod = prodigyopt.Prodigy(
                         params_to_optimize_prodigy,
-                        d_coef = prodigy_d_coef,
+                        d_coef = config.prodigy_d_coef,
                         lr=1.0,
                         decouple=True,
                         use_bias_correction=True,
                         safeguard_warmup=True,
-                        weight_decay=lora_weight_decay,
+                        weight_decay=config.lora_weight_decay,
                         betas=(0.9, 0.99),
                         growth_rate=1.025,  # this slows down the lr_rampup
                     )
         
         optimizer = torch.optim.AdamW(
             params_to_optimize,
-            weight_decay=ti_weight_decay,
+            weight_decay=config.ti_weight_decay,
         )
         
     train_dataset = PreprocessedDataset(
@@ -458,7 +445,7 @@ def main(
     print(f"# PTI : Loaded dataset, do_cache: {do_cache}")
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=train_batch_size,
+        batch_size=config.train_batch_size,
         shuffle=True,
         num_workers=dataloader_num_workers,
     )
@@ -466,14 +453,14 @@ def main(
     num_update_steps_per_epoch = math.ceil(
         len(train_dataloader) / config.gradient_accumulation_steps
     )
-    if max_train_steps is None:
-        max_train_steps = num_train_epochs * num_update_steps_per_epoch
+    if config.max_train_steps is None:
+        config.max_train_steps = config.num_train_epochs * num_update_steps_per_epoch
 
     lr_scheduler = get_scheduler(
         lr_scheduler,
         optimizer=optimizer,
         num_warmup_steps=lr_warmup_steps * config.gradient_accumulation_steps,
-        num_training_steps=max_train_steps * config.gradient_accumulation_steps,
+        num_training_steps=config.max_train_steps * config.gradient_accumulation_steps,
         num_cycles=lr_num_cycles,
         power=lr_power,
     )
@@ -481,28 +468,28 @@ def main(
     num_update_steps_per_epoch = math.ceil(
         len(train_dataloader) / config.gradient_accumulation_steps
     )
-    num_train_epochs = math.ceil(max_train_steps / num_update_steps_per_epoch)
+    config.num_train_epochs = math.ceil(config.max_train_steps / num_update_steps_per_epoch)
 
-    total_batch_size = train_batch_size * config.gradient_accumulation_steps
+    total_batch_size = config.train_batch_size * config.gradient_accumulation_steps
 
     if config.verbose:
         print(f"# PTI :  Running training ")
         print(f"# PTI :  Num examples = {len(train_dataset)}")
         print(f"# PTI :  Num batches each epoch = {len(train_dataloader)}")
-        print(f"# PTI :  Num Epochs = {num_train_epochs}")
-        print(f"# PTI :  Instantaneous batch size per device = {train_batch_size}")
+        print(f"# PTI :  Num Epochs = {config.num_train_epochs}")
+        print(f"# PTI :  Instantaneous batch size per device = {config.train_batch_size}")
         print(
             f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
         )
         print(f"# PTI :  Gradient Accumulation steps = {config.gradient_accumulation_steps}")
-        print(f"# PTI :  Total optimization steps = {max_train_steps}")
+        print(f"# PTI :  Total optimization steps = {config.max_train_steps}")
 
     global_step = 0
     first_epoch = 0
     last_save_step = 0
 
-    progress_bar = tqdm(range(global_step, max_train_steps), position=0, leave=True)
-    checkpoint_dir = os.path.join(str(output_dir), "checkpoints")
+    progress_bar = tqdm(range(global_step, config.max_train_steps), position=0, leave=True)
+    checkpoint_dir = os.path.join(str(config.output_dir), "checkpoints")
     if os.path.exists(checkpoint_dir):
         shutil.rmtree(checkpoint_dir)
     
@@ -515,7 +502,7 @@ def main(
     losses = []
     start_time, images_done = time.time(), 0
 
-    for epoch in range(first_epoch, num_train_epochs):
+    for epoch in range(first_epoch, config.num_train_epochs):
         unet.train()
         progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
 
@@ -523,7 +510,7 @@ def main(
             progress_bar.update(1)
 
             if config.hard_pivot:
-                if epoch >= num_train_epochs // 2:
+                if epoch >= config.num_train_epochs // 2:
                     if optimizer is not None:
                         print("----------------------")
                         print("# PTI :  Pivot halfway")
@@ -538,9 +525,9 @@ def main(
 
             else: # Update learning rates gradually:
                 finegrained_epoch = epoch + step / len(train_dataloader)
-                completion_f = finegrained_epoch / num_train_epochs
+                completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
-                optimizer.param_groups[0]['lr'] = ti_lr * (1 - completion_f) ** 2.0
+                optimizer.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
             
             try: #sdxl
@@ -572,8 +559,8 @@ def main(
             pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
             # Create Spatial-dimensional conditions.
-            original_size = (resolution, resolution)
-            target_size   = (resolution, resolution)
+            original_size = (config.resolution, config.resolution)
+            target_size   = (config.resolution, config.resolution)
             crops_coords_top_left = (crops_coords_top_left_h, crops_coords_top_left_w)
             add_time_ids = list(original_size + crops_coords_top_left + target_size)
             add_time_ids = torch.tensor([add_time_ids])
@@ -620,7 +607,7 @@ def main(
                 raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
             # Compute the loss:
-            if snr_gamma is None:
+            if config.snr_gamma is None:
                 loss = (model_pred - target).pow(2) * mask
 
                 # modulate loss by the inverse of the mask's mean value
@@ -637,7 +624,7 @@ def main(
                 # This is discussed in Section 4.2 of the same paper.
                 snr = compute_snr(noise_scheduler, timesteps)
                 base_weight = (
-                    torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
+                    torch.stack([snr, config.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
                 )
                 if noise_scheduler.config.prediction_type == "v_prediction":
                     # Velocity objective needs to be floored to an SNR weight of one.
@@ -657,10 +644,10 @@ def main(
 
                 loss = loss.mean()
 
-            if l1_penalty > 0.0:
+            if config.l1_penalty > 0.0:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
-                loss += l1_penalty * l1_norm
+                loss +=  config.l1_penalty * l1_norm
 
             losses.append(loss.item())
 
@@ -693,7 +680,7 @@ def main(
                 ti_lrs.append(0.0)
 
             # Print some statistics:
-            if (global_step % checkpointing_steps == 0):
+            if (global_step % config.checkpointing_steps == 0):
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -716,25 +703,25 @@ def main(
                 if config.debug:
                     token_embeddings = embedding_handler.get_trainable_embeddings()
                     for i, token_embeddings_i in enumerate(token_embeddings):
-                        plot_torch_hist(token_embeddings_i[0], global_step, output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
-                        plot_torch_hist(token_embeddings_i[1], global_step, output_dir, f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
+                        plot_torch_hist(token_embeddings_i[0], global_step, config.output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
+                        plot_torch_hist(token_embeddings_i[1], global_step, config.output_dir, f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
                     
                     embedding_handler.print_token_info()
-                    plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
-                    plot_loss(losses, save_path=f'{output_dir}/losses.png')
-                    plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
+                    plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
+                    plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+                    plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                     validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose)
                     gc.collect()
                     torch.cuda.empty_cache()
             
-            images_done += train_batch_size
+            images_done += config.train_batch_size
             global_step += 1
 
             if global_step % 100 == 0:
                 print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
 
-            if global_step % (max_train_steps//20) == 0:
-                progress = (global_step / max_train_steps) + 0.05
+            if global_step % (config.max_train_steps//20) == 0:
+                progress = (global_step / config.max_train_steps) + 0.05
                 yield np.min((progress, 1.0))
 
 
@@ -745,10 +732,10 @@ def main(
         output_save_dir = f"{checkpoint_dir}/checkpoint-{last_save_step}"
 
     if config.debug:
-        plot_loss(losses, save_path=f'{output_dir}/losses.png')
-        plot_lrs(lora_lrs, ti_lrs, save_path=f'{output_dir}/learning_rates.png')
-        plot_torch_hist(unet_lora_parameters, global_step, output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
-        plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
+        plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+        plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
+        plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
+        plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, config.output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)
