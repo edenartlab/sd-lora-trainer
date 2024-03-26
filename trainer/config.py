@@ -1,9 +1,7 @@
 from typing import Union, List, Dict
 from pydantic import BaseModel
-import random
 import json
 from typing import Literal
-import torch
 
 class TrainingConfig(BaseModel, extra = "forbid"):
     output_dir: str
@@ -66,3 +64,9 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
             json.dump(self.dict(), f, indent=4)
+
+    @classmethod
+    def from_json(cls, file_path: str):
+        with open(file_path, 'r') as f:
+            config_data = json.load(f)
+        return cls(**config_data)
