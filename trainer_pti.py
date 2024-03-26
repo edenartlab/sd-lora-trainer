@@ -270,11 +270,7 @@ from trainer.config import TrainingConfig
 
 def main(
     config: TrainingConfig,
-    lr_warmup_steps: int = 50,
-    lr_num_cycles: int = 1,
-    lr_power: float = 1.0,
-    dataloader_num_workers: int = 0,
-) -> None:
+):
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
 
@@ -442,7 +438,7 @@ def main(
         train_dataset,
         batch_size=config.train_batch_size,
         shuffle=True,
-        num_workers=dataloader_num_workers,
+        num_workers=config.dataloader_num_workers,
     )
 
     num_update_steps_per_epoch = math.ceil(
@@ -454,10 +450,10 @@ def main(
     lr_scheduler = get_scheduler(
         config.lr_scheduler,
         optimizer=optimizer,
-        num_warmup_steps=lr_warmup_steps * config.gradient_accumulation_steps,
+        num_warmup_steps=config.lr_warmup_steps * config.gradient_accumulation_steps,
         num_training_steps=config.max_train_steps * config.gradient_accumulation_steps,
-        num_cycles=lr_num_cycles,
-        power=lr_power,
+        num_cycles=config.lr_num_cycles,
+        power=config.lr_power,
     )
 
     num_update_steps_per_epoch = math.ceil(

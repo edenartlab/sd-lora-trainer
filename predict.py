@@ -368,6 +368,10 @@ class Predictor(BasePredictor):
             do_cache = True,
             unet_learning_rate = 1.0,
             lr_scheduler = "constant",
+            lr_warmup_steps = 50,
+            lr_num_cycles = 1,
+            lr_power = 1.0,
+            dataloader_num_workers = 0,
             training_captions=captions[:50]
         )
 

@@ -58,6 +58,10 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     do_cache: bool = True
     unet_learning_rate: float = 1.0
     lr_scheduler: str = "constant"
+    lr_warmup_steps: int = 50
+    lr_num_cycles: int = 1
+    lr_power: float = 1.0
+    dataloader_num_workers: int = 0
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
