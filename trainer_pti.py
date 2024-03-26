@@ -2,17 +2,14 @@ import fnmatch
 import json
 import math
 import os
-import sys
 import random
 import time
 import shutil
 import gc
 import numpy as np
-from typing import List, Optional
-
+import argparse
 import torch
 import torch.utils.checkpoint
-import torch.nn.functional as F
 
 from peft import LoraConfig, get_peft_model
 from diffusers.optimization import get_scheduler
@@ -22,7 +19,6 @@ from tqdm import tqdm
 from dataset_and_utils import *
 from lora_utils import *
 from io_utils import make_validation_img_grid
-import matplotlib.pyplot as plt
 from trainer.utils.dtype import dtype_map
 
 def print_trainable_parameters(model, name = ''):
@@ -769,4 +765,15 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description='Train a concept')
+    parser.add_argument("-c", '--config-filename', type=str, help='Input string to be processed')
+    args = parser.parse_args()
+
+    config = TrainingConfig.from_json(
+        file_path=args.config_filename
+    )
+    for progress in main(config=config):
+        print(f"Progress: {progress}")
+
+    print("Done :)")
