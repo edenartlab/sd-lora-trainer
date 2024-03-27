@@ -3,7 +3,7 @@ import torch
 from safetensors.torch import load_file
 from typing import Dict
 from peft import PeftModel
-from dataset_and_utils import TokenEmbeddingsHandler
+from ..dataset_and_utils import TokenEmbeddingsHandler
 from safetensors.torch import save_file
 
 '''
