@@ -64,15 +64,21 @@ def main(
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
-        [text_encoder_one, text_encoder_two], [tokenizer_one, tokenizer_two]
+        text_encoders = [text_encoder_one, text_encoder_two], 
+        tokenizers = [tokenizer_one, tokenizer_two]
     )
-    
-    #starting_toks = ["person", "face"]
-    starting_toks = None
-    embedding_handler.initialize_new_tokens(inserting_toks=config.inserting_list_tokens, starting_toks=starting_toks, seed=config.seed)
+
+    '''
+    initialize 2 new tokens in the embeddings with random initialization
+    '''
+    embedding_handler.initialize_new_tokens(
+        inserting_toks=config.inserting_list_tokens, 
+        # starting_toks = ["person", "face"],
+        starting_toks=None, 
+        seed=config.seed
+    )
     text_encoders = [text_encoder_one, text_encoder_two]
 
-    unet_param_to_optimize = []
     text_encoder_parameters = []
     for text_encoder in text_encoders:
         if text_encoder is not  None:
@@ -83,10 +89,8 @@ def main(
                 else:
                     param.requires_grad = False
 
-    unet_param_to_optimize_names = []
-    unet_lora_parameters = []
-
     if not config.is_lora:
+        unet_param_to_optimize_names = []
         WHITELIST_PATTERNS = [
             # "*.attn*.weight",
             # "*ff*.weight",
@@ -116,7 +120,7 @@ def main(
 
         params_to_optimize_prodigy = [
             {
-                "params": unet_param_to_optimize,
+                "params": [],
                 "lr": config.unet_learning_rate,
                 "weight_decay": config.lora_weight_decay,
             },
@@ -264,7 +268,6 @@ def main(
 
         for step, batch in enumerate(train_dataloader):
             progress_bar.update(1)
-
             if config.hard_pivot:
                 if epoch >= config.num_train_epochs // 2:
                     if optimizer is not None:

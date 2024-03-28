@@ -336,14 +336,16 @@ class TokenEmbeddingsHandler:
         self.inserting_toks: Optional[List[str]] = None
         self.embeddings_settings = {}
 
-    
     def get_trainable_embeddings(self):
         
         trainable_embeddings = []
         for idx, text_encoder in enumerate(self.text_encoders):
             if text_encoder is None:
                 continue
-            trainable_embeddings.append(text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids])
+            
+            trainable_embeddings.append(
+                text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids]
+            )
 
         return trainable_embeddings
 
@@ -482,12 +484,11 @@ class TokenEmbeddingsHandler:
         inserting_toks: List[str],
         starting_toks:  Optional[List[str]] = None,
         seed: int = 0,
-        ):
+    ):
 
-        print("Initializing new tokens...")
-        print(inserting_toks)
+        print(f"Initializing new tokens: {inserting_toks}")
+
         torch.manual_seed(seed)
-
         idx = 0
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if tokenizer is None:
