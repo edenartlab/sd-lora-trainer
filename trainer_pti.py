@@ -1,8 +1,6 @@
 import fnmatch
-import json
 import math
 import os
-import random
 import time
 import shutil
 import gc
@@ -10,23 +8,19 @@ import numpy as np
 import argparse
 import torch
 import torch.utils.checkpoint
-import re
 
 from peft import LoraConfig, get_peft_model
 from diffusers.optimization import get_scheduler
-from diffusers import EulerDiscreteScheduler
 from tqdm import tqdm
 
 from trainer.dataset_and_utils import *
 from trainer.utils.lora import *
-from trainer.val_prompts import val_prompts
 
 from trainer.utils.dtype import dtype_map
 from trainer.config import TrainingConfig
 from trainer.utils.model_info import print_trainable_parameters
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
-from trainer.utils.prompt import prepare_prompt_for_lora
 from trainer.utils.inference import render_images
 
 
