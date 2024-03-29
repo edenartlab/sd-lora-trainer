@@ -36,7 +36,7 @@ from transformers import (
     Swin2SRImageProcessor,
 )
 
-from io_utils import download_and_prep_training_data
+from trainer.utils.io import download_and_prep_training_data
 
 import re
 import openai
