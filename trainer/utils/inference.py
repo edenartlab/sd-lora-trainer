@@ -11,7 +11,7 @@ from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
 
 @torch.no_grad()
-def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
+def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, trigger_text: str, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
 
     random.seed(seed)
 
@@ -55,7 +55,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
         training_scheduler = pipeline.scheduler
     
     pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
-    validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=verbose) for prompt in validation_prompts_raw]
+    validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=verbose, trigger_text=trigger_text) for prompt in validation_prompts_raw]
     generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 

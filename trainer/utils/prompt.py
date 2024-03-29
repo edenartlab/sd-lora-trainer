@@ -14,7 +14,7 @@ def replace_in_string(s, replacements):
             break
     return s
 
-def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
+def prepare_prompt_for_lora(prompt, lora_path, trigger_text: str, interpolation=False, verbose=True):
     if "_no_token" in lora_path:
         return prompt
         
@@ -35,10 +35,10 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
     try:
         lora_name = str(training_args["name"])
     except: # fallback for old loras that dont have the name field:
-        return training_args["trigger_text"] + ", " + prompt
+        return trigger_text + ", " + prompt
 
     lora_name_encapsulated = "<" + lora_name + ">"
-    trigger_text = training_args["trigger_text"]
+    trigger_text = trigger_text
 
     try:
         mode = training_args["concept_mode"]
