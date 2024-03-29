@@ -31,11 +31,29 @@ from trainer.utils.model_info import print_trainable_parameters
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images
+from preprocess import preprocess
 
 
 def main(
     config: TrainingConfig,
 ):
+    input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
+        working_directory=config.output_dir,
+        concept_mode=config.concept_mode,
+        input_zip_path=config.lora_training_urls,
+        caption_text=config.caption_prefix,
+        mask_target_prompts=config.mask_target_prompts,
+        target_size=config.resolution,
+        crop_based_on_salience=config.crop_based_on_salience,
+        use_face_detection_instead=config.use_face_detection_instead,
+        temp=config.clipseg_temperature,
+        left_right_flip_augmentation=config.left_right_flip_augmentation,
+        augment_imgs_up_to_n = config.augment_imgs_up_to_n,
+        seed = config.seed,
+    )
+
+    instance_data_dir=os.path.join(input_dir, "captions.csv")
+
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
 
@@ -195,7 +213,7 @@ def main(
         )
         
     train_dataset = PreprocessedDataset(
-        config.instance_data_dir,
+        instance_data_dir,
         tokenizer_one,
         tokenizer_two,
         vae,
@@ -422,6 +440,12 @@ def main(
             last_batch = (step + 1 == len(train_dataloader))
             if (step + 1) % config.gradient_accumulation_steps == 0 or last_batch:
                 if optimizer is not None:
+
+                    for embedding_tensor in text_encoder_parameters:
+                        embedding_tensor.grad.data[
+                            :-len(config.inserting_list_tokens), 
+                            :
+                        ] *= 0.
                     optimizer.step()
                     optimizer.zero_grad()
                 
@@ -470,7 +494,7 @@ def main(
                     plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose, trigger_text=trigger_text)
                     gc.collect()
                     torch.cuda.empty_cache()
             
@@ -515,7 +539,7 @@ def main(
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, n_steps = 35, verbose=config.verbose)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, n_steps = 35, verbose=config.verbose, trigger_text=trigger_text)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
