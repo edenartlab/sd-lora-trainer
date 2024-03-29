@@ -15,10 +15,34 @@ SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/j
 SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
 SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
 
+SDXL_TURBO_MODEL_CACHE = "./models/SDXL_turbo.safetensors"
+SDXL_TURBO_URL         = "https://huggingface.co/stabilityai/sdxl-turbo/resolve/main/sd_xl_turbo_1.0_fp16.safetensors?download=true"
+
+SDXL_LIGHTNING_MODEL_CACHE = "./models/SDXL_lightning.safetensors"
+SDXL_LIGHTNING_URL         = "https://huggingface.co/ByteDance/SDXL-Lightning/resolve/main/sdxl_lightning_8step.safetensors?download=true"
+
 # Define model paths and URLs in a dictionary
 MODEL_DICT = {
-    "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL, "version": "sdxl"},
-    "sd15": {"path": SD15_MODEL_CACHE, "url": SD15_URL, "version": "sd15"}
+    "sdxl": {
+        "path": SDXL_MODEL_CACHE, 
+        "url": SDXL_URL, 
+        "version": "sdxl"
+        },
+    "sd15": {
+        "path": SD15_MODEL_CACHE, 
+        "url": SD15_URL, 
+        "version": "sd15"
+        },
+    "sdxl_turbo": {
+        "path": SDXL_TURBO_MODEL_CACHE, 
+        "url": SDXL_TURBO_URL, 
+        "version": "sdxl_turbo"
+        },
+    "sdxl_lightning": {
+        "path": SDXL_LIGHTNING_MODEL_CACHE, 
+        "url": SDXL_LIGHTNING_URL, 
+        "version": "sdxl_lightning"
+        }
 }
 
 def download_weights(url, dest):

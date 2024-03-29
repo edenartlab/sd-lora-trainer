@@ -153,14 +153,20 @@ class Trainer:
             # Do lora-training instead.
             unet.requires_grad_(False)
             # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
+
+            use_dora = True
+             
             unet_lora_config = LoraConfig(
                 r=args.lora_rank,
                 lora_alpha=args.lora_alpha,
                 init_lora_weights="gaussian",
                 target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-                use_dora=True,
+                use_dora=use_dora,
             )
-            #unet.add_adapter(unet_lora_config)
+
+            if use_dora:
+                print(f"Disabling L1 penalty for DORA training")
+                args.l1_penalty = 0.0
             
             unet = get_peft_model(unet, unet_lora_config)
             print_trainable_parameters(unet, name = 'unet')
@@ -172,22 +178,17 @@ class Trainer:
                 if param.requires_grad:
                     print(name, param.shape)
 
-            params_to_optimize = [
-                {
+            params_to_optimize = [{
                     "params": text_encoder_parameters,
                     "lr": args.textual_inversion_lr,
                     "weight_decay": args.textual_inversion_weight_decay,
-                },
-            ]
+                }]
 
-            params_to_optimize_prodigy = [
-                {
+            params_to_optimize_prodigy = [{
                     "params": unet_lora_parameters,
                     "lr": 1.0,
                     "weight_decay": args.lora_weight_decay,
-                },
-            ]
-        
+                }]
 
         if args.optimizer_name == "adamw":
             optimizer = torch.optim.AdamW(
@@ -207,8 +208,8 @@ class Trainer:
                             safeguard_warmup=True,
                             weight_decay=args.lora_weight_decay,
                             betas=(0.9, 0.99),
-                            #growth_rate=1.025,  # this slows down the lr_rampup
-                            growth_rate=1.1,  # this slows down the lr_rampup
+                            growth_rate=1.025,  # this slows down the lr_rampup
+                            #growth_rate=1.05,  # this slows down the lr_rampup
                         )
             
             optimizer = torch.optim.AdamW(
