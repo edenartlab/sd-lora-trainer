@@ -280,7 +280,6 @@ class Predictor(BasePredictor):
                 seed = seed,
             )
             
-
             # Merge the two preprocessing steps:
             n_imgs = n_imgs1 + n_imgs2
             captions = captions1 + captions2

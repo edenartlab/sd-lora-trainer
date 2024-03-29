@@ -167,7 +167,7 @@ def main(
         unet = get_peft_model(unet, unet_lora_config)
         pipe.unet = unet
         print_trainable_parameters(unet, name = 'unet')
-        
+
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
 
         params_to_optimize = [
@@ -435,6 +435,7 @@ def main(
 
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
+            pipe.unet = unet
 
             '''
             apart from the usual gradient accumulation steps,

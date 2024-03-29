@@ -15,7 +15,7 @@ class TrainingConfig(BaseModel):
     train_batch_size: int = 4
     num_train_epochs: int = 10000
     max_train_steps: int = 600
-    checkpointing_steps: int
+    checkpointing_steps: int = 10000
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     prodigy_d_coef: float = 0.5

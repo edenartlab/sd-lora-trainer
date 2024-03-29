@@ -66,8 +66,7 @@ def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
     # plt.yscale('log')  # Uncomment if log scale is desired
     plt.xlabel('Step')
     plt.ylabel('Training Loss')
-    ymin, ymax = plt.ylim()
-    plt.ylim(min(ymin, 0), ymax)
+    plt.ylim(0, np.max(smoothed_losses)*1.4)
     plt.legend()
     plt.savefig(save_path)
     plt.close()

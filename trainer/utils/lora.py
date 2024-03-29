@@ -21,6 +21,17 @@ def patch_pipe_with_lora(pipe, lora_path):
 
     pipe.unet = PeftModel.from_pretrained(pipe.unet, lora_path)
     pipe.unet.merge_adapter()
+
+    #pipe.load_lora_weights(lora_path, adapter_name = "my_adapter", weight_name="adapter_model.safetensors")
+    #scales = {...}
+    #pipe.set_adapters("my_adapter", scales)
+    #pipe.set_adapters("my_adapter")
+    #pipe.set_adapters(["my_adapter"], adapter_weights=[1.0])
+
+    active_adapters = pipe.get_active_adapters()
+    print(f"active_adapters: {active_adapters}")
+    list_adapters_component_wise = pipe.get_list_adapters()
+    print(f"list_adapters_component_wise: {list_adapters_component_wise}")
     
     # Load the textual_inversion token embeddings into the pipeline:
     try: #SDXL
