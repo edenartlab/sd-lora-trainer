@@ -3,17 +3,17 @@ from pydantic import BaseModel
 import json
 from typing import Literal
 
-class TrainingConfig(BaseModel, extra = "forbid"):
+class TrainingConfig(BaseModel):
     output_dir: str
-    pretrained_model: Dict[str, str]
     name: str = "unnamed"
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
     sd_model_version: Literal["sdxl", "sd15"]
+    pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 960
     train_batch_size: int = 4
-    num_train_epochs: int = 10_000
+    num_train_epochs: int = 10000
     max_train_steps: int = 600
     checkpointing_steps: int
     gradient_accumulation_steps: int = 1
@@ -23,15 +23,15 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     ti_weight_decay: float = 3e-4
     lora_weight_decay: float = 0.002
     l1_penalty: float = 0.1
-    lora_param_scaler: float = 0.5
     snr_gamma: float = 5.0
     lora_rank: int = 12
+    use_dora: bool = False
     caption_prefix: str = ""
     caption_model: Literal["gpt4-v", "blip"] = "blip"
     left_right_flip_augmentation: bool = True
     augment_imgs_up_to_n: int = 20
     n_tokens: int = 2
-    mask_target_prompts: Union[None, str]
+    mask_target_prompts: Union[None, str] = None
     crop_based_on_salience: bool = True
     use_face_detection_instead: bool = False
     clipseg_temperature: float = 0.7
@@ -45,7 +45,7 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     inserting_list_tokens: List[str] = ["<s0>"]
     token_dict: dict = {"TOKEN": "<s0>"}
     device: str = "cuda:0"
-    scale_lr: bool
+    scale_lr: bool = False
     crops_coords_top_left_h: int = 0
     crops_coords_top_left_w: int = 0
     do_cache: bool = True
@@ -64,4 +64,9 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     def from_json(cls, file_path: str):
         with open(file_path, 'r') as f:
             config_data = json.load(f)
+
+        # Parse the model:
+        from trainer.models import pretrained_models
+        config_data["pretrained_model"] = pretrained_models[config_data["sd_model_version"]]
+
         return cls(**config_data)

@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
 
-def plot_torch_hist(parameters, epoch, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
+def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
     # Flatten and concatenate all parameters into a single tensor
     all_params = torch.cat([p.data.view(-1) for p in parameters])
 
@@ -35,8 +35,8 @@ def plot_torch_hist(parameters, epoch, checkpoint_dir, name, bins=100, min_val=-
     plt.xlim(min_val, max_val)
     plt.xlabel('Weight Value')
     plt.ylabel('Count')
-    plt.title(f'Epoch {epoch} {name} Histogram (std = {np.std(all_params_cpu):.4f})')
-    plt.savefig(f"{checkpoint_dir}/{name}_histogram_{epoch:04d}.png")
+    plt.title(f'Step {step:03d} {name} Histogram (std = {np.std(all_params_cpu):.5f})')
+    plt.savefig(f"{checkpoint_dir}/{name}_histogram_{step:04d}.png")
     plt.close()
 
 # plot the learning rates:

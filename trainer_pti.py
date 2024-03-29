@@ -156,7 +156,7 @@ def main(
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
             #use_rslora=True,
-            use_dora=True,
+            use_dora=config.use_dora,
         )
         #unet.add_adapter(unet_lora_config)
         
@@ -422,7 +422,7 @@ def main(
 
                 loss = loss.mean()
 
-            if config.l1_penalty > 0.0:
+            if config.l1_penalty > 0.0 and not config.use_dora:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss +=  config.l1_penalty * l1_norm
@@ -440,7 +440,8 @@ def main(
             last_batch = (step + 1 == len(train_dataloader))
             if (step + 1) % config.gradient_accumulation_steps == 0 or last_batch:
                 if optimizer is not None:
-
+                    
+                    # zero out the gradients of the non-trained text-encoder embeddings
                     for embedding_tensor in text_encoder_parameters:
                         embedding_tensor.grad.data[
                             :-len(config.inserting_list_tokens), 
