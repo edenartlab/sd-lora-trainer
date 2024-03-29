@@ -80,6 +80,6 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
     img_grid_path = make_validation_img_grid(lora_path)
 
     if not reload_entire_pipeline: # restore the training scheduler
-        pipeline.scheduler = training_scheduler
+        training_pipeline.scheduler = training_scheduler
 
     return validation_prompts_raw

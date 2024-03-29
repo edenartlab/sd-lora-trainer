@@ -12,3 +12,5 @@ tests/
 train.py
 debug/*
 !debug/*.py
+
+training_args_x_*.json

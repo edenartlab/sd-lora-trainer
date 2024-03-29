@@ -23,6 +23,7 @@ class TrainingConfig(BaseModel):
     ti_weight_decay: float = 3e-4
     lora_weight_decay: float = 0.002
     l1_penalty: float = 0.1
+    noise_offset: float = 0.05
     snr_gamma: float = 5.0
     lora_rank: int = 12
     use_dora: bool = False
@@ -55,6 +56,7 @@ class TrainingConfig(BaseModel):
     lr_num_cycles: int = 1
     lr_power: float = 1.0
     dataloader_num_workers: int = 0
+    training_attributes: dict = {}
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:

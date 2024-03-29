@@ -52,7 +52,11 @@ def main(
         seed = config.seed,
     )
 
-    instance_data_dir=os.path.join(input_dir, "captions.csv")
+    # Update the training attributes with some info from the pre-processing:
+    config.training_attributes["n_training_imgs"] = n_imgs
+    config.training_attributes["trigger_text"] = trigger_text
+    config.training_attributes["segmentation_prompt"] = segmentation_prompt
+    config.training_attributes["captions"] = captions
 
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -161,8 +165,9 @@ def main(
         #unet.add_adapter(unet_lora_config)
         
         unet = get_peft_model(unet, unet_lora_config)
+        pipe.unet = unet
         print_trainable_parameters(unet, name = 'unet')
-
+        
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
 
         params_to_optimize = [
@@ -213,7 +218,7 @@ def main(
         )
         
     train_dataset = PreprocessedDataset(
-        instance_data_dir,
+        os.path.join(input_dir, "captions.csv"),
         tokenizer_one,
         tokenizer_two,
         vae,
@@ -349,10 +354,9 @@ def main(
             # Sample noise that we'll add to the latents:
             noise = torch.randn_like(vae_latent)
 
-            noise_offset = 0.05 # TODO, turn this into an input arg and do a grid search
-            if noise_offset > 0.0:
+            if config.noise_offset > 0.0:
                 # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-                noise += noise_offset * torch.randn(
+                noise += config.noise_offset * torch.randn(
                     (noise.shape[0], noise.shape[1], 1, 1), device=noise.device)
 
             bsz = vae_latent.shape[0]
