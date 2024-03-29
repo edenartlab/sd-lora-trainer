@@ -89,8 +89,9 @@ def main(
                 else:
                     param.requires_grad = False
 
+    unet_param_to_optimize_names = []
     if not config.is_lora:
-        unet_param_to_optimize_names = []
+        
         WHITELIST_PATTERNS = [
             # "*.attn*.weight",
             # "*ff*.weight",
