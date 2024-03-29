@@ -21,7 +21,7 @@ Code / Cleanup:
 - ~~turn all/most of the args of the main() function in trainer_pti.py and the preprocess() function into a clean args_dict that makes it easy to add and distribute new parameters over the code and save these args to a .json file at the end.~~
 - Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops (in progress)
 - ~~make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)~~
-- make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later
+- ~~make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later~~
 - test if the trained concepts with peft are compatible with ComfyUI / AUTO1111
 
 Algo:
