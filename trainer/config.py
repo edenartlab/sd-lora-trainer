@@ -40,13 +40,8 @@ class TrainingConfig(BaseModel, extra = "forbid"):
     debug: bool = False
     hard_pivot: bool = False
     off_ratio_power: float = False
-    num_training_images: int
-    trigger_text: str
-    segmentation_prompt: str
-    training_captions: List[str]
     allow_tf32: bool = True
     mixed_precision: Literal["fp16", "bf16", "fp32"] = "bf16"
-    instance_data_dir: str
     inserting_list_tokens: List[str] = ["<s0>"]
     token_dict: dict = {"TOKEN": "<s0>"}
     device: str = "cuda:0"
