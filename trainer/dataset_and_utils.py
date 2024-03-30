@@ -53,6 +53,26 @@ def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
     plt.savefig(save_path)
     plt.close()
 
+# plot the learning rates:
+def plot_grad_norms(grad_norms, save_path='grad_norms.png'):
+    plt.figure()
+    plt.plot(range(len(grad_norms['unet'])), grad_norms['unet'], label='unet')
+
+    for i in range(2):
+        try:
+            plt.plot(range(len(grad_norms[f'text_encoder_{i}'])), grad_norms[f'text_encoder_{i}'], label=f'text_encoder_{i}')
+        except:
+            pass
+
+    plt.yscale('log')  # Set y-axis to log scale
+    plt.ylim(1e-4, 1.0)
+    plt.xlabel('Step')
+    plt.ylabel('Grad Norm')
+    plt.title('Gradient Norms')
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
+
 from scipy.signal import savgol_filter
 def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
     if len(losses) < window_length:

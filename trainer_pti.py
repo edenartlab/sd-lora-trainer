@@ -6,6 +6,7 @@ import shutil
 import gc
 import numpy as np
 import argparse
+import itertools
 import torch
 import torch.utils.checkpoint
 
@@ -16,6 +17,7 @@ from tqdm import tqdm
 from trainer.dataset_and_utils import (
     PreprocessedDataset, 
     plot_torch_hist, 
+    plot_grad_norms,
     plot_loss, 
     plot_lrs,
     load_models
@@ -32,6 +34,38 @@ from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images
 from preprocess import preprocess
+
+
+
+from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
+from torch import Tensor, inf
+from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
+
+def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonfinite = False):
+    if isinstance(parameters, torch.Tensor):
+        parameters = [parameters]
+    grads = [p.grad for p in parameters if p.grad is not None]
+    norm_type = float(norm_type)
+    if len(grads) == 0:
+        return torch.tensor(0.)
+    first_device = grads[0].device
+    grouped_grads: Dict[Tuple[torch.device, torch.dtype], List[List[Tensor]]] \
+        = _group_tensors_by_device_and_dtype([[g.detach() for g in grads]])  # type: ignore[assignment]
+
+    norms = []
+    for ((device, _), ([grads], _)) in grouped_grads.items():  # type: ignore[assignment]
+        if (foreach is None or foreach) and _has_foreach_support(grads, device=device):
+            norms.extend(torch._foreach_norm(grads, norm_type))
+        elif foreach:
+            raise RuntimeError(f'foreach=True was passed, but can\'t use the foreach API on {device.type} tensors')
+        else:
+            norms.extend([torch.linalg.vector_norm(g, norm_type) for g in grads])
+
+    total_norm = torch.linalg.vector_norm(torch.stack([norm.to(first_device) for norm in norms]), norm_type)
+
+    return total_norm
+
+
 
 
 def main(
@@ -280,6 +314,11 @@ def main(
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
     
     ti_lrs, lora_lrs = [], []
+    grad_norms = {}
+    grad_norms['unet'] = [] 
+    for i in range(len(text_encoders)):
+        grad_norms[f'text_encoder_{i}'] = []
+
     losses = []
     start_time, images_done = time.time(), 0
 
@@ -445,7 +484,6 @@ def main(
 
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
-            pipe.unet = unet
 
             '''
             apart from the usual gradient accumulation steps,
@@ -462,6 +500,22 @@ def main(
                             :-len(config.inserting_list_tokens), 
                             :
                         ] *= 0.
+
+                    if config.debug:
+                        # Track the average gradient norms:
+                        grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
+                        for i, text_encoder in enumerate(text_encoders):
+                            if text_encoder is not None:
+                                text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
+                                grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
+                    
+                    # Clip the gradients to stabilize training:
+                    clip_grad_norm = 0.1
+                    torch.nn.utils.clip_grad_norm_(itertools.chain(unet.parameters()), clip_grad_norm)
+                    for text_encoder in text_encoders:
+                        if text_encoder is not None:
+                            torch.nn.utils.clip_grad_norm_(itertools.chain(text_encoder.parameters()), clip_grad_norm)
+
                     optimizer.step()
                     optimizer.zero_grad()
                 
@@ -478,6 +532,14 @@ def main(
                 ti_lrs.append(optimizer.param_groups[0]['lr'])
             except:
                 ti_lrs.append(0.0)
+            
+            # This prob isnt needed:
+            pipe.unet = unet
+            pipe.text_encoder_one = text_encoders[0]
+            try:
+                pipe.text_encoder_two = text_encoders[1]
+            except:
+                pass
 
             # Print some statistics:
             if (global_step % config.checkpointing_steps == 0):
@@ -509,6 +571,7 @@ def main(
                     embedding_handler.print_token_info()
                     plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+                    plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                     validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose, trigger_text=trigger_text)
                     grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
