@@ -142,6 +142,11 @@ def main(
                 else:
                     param.requires_grad = False
 
+
+
+
+
+
     unet_param_to_optimize_names = []
     if not config.is_lora:
         
@@ -181,7 +186,6 @@ def main(
         ]
 
     else:
-        
         # Do lora-training instead.
         unet.requires_grad_(False)
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
@@ -194,10 +198,21 @@ def main(
             use_dora=config.use_dora,
         )
         #unet.add_adapter(unet_lora_config)
-        
         unet = get_peft_model(unet, unet_lora_config)
+
         pipe.unet = unet
         print_trainable_parameters(unet, name = 'unet')
+        
+        # Make sure the trainable params are in float32.
+        if 0:
+            models = [unet]
+            #for text_encoder in text_encoders:
+            #    if text_encoder is not None:
+            #        models.extend([text_encoder])
+            for model in models:
+                for param in model.parameters():
+                    if param.requires_grad:
+                        param.data = param.to(torch.float32)
 
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
 
@@ -284,20 +299,17 @@ def main(
         len(train_dataloader) / config.gradient_accumulation_steps
     )
     config.num_train_epochs = math.ceil(config.max_train_steps / num_update_steps_per_epoch)
-
     total_batch_size = config.train_batch_size * config.gradient_accumulation_steps
 
     if config.verbose:
-        print(f"# PTI :  Running training ")
-        print(f"# PTI :  Num examples = {len(train_dataset)}")
-        print(f"# PTI :  Num batches each epoch = {len(train_dataloader)}")
-        print(f"# PTI :  Num Epochs = {config.num_train_epochs}")
-        print(f"# PTI :  Instantaneous batch size per device = {config.train_batch_size}")
-        print(
-            f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
-        )
-        print(f"# PTI :  Gradient Accumulation steps = {config.gradient_accumulation_steps}")
-        print(f"# PTI :  Total optimization steps = {config.max_train_steps}")
+        print(f"--- Running training ")
+        print(f"--- Num examples = {len(train_dataset)}")
+        print(f"--- Num batches each epoch = {len(train_dataloader)}")
+        print(f"--- Num Epochs = {config.num_train_epochs}")
+        print(f"--- Instantaneous batch size per device = {config.train_batch_size}")
+        print(f"--- Total batch_size (w. parallel, distributed & accumulation) = {total_batch_size}")
+        print(f"--- Gradient Accumulation steps = {config.gradient_accumulation_steps}")
+        print(f"--- Total optimization steps = {config.max_train_steps}")
 
     global_step = 0
     first_epoch = 0
@@ -323,15 +335,7 @@ def main(
     start_time, images_done = time.time(), 0
 
     for epoch in range(first_epoch, config.num_train_epochs):
-        unet.train()
         progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
-
-        unet.train()
-        for text_encoder in text_encoders:
-            try:
-                text_encoder.train()
-            except:
-                pass
 
         for step, batch in enumerate(train_dataloader):
             progress_bar.update(1)
@@ -616,7 +620,7 @@ def main(
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, n_steps = 35, verbose=config.verbose, trigger_text=trigger_text)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

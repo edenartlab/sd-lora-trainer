@@ -15,6 +15,7 @@
     "ti_weight_decay": 0.0003,
     "lora_weight_decay": 0.00,
     "l1_penalty": 0.0,
+    "off_ratio_power": 0.1,
     "snr_gamma": 5.0,
     "lora_rank": 12,
     "use_dora": true,
@@ -25,7 +26,6 @@
     "verbose": true,
     "debug": true,
     "hard_pivot": false,
-    "off_ratio_power": 0.1,
     "mixed_precision": "bf16",
     "n_tokens": 2,
     "inserting_list_tokens": [

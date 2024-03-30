@@ -12,8 +12,8 @@ from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
 
 @torch.no_grad()
-def render_images(training_pipeline, render_size, lora_path, train_step, seed, is_lora, pretrained_model, trigger_text: str, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
-
+def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretrained_model, trigger_text: str, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
+    training_scheduler = pipe.scheduler
     random.seed(seed)
 
     with open(os.path.join(lora_path, "training_args.json"), "r") as f:
@@ -37,7 +37,7 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
         gc.collect()
         torch.cuda.empty_cache()
 
-        (pipeline,
+        (pipe,
             tokenizer_one,
             tokenizer_two,
             noise_scheduler,
@@ -46,15 +46,12 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
             vae,
             unet) = load_models(pretrained_model, device, torch.float16)
 
-        pipeline = pipeline.to(device)
-        pipeline = patch_pipe_with_lora(pipeline, lora_path)
-
+        pipe = pipe.to(device)
+        pipe = patch_pipe_with_lora(pipe, lora_path)
     else:
         print(f"Re-using training pipeline for inference, just swapping the scheduler..")
-        pipeline = training_pipeline
-        training_scheduler = pipeline.scheduler
-    
-    pipeline.scheduler = EulerDiscreteScheduler.from_config(pipeline.scheduler.config)
+        
+    #pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config)
     validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=verbose, trigger_text=trigger_text) for prompt in validation_prompts_raw]
     generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
@@ -73,15 +70,12 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
     for i in range(n_imgs):
         pipeline_args["prompt"] = validation_prompts[i]
         print(f"Rendering validation img with prompt: {validation_prompts[i]}")
-        image = pipeline(**pipeline_args, generator=generator, cross_attention_kwargs = cross_attention_kwargs).images[0]
+        image = pipe(**pipeline_args, generator=generator, cross_attention_kwargs = cross_attention_kwargs).images[0]
         image.save(os.path.join(lora_path, f"img_{train_step:04d}_{i}.jpg"), format="JPEG", quality=95)
 
-    # create img_grid:
     img_grid_path = make_validation_img_grid(lora_path)
-
-    if not reload_entire_pipeline: # restore the training scheduler
-        training_pipeline.scheduler = training_scheduler
-
+    pipe.scheduler = training_scheduler
+    
     # Copy the grid image to the parent directory for easier comparison:
     grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
     shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))
