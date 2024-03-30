@@ -1,6 +1,7 @@
 import torch
 import os
 import random
+import shutil
 import json
 import gc
 from diffusers import EulerDiscreteScheduler
@@ -80,5 +81,9 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
 
     if not reload_entire_pipeline: # restore the training scheduler
         training_pipeline.scheduler = training_scheduler
+
+    # Copy the grid image to the parent directory for easier comparison:
+    grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
+    shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))
 
     return validation_prompts_raw

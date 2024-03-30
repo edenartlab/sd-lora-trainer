@@ -481,7 +481,6 @@ def main(
                 loss +=  config.l1_penalty * l1_norm
 
             losses.append(loss.item())
-
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
@@ -510,7 +509,7 @@ def main(
                                 grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
                     
                     # Clip the gradients to stabilize training:
-                    clip_grad_norm = 0.1
+                    clip_grad_norm = 0.5
                     torch.nn.utils.clip_grad_norm_(itertools.chain(unet.parameters()), clip_grad_norm)
                     for text_encoder in text_encoders:
                         if text_encoder is not None:
@@ -574,8 +573,6 @@ def main(
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                     validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose, trigger_text=trigger_text)
-                    grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
-                    shutil.copy(grid_img_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
                     
                     gc.collect()
                     torch.cuda.empty_cache()
