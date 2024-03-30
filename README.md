@@ -43,6 +43,7 @@ and here: https://github.com/huggingface/diffusers/tree/main/examples/advanced_d
 
 Bigger improvements:
 - Add multi-token training
+- pre-optimize token embeddings using CLIP-similarity (cfr aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
 - implement perfusion: https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
 - make compatible with ziplora: https://ziplora.github.io/

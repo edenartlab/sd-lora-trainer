@@ -8,7 +8,7 @@ import gc
 import PIL
 import torch
 import torch.utils.checkpoint
-from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel, StableDiffusionPipeline, StableDiffusionXLPipeline
+from diffusers import AutoencoderKL, DDPMScheduler, EulerDiscreteScheduler, UNet2DConditionModel, StableDiffusionPipeline, StableDiffusionXLPipeline
 from PIL import Image
 from safetensors import safe_open
 from safetensors.torch import save_file
@@ -306,8 +306,8 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
             pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
 
     pipe = pipe.to(device, dtype=weight_dtype)
-    
     noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
+
     vae = pipe.vae
     unet = pipe.unet
     tokenizer_one = pipe.tokenizer
