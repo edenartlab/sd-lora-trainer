@@ -411,7 +411,7 @@ def main(
                 device=vae_latent.device,
             ).long()
 
-            noisy_model_input = noise_scheduler.add_noise(vae_latent, noise, timesteps)
+            noisy_latent = noise_scheduler.add_noise(vae_latent, noise, timesteps)
 
             noise_sigma = 0.0
             if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
@@ -419,7 +419,7 @@ def main(
 
             # Predict the noise residual
             model_pred = unet(
-                noisy_model_input,
+                noisy_latent,
                 timesteps,
                 prompt_embeds,
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
@@ -430,7 +430,7 @@ def main(
                 target = noise
             elif noise_scheduler.config.prediction_type == "v_prediction":
                 print(f"Using velocity prediction!")
-                target = noise_scheduler.get_velocity(noisy_model_input, noise, timesteps)
+                target = noise_scheduler.get_velocity(noisy_latent, noise, timesteps)
             else:
                 raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
@@ -564,8 +564,8 @@ def main(
                 if config.debug:
                     token_embeddings = embedding_handler.get_trainable_embeddings()
                     for i, token_embeddings_i in enumerate(token_embeddings):
-                        plot_torch_hist(token_embeddings_i[0], global_step, config.output_dir, f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
-                        plot_torch_hist(token_embeddings_i[1], global_step, config.output_dir, f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
+                        plot_torch_hist(token_embeddings_i[0], global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
+                        plot_torch_hist(token_embeddings_i[1], global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
                     
                     embedding_handler.print_token_info()
                     plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
@@ -597,7 +597,6 @@ def main(
         plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
         plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
         plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
-        plot_torch_hist(embedding_handler.get_trainable_embeddings(), global_step, config.output_dir, "embeddings_weights", min_val=-0.05, max_val=0.05, ymax_f = 0.05)      
 
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)

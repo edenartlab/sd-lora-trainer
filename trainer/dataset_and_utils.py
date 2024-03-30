@@ -22,6 +22,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
+    os.makedirs(checkpoint_dir, exist_ok=True)
     # Flatten and concatenate all parameters into a single tensor
     all_params = torch.cat([p.data.view(-1) for p in parameters])
 
@@ -161,6 +162,7 @@ class PreprocessedDataset(Dataset):
 
         self.vae_encoder = vae_encoder
         self.scale_vae_latents = scale_vae_latents
+        self.vae_scaling_factor = self.vae_encoder.config.scaling_factor
         self.text_dropout = text_dropout
         self.size = size
 
@@ -178,7 +180,7 @@ class PreprocessedDataset(Dataset):
                 self.tokens_tuple.append(token)
                 self.masks.append(mask)
 
-            print(f"Cached latents and masks for {len(self.vae_latents)} images.")
+            print(f"Cached latents and masks for {len(self.vae_latents)} images.")\
 
             del self.vae_encoder
 
@@ -226,14 +228,16 @@ class PreprocessedDataset(Dataset):
                 return_tensors="pt",
             ).input_ids.squeeze()
 
-        vae_latent = self.vae_encoder.encode(image).latent_dist.sample()
+        vae_latent = self.vae_encoder.encode(image).latent_dist#.sample()
 
-        if self.scale_vae_latents:
-            vae_latent = vae_latent * self.vae_encoder.config.scaling_factor
+        #if self.scale_vae_latents:
+        #    vae_latent = vae_latent * self.vae_encoder.config.scaling_factor
+
+        dummy_vae_latent = vae_latent.sample()
 
         if self.mask_path is None:
             mask = torch.ones_like(
-                vae_latent, dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
+                dummy_vae_latent, dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
 
         else:
@@ -249,31 +253,38 @@ class PreprocessedDataset(Dataset):
             mask_dtype = mask.dtype
             mask = mask.float()
             mask = torch.nn.functional.interpolate(
-                mask, size=(vae_latent.shape[-2], vae_latent.shape[-1]), mode="nearest"
+                mask, size=(dummy_vae_latent.shape[-2], dummy_vae_latent.shape[-1]), mode="nearest"
             )
             mask = mask.to(dtype=mask_dtype)
-            mask = mask.repeat(1, vae_latent.shape[1], 1, 1)
+            mask = mask.repeat(1, dummy_vae_latent.shape[1], 1, 1)
 
-        assert len(mask.shape) == 4 and len(vae_latent.shape) == 4
+        assert len(mask.shape) == 4 and len(dummy_vae_latent.shape) == 4
 
         if ti2 is None: # sd15
-            return ti1, vae_latent.squeeze(), mask.squeeze()
+            return ti1, vae_latent, mask.squeeze()
         else: # sdxl
-            return (ti1, ti2), vae_latent.squeeze(), mask.squeeze()
+            return (ti1, ti2), vae_latent, mask.squeeze()
 
     def atidx(
         self, idx: int
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
         if self.do_cache:
-            return self.tokens_tuple[idx], self.vae_latents[idx], self.masks[idx]
+            vae_latent = self.vae_latents[idx].sample()
+            if self.scale_vae_latents:
+                vae_latent *= self.vae_scaling_factor
+            return self.tokens_tuple[idx], vae_latent, self.masks[idx]
         else:
-            return self._process(idx)
+            tokens, vae_latent, mask = self._process(idx)
+            vae_latent = vae_latent.sample()
+            if self.scale_vae_latents:
+                vae_latent *= self.vae_scaling_factor
+            return tokens, vae_latent, mask
 
     def __getitem__(
         self, idx: int
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
         token, vae_latent, mask = self.atidx(idx)
-        return token, vae_latent, mask
+        return token, vae_latent.squeeze(), mask
 
 
 def import_model_class_from_model_name_or_path(
