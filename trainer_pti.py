@@ -20,7 +20,7 @@ from trainer.dataset_and_utils import (
     plot_grad_norms,
     plot_loss, 
     plot_lrs,
-    load_models
+    seed_everything
 )
 from trainer.utils.lora import (
     save_lora,
@@ -29,12 +29,11 @@ from trainer.utils.lora import (
 
 from trainer.utils.dtype import dtype_map
 from trainer.config import TrainingConfig
-from trainer.utils.model_info import print_trainable_parameters
+from trainer.models import print_trainable_parameters, load_models
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images
 from preprocess import preprocess
-
 
 
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
@@ -45,15 +44,10 @@ def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonf
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
     grads = [p.grad for p in parameters if p.grad is not None]
-    norm_type = float(norm_type)
-    if len(grads) == 0:
-        return torch.tensor(0.)
     first_device = grads[0].device
-    grouped_grads: Dict[Tuple[torch.device, torch.dtype], List[List[Tensor]]] \
-        = _group_tensors_by_device_and_dtype([[g.detach() for g in grads]])  # type: ignore[assignment]
-
+    grouped_grads = _group_tensors_by_device_and_dtype([[g.detach() for g in grads]])
     norms = []
-    for ((device, _), ([grads], _)) in grouped_grads.items():  # type: ignore[assignment]
+    for ((device, _), ([grads], _)) in grouped_grads.items():
         if (foreach is None or foreach) and _has_foreach_support(grads, device=device):
             norms.extend(torch._foreach_norm(grads, norm_type))
         elif foreach:
@@ -71,6 +65,8 @@ def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonf
 def main(
     config: TrainingConfig,
 ):
+    seed_everything(config.seed)
+
     input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
         working_directory=config.output_dir,
         concept_mode=config.concept_mode,
@@ -130,11 +126,13 @@ def main(
         starting_toks=None, 
         seed=config.seed
     )
-    text_encoders = [text_encoder_one, text_encoder_two]
 
+    unet.requires_grad_(False)
+    text_encoders = [text_encoder_one, text_encoder_two]
     text_encoder_parameters = []
     for text_encoder in text_encoders:
         if text_encoder is not  None:
+            text_encoder.requires_grad_(False)
             for name, param in text_encoder.named_parameters():
                 if "token_embedding" in name:
                     param.requires_grad = True
@@ -142,14 +140,23 @@ def main(
                 else:
                     param.requires_grad = False
 
+    # Optimizer creation
+    params_to_optimize_ti = [
+        {
+            "params": text_encoder_parameters,
+            "lr": config.ti_lr,
+            "weight_decay": config.ti_weight_decay,
+        },
+    ]
+    optimizer_ti = torch.optim.AdamW(
+        params_to_optimize_ti,
+        weight_decay=config.ti_weight_decay,
+    )
 
+    unet_param_to_optimize = []
+    unet_lora_params_to_optimize = []
 
-
-
-
-    unet_param_to_optimize_names = []
     if not config.is_lora:
-        
         WHITELIST_PATTERNS = [
             # "*.attn*.weight",
             # "*ff*.weight",
@@ -163,31 +170,13 @@ def main(
                 fnmatch.fnmatch(name, pattern) for pattern in BLACKLIST_PATTERNS
             ):
                 param.requires_grad_(True)
-                unet_param_to_optimize_names.append(name)
+                unet_param_to_optimize.append(name)
                 print(f"Training: {name}")
             else:
                 param.requires_grad_(False)
 
-        # Optimizer creation
-        params_to_optimize = [
-            {
-                "params": text_encoder_parameters,
-                "lr": config.ti_lr,
-                "weight_decay": config.ti_weight_decay,
-            },
-        ]
-
-        params_to_optimize_prodigy = [
-            {
-                "params": [],
-                "lr": config.unet_learning_rate,
-                "weight_decay": config.lora_weight_decay,
-            },
-        ]
-
     else:
         # Do lora-training instead.
-        unet.requires_grad_(False)
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
         unet_lora_config = LoraConfig(
             r=config.lora_rank,
@@ -199,69 +188,46 @@ def main(
         )
         #unet.add_adapter(unet_lora_config)
         unet = get_peft_model(unet, unet_lora_config)
-
         pipe.unet = unet
         print_trainable_parameters(unet, name = 'unet')
-        
-        # Make sure the trainable params are in float32.
-        if 0:
-            models = [unet]
-            #for text_encoder in text_encoders:
-            #    if text_encoder is not None:
-            #        models.extend([text_encoder])
-            for model in models:
-                for param in model.parameters():
-                    if param.requires_grad:
-                        param.data = param.to(torch.float32)
-
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
 
-        params_to_optimize = [
+        unet_lora_params_to_optimize = [
             {
-                "params": text_encoder_parameters,
-                "lr": config.ti_lr,
-                "weight_decay": config.ti_weight_decay,
+                "params": unet_lora_parameters,
+                "weight_decay": config.lora_weight_decay if not config.use_dora else 0.0,
             },
         ]
 
-        params_to_optimize_prodigy = [
-            {
-                "params": unet_lora_parameters,
-                "lr": 1.0,
-                "weight_decay": config.lora_weight_decay,
-            },
-        ]
-    
+    # Make sure the trainable params are in float32.
+    if 0:
+        models = [unet]
+        #for text_encoder in text_encoders:
+        #    if text_encoder is not None:
+        #        models.extend([text_encoder])
+        for model in models:
+            for param in model.parameters():
+                if param.requires_grad:
+                    param.data = param.to(torch.float32)
+
     optimizer_type = "prodigy" # hardcode for now
 
     if optimizer_type != "prodigy":
-        optimizer = torch.optim.AdamW(
-            params_to_optimize,
-            weight_decay=0.0, # this wd doesn't matter, I think
-        )
-    else:        
-        try:
-            import prodigyopt
-        except ImportError:
-            raise ImportError("To use Prodigy, please install the prodigyopt library: `pip install prodigyopt`")
-
+        optimizer_lora_unet = torch.optim.AdamW(unet_lora_params_to_optimize, lr = 1e-4)
+    else:
+        import prodigyopt
         # Note: the specific settings of Prodigy seem to matter A LOT
-        optimizer_prod = prodigyopt.Prodigy(
-                        params_to_optimize_prodigy,
+        optimizer_lora_unet = prodigyopt.Prodigy(
+                        unet_lora_params_to_optimize,
                         d_coef = config.prodigy_d_coef,
                         lr=1.0,
                         decouple=True,
                         use_bias_correction=True,
                         safeguard_warmup=True,
-                        weight_decay=config.lora_weight_decay,
+                        weight_decay=config.lora_weight_decay if not config.use_dora else 0.0,
                         betas=(0.9, 0.99),
                         growth_rate=1.025,  # this slows down the lr_rampup
                     )
-        
-        optimizer = torch.optim.AdamW(
-            params_to_optimize,
-            weight_decay=config.ti_weight_decay,
-        )
         
     train_dataset = PreprocessedDataset(
         os.path.join(input_dir, "captions.csv"),
@@ -286,14 +252,14 @@ def main(
     if config.max_train_steps is None:
         config.max_train_steps = config.num_train_epochs * num_update_steps_per_epoch
 
-    lr_scheduler = get_scheduler(
-        config.lr_scheduler,
-        optimizer=optimizer,
-        num_warmup_steps=config.lr_warmup_steps * config.gradient_accumulation_steps,
-        num_training_steps=config.max_train_steps * config.gradient_accumulation_steps,
-        num_cycles=config.lr_num_cycles,
-        power=config.lr_power,
-    )
+    #lr_scheduler = get_scheduler(
+    #    config.lr_scheduler,
+    #    optimizer=optimizer,
+    #    num_warmup_steps=config.lr_warmup_steps * config.gradient_accumulation_steps,
+    #    num_training_steps=config.max_train_steps * config.gradient_accumulation_steps,
+    #    num_cycles=config.lr_num_cycles,
+    #    power=config.lr_power,
+    #)
 
     num_update_steps_per_epoch = math.ceil(
         len(train_dataloader) / config.gradient_accumulation_steps
@@ -302,14 +268,13 @@ def main(
     total_batch_size = config.train_batch_size * config.gradient_accumulation_steps
 
     if config.verbose:
-        print(f"--- Running training ")
-        print(f"--- Num examples = {len(train_dataset)}")
+        print(f"--- Num samples = {len(train_dataset)}")
         print(f"--- Num batches each epoch = {len(train_dataloader)}")
         print(f"--- Num Epochs = {config.num_train_epochs}")
         print(f"--- Instantaneous batch size per device = {config.train_batch_size}")
-        print(f"--- Total batch_size (w. parallel, distributed & accumulation) = {total_batch_size}")
+        print(f"--- Total batch_size (distributed + accumulation) = {total_batch_size}")
         print(f"--- Gradient Accumulation steps = {config.gradient_accumulation_steps}")
-        print(f"--- Total optimization steps = {config.max_train_steps}")
+        print(f"--- Total optimization steps = {config.max_train_steps}\n")
 
     global_step = 0
     first_epoch = 0
@@ -319,13 +284,13 @@ def main(
     checkpoint_dir = os.path.join(str(config.output_dir), "checkpoints")
     if os.path.exists(checkpoint_dir):
         shutil.rmtree(checkpoint_dir)
-    
     os.makedirs(f"{checkpoint_dir}")
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
     
     ti_lrs, lora_lrs = [], []
+    # Gradient norm tracking:
     grad_norms = {}
     grad_norms['unet'] = [] 
     for i in range(len(text_encoders)):
@@ -341,23 +306,23 @@ def main(
             progress_bar.update(1)
             if config.hard_pivot:
                 if epoch >= config.num_train_epochs // 2:
-                    if optimizer is not None:
+                    if optimizer_ti is not None:
                         print("----------------------")
                         print("# PTI :  Pivot halfway")
                         print("----------------------")
                         # remove text encoder parameters from the optimizer
-                        optimizer.param_groups = None
+                        optimizer_ti.param_groups = None
                         # remove the optimizer state corresponding to text_encoder_parameters
                         for param in text_encoder_parameters:
-                            if param in optimizer.state:
-                                del optimizer.state[param]
-                        optimizer = None
+                            if param in optimizer_ti.state:
+                                del optimizer_ti.state[param]
+                        optimizer_ti = None
 
             else: # Update learning rates gradually:
                 finegrained_epoch = epoch + step / len(train_dataloader)
                 completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
-                optimizer.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
             
             try: #sdxl
@@ -495,7 +460,7 @@ def main(
             '''
             last_batch = (step + 1 == len(train_dataloader))
             if (step + 1) % config.gradient_accumulation_steps == 0 or last_batch:
-                if optimizer is not None:
+                if optimizer_ti is not None:
                     
                     # zero out the gradients of the non-trained text-encoder embeddings
                     for embedding_tensor in text_encoder_parameters:
@@ -519,20 +484,20 @@ def main(
                         if text_encoder is not None:
                             torch.nn.utils.clip_grad_norm_(itertools.chain(text_encoder.parameters()), clip_grad_norm)
 
-                    optimizer.step()
-                    optimizer.zero_grad()
+                    optimizer_ti.step()
+                    optimizer_ti.zero_grad()
                 
-                optimizer_prod.step()
-                optimizer_prod.zero_grad()
+                optimizer_lora_unet.step()
+                optimizer_lora_unet.zero_grad()
 
                 # after every optimizer step, we reset the non-trainable embeddings to the original embeddings
                 embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
                 embedding_handler.fix_embedding_std(config.off_ratio_power)
             
             # Track the learning rates for final plotting:
-            lora_lrs.append(get_avg_lr(optimizer_prod))
+            lora_lrs.append(get_avg_lr(optimizer_lora_unet))
             try:
-                ti_lrs.append(optimizer.param_groups[0]['lr'])
+                ti_lrs.append(optimizer_ti.param_groups[0]['lr'])
             except:
                 ti_lrs.append(0.0)
             
@@ -545,7 +510,7 @@ def main(
                 pass
 
             # Print some statistics:
-            if (global_step % config.checkpointing_steps == 0):
+            if (global_step % config.checkpointing_steps == 0): # and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -560,7 +525,7 @@ def main(
                     seed=config.seed, 
                     is_lora=config.is_lora, 
                     unet_lora_parameters=unet_lora_parameters,
-                    unet_param_to_optimize_names=unet_param_to_optimize_names,
+                    unet_param_to_optimize=unet_param_to_optimize,
                     name=name
                 )
                 last_save_step = global_step
@@ -616,7 +581,7 @@ def main(
             seed=config.seed, 
             is_lora=config.is_lora, 
             unet_lora_parameters=unet_lora_parameters,
-            unet_param_to_optimize_names=unet_param_to_optimize_names,
+            unet_param_to_optimize=unet_param_to_optimize,
             name=name
         )
         

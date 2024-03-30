@@ -6,7 +6,7 @@ import json
 import gc
 from diffusers import EulerDiscreteScheduler
 from ..val_prompts import val_prompts
-from ..dataset_and_utils import load_models
+from ..models import load_models
 from .lora import patch_pipe_with_lora
 from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
@@ -75,7 +75,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
 
     img_grid_path = make_validation_img_grid(lora_path)
     pipe.scheduler = training_scheduler
-    
+
     # Copy the grid image to the parent directory for easier comparison:
     grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
     shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))

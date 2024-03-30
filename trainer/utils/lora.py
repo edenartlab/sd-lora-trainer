@@ -6,6 +6,8 @@ from peft import PeftModel
 from ..dataset_and_utils import TokenEmbeddingsHandler
 from safetensors.torch import save_file
 
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
+
 '''
 from diffusers.utils import (
     convert_all_state_dict_to_peft,
@@ -45,6 +47,63 @@ def patch_pipe_with_lora(pipe, lora_path):
     return pipe
 
 
+from peft.utils import get_peft_model_state_dict
+from diffusers.utils import (
+    convert_all_state_dict_to_peft,
+    convert_state_dict_to_diffusers,
+    convert_state_dict_to_kohya,
+    convert_unet_state_dict_to_peft,
+)
+
+def save_lora(
+        output_dir, 
+        global_step, 
+        unet, 
+        embedding_handler, 
+        token_dict, 
+        seed, 
+        is_lora, 
+        unet_lora_parameters, 
+        unet_param_to_optimize,
+        name: str = None
+    ):
+    """
+    Save the LORA model to output_dir
+    """
+    print(f"Saving checkpoint at step.. {global_step}")
+
+    if not is_lora:
+        lora_tensors = {
+            name: param
+            for name, param in unet.named_parameters()
+            if name in unet_param_to_optimize
+        }
+        save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
+    elif len(unet_lora_parameters) > 0:
+        unet.save_pretrained(save_directory = output_dir)
+
+    if 1:
+        unet_lora_layers_to_save = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+
+        StableDiffusionXLPipeline.save_lora_weights(
+                output_dir,
+                unet_lora_layers=unet_lora_layers_to_save,
+                #text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
+                #text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
+            )
+
+    # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
+    name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
+
+    embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")
+
+    with open(f"{output_dir}/special_params.json", "w") as f:
+        json.dump(token_dict, f)
+
+
+######################################################
+
+
 def unet_attn_processors_state_dict(unet) -> Dict[str, torch.tensor]:
     """
     Returns:
@@ -61,39 +120,3 @@ def unet_attn_processors_state_dict(unet) -> Dict[str, torch.tensor]:
             ] = parameter
 
     return attn_processors_state_dict
-
-
-def save_lora(
-        output_dir, 
-        global_step, 
-        unet, 
-        embedding_handler, 
-        token_dict, 
-        seed, 
-        is_lora, 
-        unet_lora_parameters, 
-        unet_param_to_optimize_names,
-        name: str = None
-    ):
-    """
-    Save the LORA model to output_dir, optionally with some example images
-    """
-    print(f"Saving checkpoint at step.. {global_step}")
-
-    if not is_lora:
-        lora_tensors = {
-            name: param
-            for name, param in unet.named_parameters()
-            if name in unet_param_to_optimize_names
-        }
-        save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
-    elif len(unet_lora_parameters) > 0:
-        unet.save_pretrained(save_directory = output_dir)
-
-    # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
-    name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
-
-    embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors",)
-
-    with open(f"{output_dir}/special_params.json", "w") as f:
-        json.dump(token_dict, f)

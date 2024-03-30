@@ -14,12 +14,14 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PretrainedConfig
-
-
-import torch
 import torch.nn.functional as F
-
 import matplotlib.pyplot as plt
+
+def seed_everything(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -272,76 +274,6 @@ class PreprocessedDataset(Dataset):
                 vae_latent *= self.vae_scaling_factor
             return tokens, vae_latent.squeeze(), mask
 
-
-def import_model_class_from_model_name_or_path(
-    pretrained_model_name_or_path: str, revision: str, subfolder: str = "text_encoder"
-):
-    text_encoder_config = PretrainedConfig.from_pretrained(
-        pretrained_model_name_or_path, subfolder=subfolder, revision=revision
-    )
-    model_class = text_encoder_config.architectures[0]
-
-    if model_class == "CLIPTextModel":
-        from transformers import CLIPTextModel
-        print("Importing CLIPTextModel")
-        return CLIPTextModel
-    elif model_class == "CLIPTextModelWithProjection":
-        from transformers import CLIPTextModelWithProjection
-        print("Importing CLIPTextModelWithProjection")
-        return CLIPTextModelWithProjection
-    else:
-        raise ValueError(f"{model_class} is not supported.")
-
-def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae_float32 = False):
-    if not isinstance(pretrained_model, dict) or 'path' not in pretrained_model or 'version' not in pretrained_model:
-        raise ValueError("pretrained_model must be a dict with 'path' and 'version' keys")
-
-    print(f"Loading model weights from {pretrained_model['path']} with dtype: {weight_dtype}...")
-
-    if pretrained_model['version'] == "sd15":
-        pipe = StableDiffusionPipeline.from_single_file(
-            pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
-    else:
-        pipe = StableDiffusionXLPipeline.from_single_file(
-            pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
-
-    pipe = pipe.to(device, dtype=weight_dtype)
-    noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
-
-    vae = pipe.vae
-    unet = pipe.unet
-    tokenizer_one = pipe.tokenizer
-    text_encoder_one = pipe.text_encoder
-
-    vae.requires_grad_(False)
-    text_encoder_one.requires_grad_(False)
-
-    text_encoder_one.to(device, dtype=weight_dtype)
-    unet.to(device, dtype=weight_dtype)
-    if keep_vae_float32:
-        vae.to(device, dtype=torch.float32)
-    else:
-        vae.to(device, dtype=weight_dtype)
-        if weight_dtype != torch.float32:
-            print(f"Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but not for training!!")
-
-    tokenizer_two = text_encoder_two = None
-    if pretrained_model['version'] == "sdxl":
-        tokenizer_two = pipe.tokenizer_2
-        text_encoder_two = pipe.text_encoder_2
-        text_encoder_two.requires_grad_(False)
-        text_encoder_two.to(device, dtype=weight_dtype)
-        
-    return (
-        pipe,
-        tokenizer_one,
-        tokenizer_two,
-        noise_scheduler,
-        text_encoder_one,
-        text_encoder_two,
-        vae,
-        unet,
-    )
 
 
 
