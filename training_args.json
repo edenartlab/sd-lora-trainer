@@ -1,5 +1,5 @@
 {
-    "output_dir": "lora_models/without_cog",
+    "output_dir": "lora_models/clipx_tiny_no_cog_sdxl",
     "name": "unnamed",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
     "concept_mode": "style",

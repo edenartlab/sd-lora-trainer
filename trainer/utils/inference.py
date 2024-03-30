@@ -30,7 +30,6 @@ def render_images(training_pipeline, render_size, lora_path, train_step, seed, i
         validation_prompts_raw = random.sample(val_prompts['object'], n_imgs)
         validation_prompts_raw[0] = '<concept>'
 
-
     reload_entire_pipeline = False
     if reload_entire_pipeline: # reload the entire pipeline from disk and load in the lora module
         print(f"Reloading entire pipeline from disk..")

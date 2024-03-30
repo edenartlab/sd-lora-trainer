@@ -389,7 +389,7 @@ def main(
                 raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
             # Compute the loss:
-            if config.snr_gamma is None:
+            if config.snr_gamma is None or config.snr_gamma == 0.0:
                 loss = (model_pred - target).pow(2) * mask
 
                 # modulate loss by the inverse of the mask's mean value
@@ -501,6 +501,9 @@ def main(
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                     validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose, trigger_text=trigger_text)
+                    grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
+                    shutil.copy(grid_img_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
+                    
                     gc.collect()
                     torch.cuda.empty_cache()
             
