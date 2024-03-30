@@ -30,6 +30,7 @@ Algo:
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
 - Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
+- add gradient clipping, see https://github.com/cloneofsimo/lora/blob/master/lora_diffusion/cli_lora_pti.py#L606C13-L608C14
 
 Bugfixing:
 see msgs at: https://discord.com/channels/573691888050241543/1184175211998883950/1217550596878373037

@@ -71,4 +71,7 @@ class TrainingConfig(BaseModel):
         from trainer.models import pretrained_models
         config_data["pretrained_model"] = pretrained_models[config_data["sd_model_version"]]
 
+        # add some metrics to the foldername:
+        config_data["output_dir"] = config_data["output_dir"] + f"_{config_data['sd_model_version']}_{config_data['concept_mode']}"
+
         return cls(**config_data)

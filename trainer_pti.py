@@ -63,10 +63,7 @@ def main(
 
     print("Using seed", config.seed)
     torch.manual_seed(config.seed)
-
     weight_dtype = dtype_map[config.mixed_precision]
-
-    print(f"Loading models with weight_dtype: {weight_dtype}")
 
     if config.scale_lr:
         config.unet_learning_rate = (
@@ -290,6 +287,13 @@ def main(
         unet.train()
         progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
 
+        unet.train()
+        for text_encoder in text_encoders:
+            try:
+                text_encoder.train()
+            except:
+                pass
+
         for step, batch in enumerate(train_dataloader):
             progress_bar.update(1)
             if config.hard_pivot:
@@ -385,8 +389,14 @@ def main(
             # Get the unet prediction target depending on the prediction type:
             if noise_scheduler.config.prediction_type == "epsilon":
                 target = noise
+            elif noise_scheduler.config.prediction_type == "v_prediction":
+                print(f"Using velocity prediction!")
+                target = noise_scheduler.get_velocity(noisy_model_input, noise, timesteps)
             else:
                 raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
+
+            # Make sure we're computing the loss at full precision:
+            target, model_pred, mask = target.float(), model_pred.float(), mask.float()
 
             # Compute the loss:
             if config.snr_gamma is None or config.snr_gamma == 0.0:
@@ -517,7 +527,6 @@ def main(
                 progress = (global_step / config.max_train_steps) + 0.05
                 yield np.min((progress, 1.0))
 
-
     # final_save
     if (global_step - last_save_step) > 51:
         output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
@@ -580,6 +589,6 @@ if __name__ == "__main__":
         file_path=args.config_filename
     )
     for progress in main(config=config):
-        print(f"Progress: {progress}")
+        print(f"Progress: {(100*progress):.2f}%", end="\r")
 
-    print("Done :)")
+    print("Training done :)")

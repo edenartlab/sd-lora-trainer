@@ -279,7 +279,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     if not isinstance(pretrained_model, dict) or 'path' not in pretrained_model or 'version' not in pretrained_model:
         raise ValueError("pretrained_model must be a dict with 'path' and 'version' keys")
 
-    print(f"Loading model weights from {pretrained_model['path']} as dtype: {weight_dtype}...")
+    print(f"Loading model weights from {pretrained_model['path']} with dtype: {weight_dtype}...")
 
     if pretrained_model['version'] == "sd15":
         pipe = StableDiffusionPipeline.from_single_file(
@@ -713,9 +713,9 @@ class TokenEmbeddingsHandler:
             std_penalty += (off_ratio - 1.0)**2
 
             if (off_ratio < 0.95) or (off_ratio > 1.05):
-                print(f"std-off ratio-{idx} (target-std / embedding-std) = {off_ratio:.4f}, prob not ideal...")                
-                print(f"std_token_embedding: {std_token_embedding}")
-                print(f"std new_embeddings: {new_embeddings.std()}")
+                print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) = {off_ratio:.4f}, prob not ideal...")                
+                #print(f"std_token_embedding: {std_token_embedding}")
+                #print(f"std new_embeddings: {new_embeddings.std()}")
 
             # rescale the embeddings to have a more similar std as before:
             new_embeddings = new_embeddings * (off_ratio**off_ratio_power)
