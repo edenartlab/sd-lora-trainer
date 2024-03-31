@@ -14,13 +14,13 @@ import os, json, random, time
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path = 'lora_models/gene---sdxl_face_lora/checkpoints/checkpoint-600'
-    lora_scale = 0.7
+    lora_path = 'lora_models/plantoid_new---sdxl_object_dora/checkpoints/checkpoint-600'
+    lora_scale = 0.25
     modulate_token_strength = True
 
-    seed = 0
-    render_size = (1024, 1024)  # W,H
-    n_imgs = 4
+    seed = 1
+    render_size = (1024, 1024+256)  # H,W
+    n_imgs = 6
     n_steps = 30
     guidance_scale = 8
 
@@ -57,6 +57,7 @@ if __name__ == "__main__":
         training_args = json.load(f)
         concept_mode = training_args["concept_mode"]
         trigger_text = training_args["training_attributes"]["trigger_text"]
+        segmentation_prompt = training_args["training_attributes"]["segmentation_prompt"]
 
     if concept_mode == "style":
         validation_prompts_raw = random.sample(val_prompts['style'], n_imgs)
@@ -89,8 +90,9 @@ if __name__ == "__main__":
                 do_classifier_free_guidance=guidance_scale > 1,
                 negative_prompt=negative_prompt)
 
+            zero_prompt = validation_prompts_raw[i].replace('<concept>', segmentation_prompt)
             zero_embeds = pipe.encode_prompt(
-                validation_prompts_raw[i],
+                zero_prompt,
                 do_classifier_free_guidance=guidance_scale > 1,
                 negative_prompt=negative_prompt)
 

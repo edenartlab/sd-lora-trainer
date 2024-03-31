@@ -15,7 +15,7 @@
     "ti_lr": 0.001,
     "ti_weight_decay": 0.0003,
     "lora_weight_decay": 0.00,
-    "l1_penalty": 0.0,
+    "l1_penalty": 0.1,
     "off_ratio_power": 0.1,
     "snr_gamma": 5.0,
     "lora_rank": 12,
@@ -27,10 +27,5 @@
     "debug": true,
     "hard_pivot": false,
     "mixed_precision": "bf16",
-    "unet_learning_rate": 1.0,
-    "lr_scheduler": "constant",
-    "lr_warmup_steps": 50,
-    "lr_num_cycles": 1,
-    "lr_power": 1.0,
     "dataloader_num_workers": 0
 }
