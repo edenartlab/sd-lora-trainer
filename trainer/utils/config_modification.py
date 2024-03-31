@@ -8,6 +8,7 @@ def modify_args_based_on_concept_mode(
     l1_penalty: float
 ):
     if concept_mode == "face":
+        print(f"Face mode is active ----> disabling left-right flips and setting mask_target_prompts to 'face'.")
         left_right_flip_augmentation = False  # always disable lr flips for face mode!
         mask_target_prompts = "face"
         clipseg_temperature = 0.4

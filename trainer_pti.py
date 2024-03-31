@@ -33,6 +33,7 @@ from trainer.utils.models import print_trainable_parameters, load_models
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images
+from trainer.utils.config_modification import modify_args_based_on_concept_mode
 from preprocess import preprocess
 
 
@@ -66,6 +67,15 @@ def main(
     config: TrainingConfig,
 ):
     seed_everything(config.seed)
+
+    (config.concept_mode, config.left_right_flip_augmentation, config.mask_target_prompts, config.clipseg_temperature, config.l1_penalty
+        ) = modify_args_based_on_concept_mode(
+            concept_mode=config.concept_mode,
+            left_right_flip_augmentation=config.left_right_flip_augmentation,
+            mask_target_prompts=config.mask_target_prompts,
+            clipseg_temperature=config.clipseg_temperature,
+            l1_penalty=config.l1_penalty
+        )
 
     input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
         working_directory=config.output_dir,
