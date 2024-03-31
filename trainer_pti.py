@@ -20,9 +20,9 @@ from trainer.dataset_and_utils import (
     plot_grad_norms,
     plot_loss, 
     plot_lrs,
-    seed_everything,
     pick_best_gpu_id
 )
+from trainer.utils.seed import seed_everything
 from trainer.utils.lora import (
     save_lora,
     TokenEmbeddingsHandler
@@ -30,7 +30,7 @@ from trainer.utils.lora import (
 
 from trainer.utils.dtype import dtype_map
 from trainer.config import TrainingConfig
-from trainer.utils.models import print_trainable_parameters, load_models
+from trainer.models import print_trainable_parameters, load_models
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images
@@ -470,12 +470,13 @@ def main(
                         ] *= 0.
 
                     if config.debug:
+                        pass
                         # Track the average gradient norms:
-                        grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
-                        for i, text_encoder in enumerate(text_encoders):
-                            if text_encoder is not None:
-                                text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
-                                grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
+                        # grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
+                        # for i, text_encoder in enumerate(text_encoders):
+                        #     if text_encoder is not None:
+                        #         text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
+                        #         grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
                     
                     # Clip the gradients to stabilize training:
                     clip_grad_norm = 0.5
