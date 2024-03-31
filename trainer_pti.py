@@ -70,14 +70,7 @@ def main(
     seed_everything(config.seed)
     pick_best_gpu_id()
 
-    (config.concept_mode, config.left_right_flip_augmentation, config.mask_target_prompts, config.clipseg_temperature, config.l1_penalty
-        ) = modify_args_based_on_concept_mode(
-            concept_mode=config.concept_mode,
-            left_right_flip_augmentation=config.left_right_flip_augmentation,
-            mask_target_prompts=config.mask_target_prompts,
-            clipseg_temperature=config.clipseg_temperature,
-            l1_penalty=config.l1_penalty
-        )
+    config = modify_args_based_on_concept_mode(config)
 
     input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
         working_directory=config.output_dir,

@@ -196,7 +196,7 @@ def clipseg_mask_generator(
 
     if isinstance(target_prompts, str):
         print(
-            f'Warning: only one target prompt "{target_prompts}" was given, so it will be used for all images'
+            f'Using "{target_prompts}" as CLIP-segmentation prompt for all images.'
         )
         target_prompts = [target_prompts] * len(images)
 
