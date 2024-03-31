@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from preprocess import preprocess
 from trainer_pti import main
 from typing import Iterator, Optional
-from io_utils import clean_filename
+from trainer.utils.io import clean_filename
 
 from trainer.utils.seed import seed_everything
 from trainer.utils.download import download_weights
@@ -351,12 +351,8 @@ class Predictor(BasePredictor):
             debug=debug,
             hard_pivot=hard_pivot,
             off_ratio_power=off_ratio_power,
-            num_training_images=n_imgs, 
-            trigger_text=trigger_text,  
-            segmentation_prompt=segmentation_prompt,
             allow_tf32 = True,
             mixed_precision="bf16",
-            instance_data_dir=os.path.join(input_dir, "captions.csv"),
             inserting_list_tokens=inserting_list_tokens,
             token_dict=token_dict,
             device="cuda:0",
@@ -371,7 +367,6 @@ class Predictor(BasePredictor):
             lr_num_cycles = 1,
             lr_power = 1.0,
             dataloader_num_workers = 0,
-            training_captions=captions[:50]
         )
 
         config.save_as_json(
