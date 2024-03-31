@@ -6,7 +6,7 @@ import json
 import gc
 from diffusers import EulerDiscreteScheduler
 from .val_prompts import val_prompts
-from .models import load_models
+from ..models import load_models
 from .lora import patch_pipe_with_lora
 from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
