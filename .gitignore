@@ -11,6 +11,7 @@ xander*.sh
 tests/
 train.py
 debug/*
+test_images
 !debug/*.py
 
 training_args_x_*.json

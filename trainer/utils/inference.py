@@ -5,8 +5,8 @@ import shutil
 import json
 import gc
 from diffusers import EulerDiscreteScheduler
-from ..val_prompts import val_prompts
-from ..models import load_models
+from .val_prompts import val_prompts
+from .models import load_models
 from .lora import patch_pipe_with_lora
 from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
@@ -81,3 +81,6 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
     shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))
 
     return validation_prompts_raw
+
+
+

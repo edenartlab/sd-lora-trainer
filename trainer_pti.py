@@ -29,7 +29,7 @@ from trainer.utils.lora import (
 
 from trainer.utils.dtype import dtype_map
 from trainer.config import TrainingConfig
-from trainer.models import print_trainable_parameters, load_models
+from trainer.utils.models import print_trainable_parameters, load_models
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images
@@ -325,9 +325,9 @@ def main(
                 optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
             
-            try: #sdxl
+            if config.pretrained_model['version'] == "sdxl":
                 (tok1, tok2), vae_latent, mask = batch
-            except: #sd15
+            elif config.pretrained_model['version'] == "sd15":
                 tok1, vae_latent, mask = batch
                 tok2 = None
 

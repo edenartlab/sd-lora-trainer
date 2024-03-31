@@ -16,7 +16,7 @@ from diffusers.utils import (
 )
 '''
 
-def patch_pipe_with_lora(pipe, lora_path):
+def patch_pipe_with_lora(pipe, lora_path, lora_scale = 1.0):
     """
     update the pipe with the lora model and the token embeddings
     """
@@ -24,16 +24,18 @@ def patch_pipe_with_lora(pipe, lora_path):
     pipe.unet = PeftModel.from_pretrained(pipe.unet, lora_path)
     pipe.unet.merge_adapter()
 
-    #pipe.load_lora_weights(lora_path, adapter_name = "my_adapter", weight_name="adapter_model.safetensors")
-    #scales = {...}
-    #pipe.set_adapters("my_adapter", scales)
-    #pipe.set_adapters("my_adapter")
-    #pipe.set_adapters(["my_adapter"], adapter_weights=[1.0])
-
-    active_adapters = pipe.get_active_adapters()
-    print(f"active_adapters: {active_adapters}")
     list_adapters_component_wise = pipe.get_list_adapters()
     print(f"list_adapters_component_wise: {list_adapters_component_wise}")
+
+    #pipe.load_lora_weights(lora_path, adapter_name = "my_adapter", weight_name="pytorch_lora_weights.safetensors")
+    #scales = {...}
+    #pipe.set_adapters("my_adapter", scales)
+
+    for key in list_adapters_component_wise:
+        adapter_names = list_adapters_component_wise[key]
+        for adapter_name in adapter_names:
+            print(f"Set adapter '{adapter_name}' of '{key}' with scale = {lora_scale}")
+            pipe.set_adapters(adapter_name, adapter_weights=[lora_scale])
     
     # Load the textual_inversion token embeddings into the pipeline:
     try: #SDXL
@@ -72,6 +74,9 @@ def save_lora(
     """
     print(f"Saving checkpoint at step.. {global_step}")
 
+    # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
+    name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
+
     if not is_lora:
         lora_tensors = {
             name: param
@@ -92,9 +97,14 @@ def save_lora(
                 #text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
             )
 
-    # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
-    name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
+    if 1:
+        #lora_tensors = unet_attn_processors_state_dict(unet)
+        lora_tensors = get_peft_model_state_dict(unet)
 
+        
+
+        save_file(lora_tensors, f"{output_dir}/{name}_lora_orig.safetensors")
+        
     embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")
 
     with open(f"{output_dir}/special_params.json", "w") as f:
