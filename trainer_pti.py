@@ -20,7 +20,8 @@ from trainer.dataset_and_utils import (
     plot_grad_norms,
     plot_loss, 
     plot_lrs,
-    seed_everything
+    seed_everything,
+    pick_best_gpu_id
 )
 from trainer.utils.lora import (
     save_lora,
@@ -67,6 +68,7 @@ def main(
     config: TrainingConfig,
 ):
     seed_everything(config.seed)
+    pick_best_gpu_id()
 
     (config.concept_mode, config.left_right_flip_augmentation, config.mask_target_prompts, config.clipseg_temperature, config.l1_penalty
         ) = modify_args_based_on_concept_mode(

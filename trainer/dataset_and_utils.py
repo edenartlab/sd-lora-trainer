@@ -17,6 +17,27 @@ from transformers import AutoTokenizer, PretrainedConfig
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
+def pick_best_gpu_id():
+    # pick the GPU with the most free memory:
+    gpu_ids = [i for i in range(torch.cuda.device_count())]
+    print(f"# of visible GPUs: {len(gpu_ids)}")
+    gpu_mem = []
+    for gpu_id in gpu_ids:
+        free_memory, tot_mem = torch.cuda.mem_get_info(device=gpu_id)
+        gpu_mem.append(free_memory)
+        print("GPU %d: %d MB free" %(gpu_id, free_memory / 1024 / 1024))
+    
+    if len(gpu_ids) == 0:
+        # no GPUs available, use CPU:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        return None
+
+    best_gpu_id = gpu_ids[np.argmax(gpu_mem)]
+    # set this to be the active GPU:
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(best_gpu_id)
+    print("Using GPU %d" %best_gpu_id)
+    return best_gpu_id
+
 def seed_everything(seed: int):
     random.seed(seed)
     np.random.seed(seed)

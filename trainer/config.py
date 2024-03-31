@@ -31,7 +31,6 @@ class TrainingConfig(BaseModel):
     caption_model: Literal["gpt4-v", "blip"] = "blip"
     left_right_flip_augmentation: bool = True
     augment_imgs_up_to_n: int = 20
-    n_tokens: int = 2
     mask_target_prompts: Union[None, str] = None
     crop_based_on_salience: bool = True
     use_face_detection_instead: bool = False
@@ -43,8 +42,9 @@ class TrainingConfig(BaseModel):
     off_ratio_power: float = False
     allow_tf32: bool = True
     mixed_precision: Literal["fp16", "bf16", "fp32"] = "bf16"
-    inserting_list_tokens: List[str] = ["<s0>"]
-    token_dict: dict = {"TOKEN": "<s0>"}
+    n_tokens: int = 2
+    inserting_list_tokens: List[str] = ["<s0>","<s1>"]
+    token_dict: dict = {"TOKEN": "<s0><s1>"}
     device: str = "cuda:0"
     crops_coords_top_left_h: int = 0
     crops_coords_top_left_w: int = 0

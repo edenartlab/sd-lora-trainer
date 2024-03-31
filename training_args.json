@@ -27,14 +27,6 @@
     "debug": true,
     "hard_pivot": false,
     "mixed_precision": "bf16",
-    "n_tokens": 2,
-    "inserting_list_tokens": [
-        "<s0>",
-        "<s1>"
-    ],
-    "token_dict": {
-        "TOK": "<s0><s1>"
-    },
     "unet_learning_rate": 1.0,
     "lr_scheduler": "constant",
     "lr_warmup_steps": 50,

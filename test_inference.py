@@ -3,7 +3,7 @@ from trainer.utils.lora import patch_pipe_with_lora, blend_conditions
 from trainer.utils.val_prompts import val_prompts
 from trainer.utils.prompt import prepare_prompt_for_lora
 from trainer.utils.io import make_validation_img_grid
-from trainer.dataset_and_utils import seed_everything
+from trainer.dataset_and_utils import seed_everything, pick_best_gpu_id
 from diffusers import EulerDiscreteScheduler
 
 import torch
@@ -11,23 +11,18 @@ from huggingface_hub import hf_hub_download
 import os, json, random, time
 
 
-
-
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path = 'lora_models/clipx_tiny_test---sdxl_style_lora/checkpoints/checkpoint-500'
-    lora_scale = 0.75
+    lora_path = 'lora_models/gene---sdxl_face_lora/checkpoints/checkpoint-600'
+    lora_scale = 0.7
     modulate_token_strength = True
 
     seed = 0
     render_size = (1024, 1024)  # W,H
     n_imgs = 4
-
-
-
-
-
+    n_steps = 30
+    guidance_scale = 8
 
     use_lightning = False
 
@@ -37,6 +32,7 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
 
     seed_everything(seed)
+    pick_best_gpu_id()
 
     (pipe,
         tokenizer_one,

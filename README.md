@@ -22,7 +22,7 @@ Code / Cleanup:
 - Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops (in progress)
 - ~~make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)~~
 - ~~make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later~~
-- test if the trained concepts with peft are compatible with ComfyUI / AUTO1111
+- Make sure the trained concepts (with peft) are compatible with ComfyUI / AUTO1111
 
 Algo:
 - Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
@@ -30,7 +30,6 @@ Algo:
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
 - Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
-- add gradient clipping, see https://github.com/cloneofsimo/lora/blob/master/lora_diffusion/cli_lora_pti.py#L606C13-L608C14
 
 Bugfixing:
 see msgs at: https://discord.com/channels/573691888050241543/1184175211998883950/1217550596878373037
@@ -38,10 +37,10 @@ see msgs at: https://discord.com/channels/573691888050241543/1184175211998883950
 - Try to find out why the diffusers training script works for sd15 and ours doesnt:
 See here: https://huggingface.co/blog/sdxl_lora_advanced_script
 and here: https://github.com/huggingface/diffusers/tree/main/examples/advanced_diffusion_training
-- figure out how to adaptively set lora_scale at inference time using peft + diffusers? (https://github.com/huggingface/peft/blob/main/src/peft/tuners/lora/layer.py#L240)
 
 
 Bigger improvements:
+- add stronger token regularization (eg CelebBasis spanning basis)
 - Add multi-token training
 - pre-optimize token embeddings using CLIP-similarity (cfr aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
 - implement perfusion: https://research.nvidia.com/labs/par/Perfusion/
