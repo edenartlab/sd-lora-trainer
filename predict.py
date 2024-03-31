@@ -201,15 +201,6 @@ class Predictor(BasePredictor):
 
         # Try to make the training reproducible:
         seed_everything(seed = seed)
-        (
-            concept_mode, left_right_flip_augmentation, mask_target_prompts, clipseg_temperature, l1_penalty
-        ) = modify_args_based_on_concept_mode(
-            concept_mode=concept_mode,
-            left_right_flip_augmentation=left_right_flip_augmentation,
-            mask_target_prompts=mask_target_prompts,
-            clipseg_temperature=clipseg_temperature,
-            l1_penalty=l1_penalty
-        )
 
         print(f"cog:predict:train_lora:{concept_mode}")
 
@@ -297,20 +288,6 @@ class Predictor(BasePredictor):
         else: # normal, single token run:
             
             output_dir = os.path.join(out_root_dir, run_name)
-            input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
-                working_directory=output_dir,
-                concept_mode=concept_mode,
-                input_zip_path=lora_training_urls,
-                caption_text=caption_prefix,
-                mask_target_prompts=mask_target_prompts,
-                target_size=resolution,
-                crop_based_on_salience=crop_based_on_salience,
-                use_face_detection_instead=use_face_detection_instead,
-                temp=clipseg_temperature,
-                left_right_flip_augmentation=left_right_flip_augmentation,
-                augment_imgs_up_to_n = augment_imgs_up_to_n,
-                seed = seed,
-            )
 
         if not debug:
             yield CogOutput(name=name, progress=0.05)  
