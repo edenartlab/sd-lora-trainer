@@ -105,11 +105,6 @@ def main(
     torch.manual_seed(config.seed)
     weight_dtype = dtype_map[config.mixed_precision]
 
-    if config.scale_lr:
-        config.unet_learning_rate = (
-            config.unet_learning_rate * config.gradient_accumulation_steps * config.train_batch_size
-        )
-
     (   
         pipe,
         tokenizer_one,
@@ -489,10 +484,16 @@ def main(
                     
                     # Clip the gradients to stabilize training:
                     clip_grad_norm = 0.5
-                    torch.nn.utils.clip_grad_norm_(itertools.chain(unet.parameters()), clip_grad_norm)
+
+                    # Filter parameters with gradients for the UNet model
+                    unet_params_with_grad = [p for p in unet.parameters() if p.grad is not None]
+                    torch.nn.utils.clip_grad_norm_(unet_params_with_grad, clip_grad_norm)
+
+                    # Filter parameters with gradients for each text encoder
                     for text_encoder in text_encoders:
                         if text_encoder is not None:
-                            torch.nn.utils.clip_grad_norm_(itertools.chain(text_encoder.parameters()), clip_grad_norm)
+                            text_encoder_params_with_grad = [p for p in text_encoder.parameters() if p.grad is not None]
+                            torch.nn.utils.clip_grad_norm_(text_encoder_params_with_grad, clip_grad_norm)
 
                     optimizer_ti.step()
                     optimizer_ti.zero_grad()

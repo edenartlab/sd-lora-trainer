@@ -51,13 +51,13 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
     else:
         print(f"Re-using training pipeline for inference, just swapping the scheduler..")
         
-    #pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config)
+    pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
     validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=verbose, trigger_text=trigger_text) for prompt in validation_prompts_raw]
     generator = torch.Generator(device=device).manual_seed(0)
     pipeline_args = {
                 "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft", 
                 "num_inference_steps": n_steps,
-                "guidance_scale": 7,
+                "guidance_scale": 8,
                 "height": render_size[0],
                 "width": render_size[1],
                 }
@@ -74,11 +74,10 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
         image.save(os.path.join(lora_path, f"img_{train_step:04d}_{i}.jpg"), format="JPEG", quality=95)
 
     img_grid_path = make_validation_img_grid(lora_path)
-    pipe.scheduler = training_scheduler
-
     # Copy the grid image to the parent directory for easier comparison:
     grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
     shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))
+    pipe.scheduler = training_scheduler
 
     return validation_prompts_raw
 

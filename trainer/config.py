@@ -46,7 +46,6 @@ class TrainingConfig(BaseModel):
     inserting_list_tokens: List[str] = ["<s0>"]
     token_dict: dict = {"TOKEN": "<s0>"}
     device: str = "cuda:0"
-    scale_lr: bool = False
     crops_coords_top_left_h: int = 0
     crops_coords_top_left_w: int = 0
     do_cache: bool = True
