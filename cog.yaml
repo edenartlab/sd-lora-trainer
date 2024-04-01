@@ -12,7 +12,7 @@ build:
     - "libxext6"
   python_packages:
     - "scipy"
-    - "diffusers==0.25.1"
+    - "diffusers"
     - "peft==0.9.0"
     - "torch==2.0.1"
     - "transformers==4.31.0"

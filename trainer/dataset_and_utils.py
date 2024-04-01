@@ -38,12 +38,6 @@ def pick_best_gpu_id():
     print("Using GPU %d" %best_gpu_id)
     return best_gpu_id
 
-def seed_everything(seed: int):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
 def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
     os.makedirs(checkpoint_dir, exist_ok=True)
     # Flatten and concatenate all parameters into a single tensor
