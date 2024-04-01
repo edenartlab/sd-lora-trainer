@@ -2,6 +2,8 @@ from typing import Union, List, Dict
 from pydantic import BaseModel
 import json
 from typing import Literal
+# Parse the model:
+from trainer.models import pretrained_models
 
 class TrainingConfig(BaseModel):
     output_dir: str
@@ -56,6 +58,7 @@ class TrainingConfig(BaseModel):
     lr_power: float = 1.0
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
+    aspect_ratio_bucketing: bool = True
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:

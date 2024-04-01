@@ -237,6 +237,8 @@ def main(
         vae,
         do_cache=config.do_cache,
         substitute_caption_map=config.token_dict,
+        aspect_ratio_bucketing=config.train_batch_size,
+        train_batch_size=config.train_batch_size
     )
 
     print(f"# PTI : Loaded dataset, do_cache: {config.do_cache}")
@@ -301,6 +303,8 @@ def main(
     start_time, images_done = time.time(), 0
 
     for epoch in range(first_epoch, config.num_train_epochs):
+        if config.aspect_ratio_bucketing:
+            train_dataset.bucket_manager.start_epoch()
         progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
 
         for step, batch in enumerate(train_dataloader):
@@ -327,10 +331,21 @@ def main(
 
             
             if config.pretrained_model['version'] == "sdxl":
-                (tok1, tok2), vae_latent, mask = batch
+                if not config.aspect_ratio_bucketing:
+                    (tok1, tok2), vae_latent, mask = batch
+                else:
+                    ## delete batch to save a bit of memory
+                    del batch
+                    (tok1, tok2), vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
             elif config.pretrained_model['version'] == "sd15":
-                tok1, vae_latent, mask = batch
+                if not config.aspect_ratio_bucketing:
+                    tok1, vae_latent, mask = batch
+                else:
+                    ## delete batch to save a bit of memory
+                    del batch
+                    tok1, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
                 tok2 = None
+                
 
             vae_latent = vae_latent.to(weight_dtype)
 

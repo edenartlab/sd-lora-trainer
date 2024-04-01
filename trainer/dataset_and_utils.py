@@ -111,7 +111,7 @@ def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
 
 
 def prepare_image(
-    pil_image: PIL.Image.Image, w: int = 512, h: int = 512, pipe=None
+    pil_image: PIL.Image.Image, w: int = 512, h: int = 512, pipe=None,
 ) -> torch.Tensor:
     pil_image = pil_image.resize((w, h), resample=Image.BICUBIC, reducing_gap=1)
     image = pipe.image_processor.preprocess(pil_image)
@@ -143,6 +143,8 @@ class PreprocessedDataset(Dataset):
         size: int = 512,
         text_dropout: float = 0.0,
         scale_vae_latents: bool = True,
+        aspect_ratio_bucketing: bool = False,
+        train_batch_size: int = None,# required for aspect_ratio_bucketing
         substitute_caption_map: Dict[str, str] = {},
     ):
         super().__init__()
@@ -203,19 +205,68 @@ class PreprocessedDataset(Dataset):
         else:
             self.do_cache = False
 
+        if aspect_ratio_bucketing:
+            assert train_batch_size is not None, f"Please also provide a `train_batch_size` when you have set `aspect_ratio_bucketing == True`"
+            from .utils.aspect_ratio_bucketing import BucketManager
+            aspect_ratios = {}
+            for idx in range(len(self.data)):
+                aspect_ratios[idx] = Image.open(os.path.join(os.path.dirname(self.csv_path), self.image_path[idx])).size
+            self.bucket_manager = BucketManager(
+                aspect_ratios = aspect_ratios,
+                bsz = train_batch_size
+            )
+        else:
+            self.bucket_manager = None
+
+    def get_aspect_ratio_bucketed_batch(self):
+        assert self.bucket_manager is not None, f"Expected self.bucket_manager to not be None! In order to get an aspect ration bucketed batch, please set aspect_ratio_bucketing = True and set a value for train_batch_size when doing __init__()"
+        indices, resolution = self.bucket_manager.get_batch()
+
+        tok1, tok2, vae_latents, masks = [], [], [], []
+        
+        for idx in indices:
+
+            if  self.tokenizer_2 is None:
+                t1, v, m = self.__getitem__(idx = idx, bucketing_resolution=resolution)
+            else:
+                (t1, t2), v, m = self.__getitem__(idx = idx, bucketing_resolution=resolution)
+                tok2.append(t2.unsqueeze(0))
+
+            tok1.append(t1.unsqueeze(0))
+            vae_latents.append(v.unsqueeze(0))
+            masks.append(m.unsqueeze(0))
+
+        tok1 = torch.cat(tok1, dim = 0)
+        if  self.tokenizer_2 is None:
+            pass
+        else:
+            tok2 = torch.cat(tok2, dim = 0)
+        vae_latents = torch.cat(vae_latents, dim = 0)
+        masks = torch.cat(masks, dim = 0)
+
+        if  self.tokenizer_2 is None:
+             return tok1, vae_latents, masks
+        else:
+            return (tok1, tok2), vae_latents, masks
+
     def __len__(self) -> int:
         return len(self.data)
 
     @torch.no_grad()
     def _process(
-        self, idx: int
+        self, idx: int, bucketing_resolution: tuple = None
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
         image_path = self.image_path[idx]
         image_path = os.path.join(os.path.dirname(self.csv_path), image_path)
         image = PIL.Image.open(image_path).convert("RGB")
-        image = prepare_image(image, self.size, self.size, self.pipe).to(
-            dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
-        )
+        if bucketing_resolution is None:
+            image = prepare_image(image, w = self.size, h = self.size, self.pipe).to(
+                dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
+            )
+        else:
+            image = prepare_image(image, w = bucketing_resolution[0], h = bucketing_resolution[1]).to(
+                dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
+            )
 
         caption = self.caption[idx]
         print(caption)
@@ -274,7 +325,7 @@ class PreprocessedDataset(Dataset):
             return (ti1, ti2), vae_latent, mask.squeeze()
 
     def __getitem__(
-        self, idx: int
+        self, idx: int, bucketing_resolution:tuple = None
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
         if self.do_cache:
             vae_latent = self.vae_latents[idx].sample()
@@ -282,7 +333,7 @@ class PreprocessedDataset(Dataset):
                 vae_latent *= self.vae_scaling_factor
             return self.tokens_tuple[idx], vae_latent.squeeze(), self.masks[idx]
         else:
-            tokens, vae_latent, mask = self._process(idx)
+            tokens, vae_latent, mask = self._process(idx, bucketing_resolution=bucketing_resolution)
             vae_latent = vae_latent.sample()
             if self.scale_vae_latents:
                 vae_latent *= self.vae_scaling_factor
