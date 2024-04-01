@@ -117,13 +117,10 @@ def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
 
 
 def prepare_image(
-    pil_image: PIL.Image.Image, w: int = 512, h: int = 512
+    pil_image: PIL.Image.Image, w: int = 512, h: int = 512, pipe=None
 ) -> torch.Tensor:
     pil_image = pil_image.resize((w, h), resample=Image.BICUBIC, reducing_gap=1)
-    arr = np.array(pil_image.convert("RGB"))
-    arr = arr.astype(np.float32) / 127.5 - 1
-    arr = np.transpose(arr, [2, 0, 1])
-    image = torch.from_numpy(arr).unsqueeze(0)
+    image = pipe.image_processor.preprocess(pil_image)
     return image
 
 
@@ -142,6 +139,7 @@ class PreprocessedDataset(Dataset):
     def __init__(
         self,
         csv_path: str,
+        pipe,
         tokenizer_1,
         tokenizer_2,
         vae_encoder,
@@ -180,6 +178,7 @@ class PreprocessedDataset(Dataset):
                 NotImplementedError
             ), "Preprocessing Text Encoder is not implemented yet"
 
+        self.pipe = pipe
         self.tokenizer_1 = tokenizer_1
         self.tokenizer_2 = tokenizer_2
 
@@ -220,7 +219,7 @@ class PreprocessedDataset(Dataset):
         image_path = self.image_path[idx]
         image_path = os.path.join(os.path.dirname(self.csv_path), image_path)
         image = PIL.Image.open(image_path).convert("RGB")
-        image = prepare_image(image, self.size, self.size).to(
+        image = prepare_image(image, self.size, self.size, self.pipe).to(
             dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
         )
 
@@ -249,7 +248,7 @@ class PreprocessedDataset(Dataset):
                 return_tensors="pt",
             ).input_ids.squeeze()
 
-        vae_latent = self.vae_encoder.encode(image).latent_dist#.sample()
+        vae_latent = self.vae_encoder.encode(image).latent_dist
         dummy_vae_latent = vae_latent.sample()
 
         if self.mask_path is None:

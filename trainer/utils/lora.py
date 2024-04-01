@@ -123,7 +123,7 @@ def save_lora(
     elif len(unet_lora_parameters) > 0:
         unet.save_pretrained(save_directory = output_dir)
 
-    if 1:
+    if 0:
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
 
         StableDiffusionXLPipeline.save_lora_weights(
@@ -136,9 +136,6 @@ def save_lora(
     if 1:
         #lora_tensors = unet_attn_processors_state_dict(unet)
         lora_tensors = get_peft_model_state_dict(unet)
-
-        
-
         save_file(lora_tensors, f"{output_dir}/{name}_lora_orig.safetensors")
         
     embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")

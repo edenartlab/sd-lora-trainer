@@ -231,6 +231,7 @@ def main(
         
     train_dataset = PreprocessedDataset(
         os.path.join(input_dir, "captions.csv"),
+        pipe,
         tokenizer_one,
         tokenizer_two,
         vae,
@@ -394,6 +395,44 @@ def main(
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
             ).sample
 
+            if 0: # dont remove yet, XANDER experiment to try and debug sd15 training
+                from PIL import Image
+                from torchvision import transforms
+
+                def decode_latents(vae, latents):
+                    image = vae.decode(latents / vae.config.scaling_factor, return_dict=False)[0]
+                    do_denormalize = [True] * image.shape[0]
+                    image = pipe.image_processor.postprocess(image, output_type="pil", do_denormalize=do_denormalize)
+                    return image
+
+                if global_step < 5:
+                    input_img_path = '/home/xander/Downloads/datasets/banny/1.src.jpg'
+                    banny_img = Image.open(input_img_path)
+                    size = (config.resolution, config.resolution)
+                    image_transforms = transforms.Compose(
+                        [
+                            transforms.Resize(size, interpolation=transforms.InterpolationMode.BILINEAR),
+                            transforms.CenterCrop(size),
+                        ]
+                    )
+                    banny_img = image_transforms(banny_img)
+                    banny_pixel_values = pipe.image_processor.preprocess(banny_img).to(config.device).to(vae.dtype)
+
+                    for i in range(4):
+                        latent_banny  = vae.encode(banny_pixel_values).latent_dist.sample()
+                        decoded_banny = decode_latents(vae, latent_banny)[0]
+                        decoded_banny.save(f'/home/xander/Downloads/datasets/decoded/source_img_decoded_{i}.jpg')
+
+                    shutil.copy(input_img_path, f'/home/xander/Downloads/datasets/decoded/source_img.jpg')
+                    
+                # Save the current decoded image:
+                decoded_img = decode_latents(vae, noisy_latent)[0]
+                decoded_img.save(f'/home/xander/Downloads/datasets/decoded/decoded_training_sample_{int(time.time())}.jpg')
+
+
+
+
+
             # Get the unet prediction target depending on the prediction type:
             if noise_scheduler.config.prediction_type == "epsilon":
                 target = noise
@@ -516,7 +555,7 @@ def main(
                 pass
 
             # Print some statistics:
-            if (global_step % config.checkpointing_steps == 0): # and global_step > 0:
+            if (global_step % config.checkpointing_steps == 0): #and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(

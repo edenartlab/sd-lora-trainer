@@ -14,8 +14,8 @@ import os, json, random, time
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path = 'lora_models/plantoid_new---sdxl_object_dora/checkpoints/checkpoint-600'
-    lora_scale = 0.25
+    lora_path = 'lora_models/banny_all---sd15_object_lora/checkpoints/checkpoint-1400'
+    lora_scale = 0.75
     modulate_token_strength = True
 
     seed = 1
