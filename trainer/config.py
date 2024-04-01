@@ -37,6 +37,7 @@ class TrainingConfig(BaseModel):
     crop_based_on_salience: bool = True
     use_face_detection_instead: bool = False
     clipseg_temperature: float = 0.7
+    n_sample_imgs: int = 4
     verbose: bool = False
     run_name: str = "default_run_name"
     debug: bool = False

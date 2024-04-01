@@ -206,21 +206,28 @@ class PreprocessedDataset(Dataset):
             self.do_cache = False
 
         if aspect_ratio_bucketing:
+            print("Using aspect ratio bucketing.")
             assert train_batch_size is not None, f"Please also provide a `train_batch_size` when you have set `aspect_ratio_bucketing == True`"
             from .utils.aspect_ratio_bucketing import BucketManager
             aspect_ratios = {}
             for idx in range(len(self.data)):
                 aspect_ratios[idx] = Image.open(os.path.join(os.path.dirname(self.csv_path), self.image_path[idx])).size
+
+            print(aspect_ratios)
             self.bucket_manager = BucketManager(
                 aspect_ratios = aspect_ratios,
-                bsz = train_batch_size
+                bsz = train_batch_size,
+                debug=True
             )
         else:
+            print("Not using aspect ratio bucketing.")
             self.bucket_manager = None
 
     def get_aspect_ratio_bucketed_batch(self):
         assert self.bucket_manager is not None, f"Expected self.bucket_manager to not be None! In order to get an aspect ration bucketed batch, please set aspect_ratio_bucketing = True and set a value for train_batch_size when doing __init__()"
         indices, resolution = self.bucket_manager.get_batch()
+
+        print(f"Got bucket batch: {indices}, resolution: {resolution}")
 
         tok1, tok2, vae_latents, masks = [], [], [], []
         
@@ -260,11 +267,11 @@ class PreprocessedDataset(Dataset):
         image_path = os.path.join(os.path.dirname(self.csv_path), image_path)
         image = PIL.Image.open(image_path).convert("RGB")
         if bucketing_resolution is None:
-            image = prepare_image(image, w = self.size, h = self.size, self.pipe).to(
+            image = prepare_image(image, w = self.size, h = self.size, pipe = self.pipe).to(
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
         else:
-            image = prepare_image(image, w = bucketing_resolution[0], h = bucketing_resolution[1]).to(
+            image = prepare_image(image, w = bucketing_resolution[0], h = bucketing_resolution[1], pipe = self.pipe).to(
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
 

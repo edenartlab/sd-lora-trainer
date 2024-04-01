@@ -602,7 +602,7 @@ def main(
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, verbose=config.verbose, trigger_text=trigger_text)
+                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
                     
                     gc.collect()
                     torch.cuda.empty_cache()
@@ -646,7 +646,7 @@ def main(
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = 4, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
+        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
