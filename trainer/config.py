@@ -67,7 +67,7 @@ class TrainingConfig(BaseModel):
             config_data = json.load(f)
 
         # Parse the model:
-        from trainer.utils.models import pretrained_models
+        from trainer.models import pretrained_models
         config_data["pretrained_model"] = pretrained_models[config_data["sd_model_version"]]
 
         # add some metrics to the foldername:
