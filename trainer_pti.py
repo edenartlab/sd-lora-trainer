@@ -321,24 +321,12 @@ def main(
                 optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
             
-            if config.pretrained_model['version'] == "sdxl":
-                if not config.aspect_ratio_bucketing:
-                    (tok1, tok2), vae_latent, mask = batch
-                else:
-                    ## delete batch to save a bit of memory
-                    del batch
-                    (tok1, tok2), vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
-            elif config.pretrained_model['version'] == "sd15":
-                if not config.aspect_ratio_bucketing:
-                    tok1, vae_latent, mask = batch
-                else:
-                    ## delete batch to save a bit of memory
-                    del batch
-                    tok1, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
-                tok2 = None
+            if not config.aspect_ratio_bucketing:
+                (tok1, tok2), vae_latent, mask = batch
+            else:
+                (tok1, tok2), vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
             
             vae_latent = vae_latent.to(weight_dtype)
-
 
             # tokens to text embeds
             prompt_embeds_list = []

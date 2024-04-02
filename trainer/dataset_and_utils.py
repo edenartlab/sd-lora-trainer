@@ -249,8 +249,8 @@ class PreprocessedDataset(Dataset):
         vae_latents = torch.cat(vae_latents, dim = 0)
         masks = torch.cat(masks, dim = 0)
 
-        if  self.tokenizer_2 is None:
-             return tok1, vae_latents, masks
+        if self.tokenizer_2 is None:
+            return (tok1, None), vae_latents, masks
         else:
             return (tok1, tok2), vae_latents, masks
 
