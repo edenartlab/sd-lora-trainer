@@ -21,7 +21,7 @@
     "off_ratio_power": 0.1,
     "snr_gamma": 5.0,
     "lora_rank": 12,
-    "use_dora": true,
+    "use_dora": false,
     "caption_model": "blip",
     "left_right_flip_augmentation": true,
     "augment_imgs_up_to_n": 20,

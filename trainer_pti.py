@@ -393,8 +393,6 @@ def main(
             if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
 
-            print(f"Shape of noisy_latent: {noisy_latent.shape}")
-
             # Predict the noise residual
             model_pred = unet(
                 noisy_latent,

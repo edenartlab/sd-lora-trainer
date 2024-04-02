@@ -61,7 +61,7 @@ class TrainingConfig(BaseModel):
     lr_power: float = 1.0
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
-    aspect_ratio_bucketing: bool = True
+    aspect_ratio_bucketing: bool = False
 
     def save_as_json(self, file_path: str) -> None:
         with open(file_path, 'w') as f:
