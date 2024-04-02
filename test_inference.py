@@ -1,9 +1,10 @@
-from trainer.utils.models import load_models, pretrained_models
+from trainer.models import load_models, pretrained_models
 from trainer.utils.lora import patch_pipe_with_lora, blend_conditions
 from trainer.utils.val_prompts import val_prompts
 from trainer.utils.prompt import prepare_prompt_for_lora
 from trainer.utils.io import make_validation_img_grid
-from trainer.dataset_and_utils import seed_everything, pick_best_gpu_id
+from trainer.dataset_and_utils import pick_best_gpu_id
+from trainer.utils.seed import seed_everything
 from diffusers import EulerDiscreteScheduler
 
 import torch
@@ -14,13 +15,13 @@ import os, json, random, time
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path = 'lora_models/banny_all---sd15_object_lora/checkpoints/checkpoint-1400'
-    lora_scale = 0.75
+    lora_path = 'lora_models/banny---sdxl_object_dora/checkpoints/checkpoint-600'
+    lora_scale = 0.7
     modulate_token_strength = True
 
     seed = 1
-    render_size = (1024, 1024+256)  # H,W
-    n_imgs = 6
+    render_size = (1024, 1024)  # H,W
+    n_imgs = 24
     n_steps = 30
     guidance_scale = 8
 
@@ -60,11 +61,12 @@ if __name__ == "__main__":
         segmentation_prompt = training_args["training_attributes"]["segmentation_prompt"]
 
     if concept_mode == "style":
-        validation_prompts_raw = random.sample(val_prompts['style'], n_imgs)
+        validation_prompts_raw = random.choices(val_prompts['style'], k=n_imgs)
     elif concept_mode == "face":
-        validation_prompts_raw = random.sample(val_prompts['face'], n_imgs)
+        validation_prompts_raw = random.choices(val_prompts['face'], k=n_imgs)
     else:
-        validation_prompts_raw = random.sample(val_prompts['object'], n_imgs)
+        validation_prompts_raw = random.choices(val_prompts['object'], k=n_imgs)
+
 
     validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=1, trigger_text=trigger_text) for prompt in validation_prompts_raw]
 
