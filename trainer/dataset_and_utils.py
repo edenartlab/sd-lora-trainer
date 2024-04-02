@@ -222,7 +222,7 @@ class PreprocessedDataset(Dataset):
             self.bucket_manager = None
 
     def get_aspect_ratio_bucketed_batch(self):
-        assert self.bucket_manager is not None, f"Expected self.bucket_manager to not be None! In order to get an aspect ration bucketed batch, please set aspect_ratio_bucketing = True and set a value for train_batch_size when doing __init__()"
+        assert self.bucket_manager is not None, f"Expected self.bucket_manager to not be None! In order to get an aspect ratio bucketed batch, please set aspect_ratio_bucketing = True and set a value for train_batch_size when doing __init__()"
         indices, resolution = self.bucket_manager.get_batch()
 
         print(f"Got bucket batch: {indices}, resolution: {resolution}")
