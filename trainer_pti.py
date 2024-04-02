@@ -258,15 +258,6 @@ def main(
     if config.max_train_steps is None:
         config.max_train_steps = config.num_train_epochs * num_update_steps_per_epoch
 
-    #lr_scheduler = get_scheduler(
-    #    config.lr_scheduler,
-    #    optimizer=optimizer,
-    #    num_warmup_steps=config.lr_warmup_steps * config.gradient_accumulation_steps,
-    #    num_training_steps=config.max_train_steps * config.gradient_accumulation_steps,
-    #    num_cycles=config.lr_num_cycles,
-    #    power=config.lr_power,
-    #)
-
     num_update_steps_per_epoch = math.ceil(
         len(train_dataloader) / config.gradient_accumulation_steps
     )
@@ -315,9 +306,6 @@ def main(
             if config.hard_pivot:
                 if epoch >= config.num_train_epochs // 2:
                     if optimizer_ti is not None:
-                        print("----------------------")
-                        print("# PTI :  Pivot halfway")
-                        print("----------------------")
                         # remove text encoder parameters from the optimizer
                         optimizer_ti.param_groups = None
                         # remove the optimizer state corresponding to text_encoder_parameters
@@ -373,7 +361,7 @@ def main(
             pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
             # Create Spatial-dimensional conditions.
-            original_size = (1024, 1024)
+            original_size = (config.resolution, config.resolution)
             target_size   = (config.resolution, config.resolution)
             crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
             add_time_ids = list(original_size + crops_coords_top_left + target_size)
@@ -381,7 +369,7 @@ def main(
             add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
                 bs_embed, 1
             )
-
+            
             # Sample noise that we'll add to the latents:
             noise = torch.randn_like(vae_latent)
 
@@ -412,7 +400,7 @@ def main(
                 noisy_latent,
                 timesteps,
                 encoder_hidden_states=prompt_embeds,
-                cross_attention_kwargs=None,
+                #cross_attention_kwargs=None,
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
             ).sample
 
@@ -530,13 +518,12 @@ def main(
                         ] *= 0.
 
                     if config.debug:
-                        pass
                         # Track the average gradient norms:
-                        # grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
-                        # for i, text_encoder in enumerate(text_encoders):
-                        #     if text_encoder is not None:
-                        #         text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
-                        #         grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
+                        grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
+                        for i, text_encoder in enumerate(text_encoders):
+                            if text_encoder is not None:
+                                text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
+                                grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
                     
                     # Clip the gradients to stabilize training:
                     if config.clip_grad_norm > 0.0:
