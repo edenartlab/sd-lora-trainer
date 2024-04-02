@@ -13,7 +13,7 @@ class TrainingConfig(BaseModel):
     sd_model_version: Literal["sdxl", "sd15"]
     pretrained_model: dict = None
     seed: Union[int, None] = None
-    resolution: int = 768
+    resolution: int = 512
     validation_img_size: List[int] = [1024, 1024]
     train_batch_size: int = 4
     num_train_epochs: int = 10000
