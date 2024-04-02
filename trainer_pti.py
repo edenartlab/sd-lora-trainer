@@ -234,12 +234,15 @@ def main(
         pipe,
         tokenizer_one,
         tokenizer_two,
-        vae,
+        vae.float(),
+        size = config.resolution,
         do_cache=config.do_cache,
         substitute_caption_map=config.token_dict,
-        aspect_ratio_bucketing=config.train_batch_size,
+        aspect_ratio_bucketing=config.aspect_ratio_bucketing,
         train_batch_size=config.train_batch_size
     )
+
+    vae = vae.to(weight_dtype)
 
     print(f"# PTI : Loaded dataset, do_cache: {config.do_cache}")
     train_dataloader = torch.utils.data.DataLoader(
@@ -345,9 +348,9 @@ def main(
                     del batch
                     tok1, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
                 tok2 = None
-                
-
+            
             vae_latent = vae_latent.to(weight_dtype)
+
 
             # tokens to text embeds
             prompt_embeds_list = []
@@ -370,7 +373,7 @@ def main(
             pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
 
             # Create Spatial-dimensional conditions.
-            original_size = (config.resolution, config.resolution)
+            original_size = (1024, 1024)
             target_size   = (config.resolution, config.resolution)
             crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
             add_time_ids = list(original_size + crops_coords_top_left + target_size)
@@ -402,11 +405,14 @@ def main(
             if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
 
+            print(f"Shape of noisy_latent: {noisy_latent.shape}")
+
             # Predict the noise residual
             model_pred = unet(
                 noisy_latent,
                 timesteps,
-                prompt_embeds,
+                encoder_hidden_states=prompt_embeds,
+                cross_attention_kwargs=None,
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
             ).sample
 
@@ -533,17 +539,16 @@ def main(
                         #         grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
                     
                     # Clip the gradients to stabilize training:
-                    clip_grad_norm = 0.5
+                    if config.clip_grad_norm > 0.0:
+                        # Filter parameters with gradients for the UNet model
+                        unet_params_with_grad = [p for p in unet.parameters() if p.grad is not None]
+                        torch.nn.utils.clip_grad_norm_(unet_params_with_grad, clip_grad_norm)
 
-                    # Filter parameters with gradients for the UNet model
-                    unet_params_with_grad = [p for p in unet.parameters() if p.grad is not None]
-                    torch.nn.utils.clip_grad_norm_(unet_params_with_grad, clip_grad_norm)
-
-                    # Filter parameters with gradients for each text encoder
-                    for text_encoder in text_encoders:
-                        if text_encoder is not None:
-                            text_encoder_params_with_grad = [p for p in text_encoder.parameters() if p.grad is not None]
-                            torch.nn.utils.clip_grad_norm_(text_encoder_params_with_grad, clip_grad_norm)
+                        # Filter parameters with gradients for each text encoder
+                        for text_encoder in text_encoders:
+                            if text_encoder is not None:
+                                text_encoder_params_with_grad = [p for p in text_encoder.parameters() if p.grad is not None]
+                                torch.nn.utils.clip_grad_norm_(text_encoder_params_with_grad, clip_grad_norm)
 
                     optimizer_ti.step()
                     optimizer_ti.zero_grad()
@@ -602,7 +607,7 @@ def main(
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
+                    validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
                     
                     gc.collect()
                     torch.cuda.empty_cache()
@@ -646,7 +651,7 @@ def main(
             name=name
         )
         
-        validation_prompts = render_images(pipe, target_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
+        validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

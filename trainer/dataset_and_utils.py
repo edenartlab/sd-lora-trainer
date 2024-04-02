@@ -83,7 +83,7 @@ def plot_grad_norms(grad_norms, save_path='grad_norms.png'):
             pass
 
     plt.yscale('log')  # Set y-axis to log scale
-    plt.ylim(1e-4, 1.0)
+    plt.ylim(1e-6, 100.0)
     plt.xlabel('Step')
     plt.ylabel('Grad Norm')
     plt.title('Gradient Norms')
@@ -142,7 +142,6 @@ class PreprocessedDataset(Dataset):
         do_cache: bool = False,
         size: int = 512,
         text_dropout: float = 0.0,
-        scale_vae_latents: bool = True,
         aspect_ratio_bucketing: bool = False,
         train_batch_size: int = None,# required for aspect_ratio_bucketing
         substitute_caption_map: Dict[str, str] = {},
@@ -179,7 +178,6 @@ class PreprocessedDataset(Dataset):
         self.tokenizer_2 = tokenizer_2
 
         self.vae_encoder = vae_encoder
-        self.scale_vae_latents = scale_vae_latents
         self.vae_scaling_factor = self.vae_encoder.config.scaling_factor
         self.text_dropout = text_dropout
         self.size = size
@@ -198,7 +196,7 @@ class PreprocessedDataset(Dataset):
                 self.tokens_tuple.append(token)
                 self.masks.append(mask)
 
-            print(f"Cached latents and masks for {len(self.vae_latents)} images.")\
+            print(f"Cached latents and masks for {len(self.vae_latents)} images.")
 
             del self.vae_encoder
 
@@ -334,16 +332,13 @@ class PreprocessedDataset(Dataset):
     def __getitem__(
         self, idx: int, bucketing_resolution:tuple = None
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
+
         if self.do_cache:
-            vae_latent = self.vae_latents[idx].sample()
-            if self.scale_vae_latents:
-                vae_latent *= self.vae_scaling_factor
+            vae_latent = self.vae_latents[idx].sample() * self.vae_scaling_factor
             return self.tokens_tuple[idx], vae_latent.squeeze(), self.masks[idx]
-        else:
+        else: # This code pathway has not been tested in a long time and might be broken
             tokens, vae_latent, mask = self._process(idx, bucketing_resolution=bucketing_resolution)
-            vae_latent = vae_latent.sample()
-            if self.scale_vae_latents:
-                vae_latent *= self.vae_scaling_factor
+            vae_latent = vae_latent.sample() * self.vae_scaling_factor
             return tokens, vae_latent.squeeze(), mask
 
 

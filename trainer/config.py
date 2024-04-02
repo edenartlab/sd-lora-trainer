@@ -13,13 +13,15 @@ class TrainingConfig(BaseModel):
     sd_model_version: Literal["sdxl", "sd15"]
     pretrained_model: dict = None
     seed: Union[int, None] = None
-    resolution: int = 960
+    resolution: int = 768
+    validation_img_size: List[int] = [1024, 1024]
     train_batch_size: int = 4
     num_train_epochs: int = 10000
     max_train_steps: int = 600
     checkpointing_steps: int = 10000
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
+    clip_grad_norm: float = -1
     prodigy_d_coef: float = 0.5
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4

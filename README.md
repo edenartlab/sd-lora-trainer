@@ -25,6 +25,7 @@ Code / Cleanup:
 - Make sure the trained concepts (with peft) are compatible with ComfyUI / AUTO1111
 
 Algo:
+- Test if timesteps = torch.randint() can be improved: look at sdxl training code! (see https://github.com/huggingface/diffusers/blob/main/examples/advanced_diffusion_training/train_dreambooth_lora_sdxl_advanced.py#L1263, https://arxiv.org/pdf/2206.00364.pdf)
 - Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
 - test if textual inversion training can also happen with prodigy_optimizer
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
