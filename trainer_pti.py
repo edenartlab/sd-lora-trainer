@@ -603,7 +603,7 @@ def main(
         )
 
     if config.debug:
-        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
         # Create a zipfile of all the *.py files in the directory
         zip_file_path = os.path.join(config.output_dir, 'source_code.zip')
         with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
