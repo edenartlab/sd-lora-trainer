@@ -437,6 +437,10 @@ def blip_caption_dataset(
             out = model.generate(**inputs, max_length=100, do_sample=True, top_k=40, temperature=0.65)
             captions[i] = processor.decode(out[0], skip_special_tokens=True)
 
+    del model
+    gc.collect()
+    torch.cuda.empty_cache()
+
     return captions
 
 def encode_image(image_path):

@@ -93,17 +93,40 @@ def plot_grad_norms(grad_norms, save_path='grad_norms.png'):
     plt.savefig(save_path)
     plt.close()
 
-from scipy.signal import savgol_filter
-def plot_loss(losses, save_path='losses.png', window_length=31, polyorder=3):
-    if len(losses) < window_length:
-        return
-    
-    smoothed_losses = savgol_filter(losses, window_length, polyorder)
-    
+def plot_token_stds(token_std_dict, save_path='token_stds.png'):
     plt.figure()
-    plt.plot(losses, label='Actual Losses')
-    plt.plot(smoothed_losses, label='Smoothed Losses', color='red')
-    # plt.yscale('log')  # Uncomment if log scale is desired
+    for key in token_std_dict.keys():
+        tokenizer_i_token_stds = token_std_dict[key]
+        for i in range(len(tokenizer_i_token_stds)):
+            stds = tokenizer_i_token_stds[i]
+            if len(stds) == 0:
+                continue
+            plt.plot(range(len(stds)), stds, label=f'{key}_tok_{i}')
+
+    plt.xlabel('Step')
+    plt.ylabel('Token Embedding Std')
+    plt.title('Token Embedding Std')
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
+
+from scipy.signal import savgol_filter
+def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3):
+
+    plt.figure()
+
+    for key in loss_dict.keys():
+        losses = loss_dict[key]
+        smoothed_losses = [0]
+        if len(losses) < window_length:
+            continue
+        
+        smoothed_losses = savgol_filter(losses, window_length, polyorder)
+        
+        plt.plot(losses, label=key)
+        plt.plot(smoothed_losses, label=f'Smoothed {key}', color='red')
+        # plt.yscale('log')  # Uncomment if log scale is desired
+
     plt.xlabel('Step')
     plt.ylabel('Training Loss')
     plt.ylim(0, np.max(smoothed_losses)*1.4)
@@ -165,17 +188,11 @@ class PreprocessedDataset(Dataset):
         else:
             self.mask_path = self.data["mask_path"]
 
-        if text_encoder_1 is None:
-            self.return_text_embeddings = False
-        else:
-            self.text_encoder_1 = text_encoder_1
-            self.text_encoder_2 = text_encoder_2
-            self.return_text_embeddings = True
-            assert (
-                NotImplementedError
-            ), "Preprocessing Text Encoder is not implemented yet"
-
         self.pipe = pipe
+
+        self.text_encoder_1 = text_encoder_1
+        self.text_encoder_2 = text_encoder_2
+
         self.tokenizer_1 = tokenizer_1
         self.tokenizer_2 = tokenizer_2
 
@@ -534,6 +551,10 @@ class TokenEmbeddingsHandler:
 
             idx += 1
 
+    @property
+    def dtype(self):
+        return self.text_encoders[0].dtype
+
     def initialize_new_tokens(self, 
         inserting_toks: List[str],
         starting_toks:  Optional[List[str]] = None,
@@ -548,6 +569,7 @@ class TokenEmbeddingsHandler:
 
         print(f"Initializing new tokens: {inserting_toks}")
         self.inserting_toks = inserting_toks
+
 
         torch.manual_seed(seed)
         idx = 0
@@ -576,15 +598,18 @@ class TokenEmbeddingsHandler:
                 self.starting_ids = tokenizer.convert_tokens_to_ids(starting_toks)
                 print(f"Copying embeddings from starting tokens {starting_toks} to new tokens {self.inserting_toks}")
                 print(f"Starting ids: {self.starting_ids}")
-
                 # copy the embeddings of the starting tokens to the new tokens
                 text_encoder.text_model.embeddings.token_embedding.weight.data[
                     self.train_ids] = text_encoder.text_model.embeddings.token_embedding.weight.data[self.starting_ids].clone()
 
             else:
-
                 if 1: # random initialization:
-                    init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding * 1.0)
+                    init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding)
+                    # clamp the maximum value of the new embeddings to 2*std_token_embedding
+                    #init_embeddings = torch.clamp(init_embeddings, -2*std_token_embedding, 2*std_token_embedding)
+                    # renormalize the embeddings to have std = std_token_embedding
+                    #init_embeddings = init_embeddings / init_embeddings.std(dim=1, keepdim=True) * std_token_embedding
+                
                 else: 
                     # Test code to initialize the new tokens with some specific tokens
                     first_tokens = [
@@ -707,34 +732,32 @@ class TokenEmbeddingsHandler:
 
         save_file(tensors, file_path)
 
-
-    @property
-    def dtype(self):
-        return self.text_encoders[0].dtype
-
     @property
     def device(self):
         return self.text_encoders[0].device
 
     def _compute_off_ratio(self, idx):
-        # compute the off-std-ratio for the embeddings
+        # compute the off-std-ratio for the embeddings, to be used for regularization rescaling
 
         text_encoder = self.text_encoders[idx]
-        tokenizer    = self.tokenizers[idx]
-
         if text_encoder is None:
-            off_ratio = -1
+            off_ratio = 1.0
+            new_embeddings = None
         else:
             index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
             std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]
             index_updates = ~index_no_updates
-            new_embeddings = (text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates])
+            new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates]
+            new_stds = new_embeddings.std(dim=1)
+            assert new_stds.shape[0] == len(self.train_ids), "Something went wrong with the std computation"
+            off_ratio = std_token_embedding / new_stds.mean()
 
-            off_ratio = std_token_embedding / new_embeddings.std()
-
-        return off_ratio
+        return off_ratio, new_embeddings
 
     def fix_embedding_std(self, off_ratio_power = 0.1):
+        if off_ratio_power == 0.0:
+            return
+
         std_penalty = 0.0
         idx = 0
 
@@ -743,19 +766,14 @@ class TokenEmbeddingsHandler:
                 idx += 1
                 continue
 
-            index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
-            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]
+            index_no_updates = self.embeddings_settings[f"index_no_updates_{idx}"]
             index_updates = ~index_no_updates
 
-            new_embeddings = (text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates])
-
-            off_ratio = self._compute_off_ratio(idx)
+            off_ratio, new_embeddings = self._compute_off_ratio(idx)
             std_penalty += (off_ratio - 1.0)**2
 
             if (off_ratio < 0.95) or (off_ratio > 1.05):
                 print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) = {off_ratio:.4f}, prob not ideal...")                
-                #print(f"std_token_embedding: {std_token_embedding}")
-                #print(f"std new_embeddings: {new_embeddings.std()}")
 
             # rescale the embeddings to have a more similar std as before:
             new_embeddings = new_embeddings * (off_ratio**off_ratio_power)

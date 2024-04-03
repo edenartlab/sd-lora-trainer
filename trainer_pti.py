@@ -20,6 +20,7 @@ from trainer.dataset_and_utils import (
     plot_torch_hist, 
     plot_grad_norms,
     plot_loss, 
+    plot_token_stds,
     plot_lrs,
     pick_best_gpu_id
 )
@@ -149,6 +150,7 @@ def main(
                 if "token_embedding" in name:
                     param.requires_grad = True
                     text_encoder_parameters.append(param)
+                    print(f"Added {name} with shape {param.shape} to the trainable parameters")
                 else:
                     param.requires_grad = False
 
@@ -255,7 +257,6 @@ def main(
     )
     # offload the vae to cpu:
     vae = vae.to('cpu')
-    # clear gpu memory:
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -303,15 +304,16 @@ def main(
     embedding_handler.visualize_random_token_embeddings(config.output_dir,
         token_list = ['face', 'man', 'butterfly', 'chess', 'fly', 'the', ' ', '.'])
 
-    ti_lrs, lora_lrs = [], []
-    # Gradient norm tracking:
-    grad_norms = {}
+    # Data tracking:
+    start_time, images_done = time.time(), 0
+    ti_lrs, lora_lrs, losses = [], [], {'img_loss': [], 'tot_loss': []}
+    grad_norms, token_stds = {}, {}
     grad_norms['unet'] = [] 
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
-
-    losses = []
-    start_time, images_done = time.time(), 0
+        token_stds[f'text_encoder_{i}'] = {}
+        for j in range(config.n_tokens):
+            token_stds[f'text_encoder_{i}'][j] = []
 
     for epoch in range(first_epoch, config.num_train_epochs):
         if config.aspect_ratio_bucketing:
@@ -430,12 +432,28 @@ def main(
 
                 loss = loss.mean()
 
+            #losses['img_loss'].append(loss.item())
+
             if config.l1_penalty > 0.0 and not config.use_dora:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss +=  config.l1_penalty * l1_norm
 
-            losses.append(loss.item())
+            if 1:
+                token_embedding_std_penalty = 0.0
+                trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
+                for idx in range(len(text_encoders)):
+                    if text_encoders[idx] is not None:
+                        embedding = torch.stack(trainable_embeddings[f'txt_encoder_{idx}'])
+                        embedding_stds = embedding.std(dim=1)
+                        for std_i, std in enumerate(embedding_stds):
+                            token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
+                        target_stds = embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"]
+                        target_stds = target_stds.unsqueeze(0).expand_as(embedding_stds)
+                        std_loss = token_embedding_std_penalty * (embedding_stds - target_stds).pow(2).mean()
+                        #loss +=  std_loss
+
+            losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
@@ -449,11 +467,9 @@ def main(
                 if optimizer_ti is not None:
                     
                     # zero out the gradients of the non-trained text-encoder embeddings
-                    for embedding_tensor in text_encoder_parameters:
-                        embedding_tensor.grad.data[
-                            :-len(config.inserting_list_tokens), 
-                            :
-                        ] *= 0.
+                    if 1:
+                        for embedding_tensor in text_encoder_parameters:
+                            embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
                     if config.debug:
                         # Track the average gradient norms:
@@ -481,8 +497,8 @@ def main(
                 optimizer_lora_unet.step()
                 optimizer_lora_unet.zero_grad()
 
-                # after every optimizer step, we reset the non-trainable embeddings to the original embeddings
-                embedding_handler.retract_embeddings(print_stds = (global_step % 50 == 0))
+                # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
+                # embedding_handler.retract_embeddings()
                 embedding_handler.fix_embedding_std(config.off_ratio_power)
             
             # Track the learning rates for final plotting:
@@ -501,7 +517,7 @@ def main(
                 pass
 
             # Print some statistics:
-            if (global_step % config.checkpointing_steps == 0): #and global_step > 0:
+            if (global_step % config.checkpointing_steps == 0): # and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -535,8 +551,9 @@ def main(
                             plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
                     embedding_handler.print_token_info()
-                    plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
+                    plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+                    plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                     validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
@@ -562,8 +579,9 @@ def main(
 
     if config.debug:
         plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+        plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
         plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
-        plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
+        plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
 
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)
