@@ -301,19 +301,20 @@ def main(
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
-    embedding_handler.visualize_random_token_embeddings(config.output_dir,
-        token_list = ['face', 'man', 'butterfly', 'chess', 'fly', 'the', ' ', '.'])
+    if config.debug:
+        embedding_handler.visualize_random_token_embeddings(config.output_dir,
+            token_list = ['face', 'man', 'butterfly', 'chess', 'fly', 'the', ' ', '.'])
 
-    # Data tracking:
+    # Data tracking inits:
     start_time, images_done = time.time(), 0
-    ti_lrs, lora_lrs, losses = [], [], {'img_loss': [], 'tot_loss': []}
-    grad_norms, token_stds = {}, {}
-    grad_norms['unet'] = [] 
+    ti_lrs, lora_lrs = [], []
+    losses = {'img_loss': [], 'tot_loss': []}
+    grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
-        token_stds[f'text_encoder_{i}'] = {}
-        for j in range(config.n_tokens):
-            token_stds[f'text_encoder_{i}'][j] = []
+        token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
+
+    #######################################################################################################
 
     for epoch in range(first_epoch, config.num_train_epochs):
         if config.aspect_ratio_bucketing:
@@ -338,6 +339,11 @@ def main(
                 completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
                 optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+
+            # warmup the token embedding lr:
+            if config.token_embedding_lr_warmup_steps > 0:
+                warmup_f = min(global_step / config.token_embedding_lr_warmup_steps, 1.0)
+                optimizer_ti.param_groups[0]['lr'] *= warmup_f
 
             if not config.aspect_ratio_bucketing:
                 token_indices, vae_latent, mask = batch
@@ -367,7 +373,6 @@ def main(
             ).long()
 
             noisy_latent = noise_scheduler.add_noise(vae_latent, noise, timesteps)
-
             noise_sigma = 0.0
             if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
@@ -432,8 +437,6 @@ def main(
 
                 loss = loss.mean()
 
-            #losses['img_loss'].append(loss.item())
-
             if config.l1_penalty > 0.0 and not config.use_dora:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
@@ -444,14 +447,14 @@ def main(
                 trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
                 for idx in range(len(text_encoders)):
                     if text_encoders[idx] is not None:
-                        embedding = torch.stack(trainable_embeddings[f'txt_encoder_{idx}'])
+                        embedding = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).float()
                         embedding_stds = embedding.std(dim=1)
                         for std_i, std in enumerate(embedding_stds):
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
-                        target_stds = embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"]
+                        target_stds = embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].float()
                         target_stds = target_stds.unsqueeze(0).expand_as(embedding_stds)
                         std_loss = token_embedding_std_penalty * (embedding_stds - target_stds).pow(2).mean()
-                        #loss +=  std_loss
+                        loss +=  std_loss
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps
@@ -467,9 +470,8 @@ def main(
                 if optimizer_ti is not None:
                     
                     # zero out the gradients of the non-trained text-encoder embeddings
-                    if 1:
-                        for embedding_tensor in text_encoder_parameters:
-                            embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
+                    for embedding_tensor in text_encoder_parameters:
+                        embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
                     if config.debug:
                         # Track the average gradient norms:
@@ -517,7 +519,7 @@ def main(
                 pass
 
             # Print some statistics:
-            if (global_step % config.checkpointing_steps == 0): # and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0): # and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -536,30 +538,29 @@ def main(
                     name=name
                 )
                 last_save_step = global_step
+                
+                token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
+                for idx, text_encoder in enumerate(embedding_handler.text_encoders):
+                    if text_encoder is None:
+                        continue
+                    n = len(token_embeddings[f'txt_encoder_{idx}'])
+                    for i in range(n):
+                        token = trainable_tokens[f'txt_encoder_{idx}'][i]
+                        # Strip any backslashes from the token name:
+                        token = token.replace("/", "_")
+                        embedding = token_embeddings[f'txt_encoder_{idx}'][i]
+                        plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
-                if config.debug:
-                    token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
-                    for idx, text_encoder in enumerate(embedding_handler.text_encoders):
-                        if text_encoder is None:
-                            continue
-                        n = len(token_embeddings[f'txt_encoder_{idx}'])
-                        for i in range(n):
-                            token = trainable_tokens[f'txt_encoder_{idx}'][i]
-                            # Strip any backslashes from the token name:
-                            token = token.replace("/", "_")
-                            embedding = token_embeddings[f'txt_encoder_{idx}'][i]
-                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
-
-                    embedding_handler.print_token_info()
-                    plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
-                    plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
-                    plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
-                    plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
-                    plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
-                    validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
-                    
-                    gc.collect()
-                    torch.cuda.empty_cache()
+                embedding_handler.print_token_info()
+                plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
+                plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+                plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
+                plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
+                plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
+                validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
+                
+                gc.collect()
+                torch.cuda.empty_cache()
             
             images_done += config.train_batch_size
             global_step += 1
@@ -600,7 +601,7 @@ def main(
             unet_param_to_optimize=unet_param_to_optimize,
             name=name
         )
-        
+
         validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")

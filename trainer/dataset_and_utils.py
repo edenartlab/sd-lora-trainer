@@ -129,7 +129,7 @@ def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3):
 
     plt.xlabel('Step')
     plt.ylabel('Training Loss')
-    plt.ylim(0, np.max(smoothed_losses)*1.4)
+    plt.ylim(0, max(0.01, np.max(smoothed_losses)*1.4))
     plt.legend()
     plt.savefig(save_path)
     plt.close()
@@ -603,56 +603,14 @@ class TokenEmbeddingsHandler:
                     self.train_ids] = text_encoder.text_model.embeddings.token_embedding.weight.data[self.starting_ids].clone()
 
             else:
-                if 1: # random initialization:
-                    init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding)
-                    # clamp the maximum value of the new embeddings to 2*std_token_embedding
-                    #init_embeddings = torch.clamp(init_embeddings, -2*std_token_embedding, 2*std_token_embedding)
-                    # renormalize the embeddings to have std = std_token_embedding
-                    #init_embeddings = init_embeddings / init_embeddings.std(dim=1, keepdim=True) * std_token_embedding
+                std_multiplier = 1.0
+                init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding)
+                init_embeddings *= std_multiplier
                 
-                else: 
-                    # Test code to initialize the new tokens with some specific tokens
-                    first_tokens = [
-                        "Sophia",
-                        "Liam",
-                        "Ethan",
-                        "Lucas",
-                        "Olivia",
-                        "Noah",
-                        "John",
-                        "David",
-                        "James",
-                        "Robert",
-                        "Michael",
-                        "William",
-                    ]
-
-                    second_tokens = [
-                        "Smith",
-                        "Johnson",
-                        "Williams",
-                        "Brown",
-                        "Jones",
-                        "Garcia",
-                        "Miller",
-                        "Davis",
-                        "Rodriguez",
-                        "Carter",
-                        "Trump",
-                        "Clinton",
-                        "Wilson",
-                        "Harris",
-                        "Lewis",
-                        "Scott"
-                    ]
-
-                    self.anchor_embedding_one = self.get_start_embedding(text_encoder, tokenizer, first_tokens)
-                    self.anchor_embedding_two = self.get_start_embedding(text_encoder, tokenizer, second_tokens)
-                    self.anchor_embedding_three = self.get_start_embedding(text_encoder, tokenizer, first_tokens)
-                    self.anchor_embedding_four = self.get_start_embedding(text_encoder, tokenizer, second_tokens)
-
-                    init_embeddings = torch.stack([self.anchor_embedding_one, self.anchor_embedding_two, self.anchor_embedding_three, self.anchor_embedding_four])
-                    print(f"init_embedding std: {init_embeddings.std():.4f}, avg-std: {std_token_embedding:.4f}")
+                # clamp the maximum value of the new embeddings to 2*std_token_embedding
+                #init_embeddings = torch.clamp(init_embeddings, -2*std_token_embedding, 2*std_token_embedding)
+                # renormalize the embeddings to have std = std_token_embedding
+                #init_embeddings = init_embeddings / init_embeddings.std(dim=1, keepdim=True) * std_token_embedding
 
                 text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids] = init_embeddings.clone()
 
@@ -745,9 +703,9 @@ class TokenEmbeddingsHandler:
             new_embeddings = None
         else:
             index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
-            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]
+            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"].float()
             index_updates = ~index_no_updates
-            new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates]
+            new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates].float()
             new_stds = new_embeddings.std(dim=1)
             assert new_stds.shape[0] == len(self.train_ids), "Something went wrong with the std computation"
             off_ratio = std_token_embedding / new_stds.mean()
@@ -779,7 +737,7 @@ class TokenEmbeddingsHandler:
             new_embeddings = new_embeddings * (off_ratio**off_ratio_power)
             text_encoder.text_model.embeddings.token_embedding.weight.data[
                     index_updates
-                ] = new_embeddings
+                ] = new_embeddings.to(device=text_encoder.device).to(dtype=text_encoder.dtype)
 
             idx += 1
 

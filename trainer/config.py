@@ -19,6 +19,7 @@ class TrainingConfig(BaseModel):
     num_train_epochs: int = 10000
     max_train_steps: int = 600
     checkpointing_steps: int = 10000
+    token_embedding_lr_warmup_steps: int = 60
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     clip_grad_norm: float = -1
@@ -27,7 +28,7 @@ class TrainingConfig(BaseModel):
     ti_weight_decay: float = 3e-4
     lora_weight_decay: float = 0.002
     l1_penalty: float = 0.1
-    noise_offset: float = 0.05
+    noise_offset: float = 0.0
     snr_gamma: float = 5.0
     lora_rank: int = 12
     use_dora: bool = False
