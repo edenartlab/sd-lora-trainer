@@ -329,7 +329,7 @@ class Predictor(BasePredictor):
             hard_pivot=hard_pivot,
             off_ratio_power=off_ratio_power,
             allow_tf32 = True,
-            mixed_precision="bf16",
+            weight_type="bf16",
             inserting_list_tokens=inserting_list_tokens,
             token_dict=token_dict,
             device="cuda:0",

@@ -29,7 +29,7 @@
     "verbose": true,
     "debug": true,
     "hard_pivot": false,
-    "mixed_precision": "bf16",
+    "weight_type": "bf16",
     "dataloader_num_workers": 0,
     "aspect_ratio_bucketing": false
 }

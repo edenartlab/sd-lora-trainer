@@ -11,6 +11,49 @@ from .lora import patch_pipe_with_lora
 from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
 
+
+def get_conditioning_signals(config, token_indices, vae_latent, mask, text_encoders, weight_dtype):
+
+    if len(token_indices) == 1:
+        token_indices = (token_indices[0], None)
+
+    vae_latent = vae_latent.to(weight_dtype)
+
+    # tokens to text embeds
+    prompt_embeds_list = []
+    for tok, text_encoder in zip(token_indices, text_encoders):
+        if tok is None:
+            continue
+
+        prompt_embeds_out = text_encoder(
+            tok.to(text_encoder.device),
+            output_hidden_states=True,
+        )
+
+        pooled_prompt_embeds = prompt_embeds_out[0]
+        prompt_embeds = prompt_embeds_out.hidden_states[-2]
+        bs_embed, seq_len, _ = prompt_embeds.shape
+        prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
+        prompt_embeds_list.append(prompt_embeds)
+
+    prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
+    pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
+
+    # Create Spatial-dimensional conditions.
+    original_size = (config.resolution, config.resolution)
+    target_size   = (config.resolution, config.resolution)
+    crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
+    add_time_ids = list(original_size + crops_coords_top_left + target_size)
+    add_time_ids = torch.tensor([add_time_ids])
+    add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
+        bs_embed, 1
+    )
+
+    return prompt_embeds, pooled_prompt_embeds, add_time_ids, vae_latent, mask
+
+
+
+
 @torch.no_grad()
 def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretrained_model, trigger_text: str, lora_scale = 0.7, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
     training_scheduler = pipe.scheduler

@@ -33,10 +33,9 @@ from trainer.config import TrainingConfig
 from trainer.models import print_trainable_parameters, load_models
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
-from trainer.utils.inference import render_images
+from trainer.utils.inference import render_images, get_conditioning_signals
 from trainer.utils.config_modification import modify_args_based_on_concept_mode
 from preprocess import preprocess
-
 
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 from torch import Tensor, inf
@@ -99,7 +98,7 @@ def main(
 
     print("Using seed", config.seed)
     torch.manual_seed(config.seed)
-    weight_dtype = dtype_map[config.mixed_precision]
+    weight_dtype = dtype_map[config.weight_type]
 
     (   
         pipe,
@@ -286,9 +285,9 @@ def main(
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
-    embedding_handler.visualize_random_token_embeddings(config.output_dir, n = 10)
-
-
+    embedding_handler.visualize_random_token_embeddings(config.output_dir,
+        token_list = ['face', 'man', 'butterfly', 'chess', 'fly', 'the', ' ', '.'])
+    
     ti_lrs, lora_lrs = [], []
     # Gradient norm tracking:
     grad_norms = {}
@@ -323,42 +322,13 @@ def main(
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
                 optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
-            
             if not config.aspect_ratio_bucketing:
-                (tok1, tok2), vae_latent, mask = batch
+                token_indices, vae_latent, mask = batch
             else:
-                (tok1, tok2), vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
-            
-            vae_latent = vae_latent.to(weight_dtype)
-
-            # tokens to text embeds
-            prompt_embeds_list = []
-            for tok, text_encoder in zip((tok1, tok2), text_encoders):
-                if tok is None:
-                    continue
-
-                prompt_embeds_out = text_encoder(
-                    tok.to(text_encoder.device),
-                    output_hidden_states=True,
-                )
-
-                pooled_prompt_embeds = prompt_embeds_out[0]
-                prompt_embeds = prompt_embeds_out.hidden_states[-2]
-                bs_embed, seq_len, _ = prompt_embeds.shape
-                prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-                prompt_embeds_list.append(prompt_embeds)
-
-            prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-            pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
-
-            # Create Spatial-dimensional conditions.
-            original_size = (config.resolution, config.resolution)
-            target_size   = (config.resolution, config.resolution)
-            crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
-            add_time_ids = list(original_size + crops_coords_top_left + target_size)
-            add_time_ids = torch.tensor([add_time_ids])
-            add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
-                bs_embed, 1
+                token_indices, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
+                    
+            prompt_embeds, pooled_prompt_embeds, add_time_ids, vae_latent, mask = get_conditioning_signals(
+                config, token_indices, vae_latent, mask, text_encoders, weight_dtype
             )
             
             # Sample noise that we'll add to the latents:
@@ -389,9 +359,9 @@ def main(
                 noisy_latent,
                 timesteps,
                 encoder_hidden_states=prompt_embeds,
-                #cross_attention_kwargs=None,
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
             ).sample
+
 
             if 0: # dont remove yet, XANDER experiment to try and debug sd15 training
                 from PIL import Image
@@ -575,6 +545,8 @@ def main(
                 if config.debug:
                     token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
                     for idx, text_encoder in enumerate(embedding_handler.text_encoders):
+                        if text_encoder is None:
+                            continue
                         n = len(token_embeddings[f'txt_encoder_{idx}'])
                         for i in range(n):
                             token = trainable_tokens[f'txt_encoder_{idx}'][i]

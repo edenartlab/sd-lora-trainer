@@ -46,7 +46,7 @@ class TrainingConfig(BaseModel):
     hard_pivot: bool = False
     off_ratio_power: float = False
     allow_tf32: bool = True
-    mixed_precision: Literal["fp16", "bf16", "fp32"] = "bf16"
+    weight_type: Literal["fp16", "bf16", "fp32"] = "bf16"
     n_tokens: int = 2
     inserting_list_tokens: List[str] = ["<s0>","<s1>"]
     token_dict: dict = {"TOK": "<s0><s1>"}

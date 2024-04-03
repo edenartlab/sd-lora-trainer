@@ -187,10 +187,8 @@ class PreprocessedDataset(Dataset):
             self.vae_latents = []
             self.tokens_tuple = []
             self.masks = []
-
             self.do_cache = True
 
-            print("Captions to train on: ")
             for idx in range(len(self.data)):
                 token, vae_latent, mask = self._process(idx)
                 self.vae_latents.append(vae_latent)
@@ -198,7 +196,6 @@ class PreprocessedDataset(Dataset):
                 self.masks.append(mask)
 
             print(f"Cached latents and masks for {len(self.vae_latents)} images.")
-
             del self.vae_encoder
 
         else:
@@ -326,9 +323,9 @@ class PreprocessedDataset(Dataset):
         assert len(mask.shape) == 4 and len(dummy_vae_latent.shape) == 4
 
         if ti2 is None: # sd15
-            return ti1, vae_latent, mask.squeeze()
+            return [ti1], vae_latent, mask.squeeze()
         else: # sdxl
-            return (ti1, ti2), vae_latent, mask.squeeze()
+            return [ti1, ti2], vae_latent, mask.squeeze()
 
     def __getitem__(
         self, idx: int, bucketing_resolution:tuple = None
@@ -379,14 +376,24 @@ class TokenEmbeddingsHandler:
 
         return embeddings, tokens
 
-    def visualize_random_token_embeddings(self, output_dir, n = 5):
+    def visualize_random_token_embeddings(self, output_dir, n = 6, token_list = None):
         """
         Visualize the embeddings of n random tokens from each text encoder
         """
-        n_tokens = len(self.text_encoders[0].text_model.embeddings.token_embedding.weight.data)
-        embeddings, tokens = self.get_embeddings_and_tokens(np.random.randint(0, n_tokens, n))
+        if token_list is not None:
+            # Convert tokens to indices using the first tokenizer
+            indices = self.tokenizers[0].convert_tokens_to_ids(token_list)
+        else:
+            # Randomly select indices
+            n_tokens = len(self.text_encoders[0].text_model.embeddings.token_embedding.weight.data)
+            indices = np.random.randint(0, n_tokens, n)
 
+        embeddings, tokens = self.get_embeddings_and_tokens(indices)
+
+        # Visualize the embeddings:
         for idx, text_encoder in enumerate(self.text_encoders):
+            if text_encoder is None:
+                continue
             for i in range(n):
                 token = tokens[f'txt_encoder_{idx}'][i]
                 # Strip any backslashes from the token name:
