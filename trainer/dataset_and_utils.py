@@ -43,6 +43,7 @@ def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1
 
     # Flatten and concatenate all parameters into a single tensor
     all_params = torch.cat([p.data.view(-1) for p in parameters])
+    norm = torch.norm(all_params)
 
     # Convert to CPU for plotting
     all_params_cpu = all_params.cpu().float().numpy()
@@ -54,7 +55,7 @@ def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1
     plt.xlim(min_val, max_val)
     plt.xlabel('Weight Value')
     plt.ylabel('Count')
-    plt.title(f'{name} (std: {np.std(all_params_cpu):.5f}, step {step:03d})')
+    plt.title(f'{name} (std: {np.std(all_params_cpu):.5f}, norm: {norm:.3f}, step {step:03d})')
     plt.savefig(f"{checkpoint_dir}/{name}_hist_{step:04d}.png")
     plt.close()
 
@@ -399,7 +400,7 @@ class TokenEmbeddingsHandler:
                 # Strip any backslashes from the token name:
                 token = token.replace("/", "_")
                 embedding = embeddings[f'txt_encoder_{idx}'][i]
-                plot_torch_hist(embedding, 0, os.path.join(output_dir, 'ti_embeddings') , f"frozen_embeddings_encoder_{idx}_token_id_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'green')
+                plot_torch_hist(embedding, 0, os.path.join(output_dir, 'ti_embeddings') , f"frozen_enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'green')
 
     def find_nearest_tokens(self, query_embedding, tokenizer, text_encoder, idx, distance_metric, top_k = 5):
         # given a query embedding, compute the distance to all embeddings in the text encoder
@@ -538,8 +539,15 @@ class TokenEmbeddingsHandler:
         starting_toks:  Optional[List[str]] = None,
         seed: int = 0,
     ):
+        assert isinstance(
+            inserting_toks, list
+        ), "inserting_toks should be a list of strings."
+        assert all(
+            isinstance(tok, str) for tok in inserting_toks
+        ), "All elements in inserting_toks should be strings."
 
         print(f"Initializing new tokens: {inserting_toks}")
+        self.inserting_toks = inserting_toks
 
         torch.manual_seed(seed)
         idx = 0
@@ -547,14 +555,6 @@ class TokenEmbeddingsHandler:
             if tokenizer is None:
                 idx += 1
                 continue
-            assert isinstance(
-                inserting_toks, list
-            ), "inserting_toks should be a list of strings."
-            assert all(
-                isinstance(tok, str) for tok in inserting_toks
-            ), "All elements in inserting_toks should be strings."
-
-            self.inserting_toks = inserting_toks
 
             print(f"Inserting new tokens into tokenizer-{idx}:")
             print(self.inserting_toks)
@@ -567,24 +567,13 @@ class TokenEmbeddingsHandler:
 
             # random initialization of new tokens
             std_token_embedding = (
-                text_encoder.text_model.embeddings.token_embedding.weight.data.std() #(axis=1).mean()
+                text_encoder.text_model.embeddings.token_embedding.weight.data.std(dim=1).mean()
             )
-            std_token_mean = (  
-                text_encoder.text_model.embeddings.token_embedding.weight.data.mean() #(axis=1).mean()
-            )
-
             print(f"Text encoder {idx} token_embedding_std:  {std_token_embedding}")
 
             if starting_toks is not None:
-                assert isinstance(
-                    starting_toks, list
-                ), "starting_toks should be a list of strings."
-                assert all(
-                    isinstance(tok, str) for tok in starting_toks
-                ), "All elements in starting_toks should be strings."
                 assert len(starting_toks) == len(self.inserting_toks), "starting_toks should have the same length as inserting_toks"
                 self.starting_ids = tokenizer.convert_tokens_to_ids(starting_toks)
-
                 print(f"Copying embeddings from starting tokens {starting_toks} to new tokens {self.inserting_toks}")
                 print(f"Starting ids: {self.starting_ids}")
 
@@ -638,7 +627,6 @@ class TokenEmbeddingsHandler:
                     self.anchor_embedding_four = self.get_start_embedding(text_encoder, tokenizer, second_tokens)
 
                     init_embeddings = torch.stack([self.anchor_embedding_one, self.anchor_embedding_two, self.anchor_embedding_three, self.anchor_embedding_four])
-
                     print(f"init_embedding std: {init_embeddings.std():.4f}, avg-std: {std_token_embedding:.4f}")
 
                 text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids] = init_embeddings.clone()

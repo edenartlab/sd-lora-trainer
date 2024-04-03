@@ -99,6 +99,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
         pipe = patch_pipe_with_lora(pipe, lora_path)
     else:
         print(f"Re-using training pipeline for inference, just swapping the scheduler..")
+        pipe.vae = pipe.vae.to(device).to(pipe.unet.dtype)
         
     pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
     validation_prompts = [prepare_prompt_for_lora(prompt, lora_path, verbose=verbose, trigger_text=trigger_text) for prompt in validation_prompts_raw]
@@ -127,6 +128,10 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
     grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
     shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))
     pipe.scheduler = training_scheduler
+
+    pipe.vae = pipe.vae.to('cpu')
+    gc.collect()
+    torch.cuda.empty_cache()
 
     return validation_prompts_raw
 

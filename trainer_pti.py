@@ -7,6 +7,7 @@ import gc
 import numpy as np
 import argparse
 import itertools
+import zipfile
 import torch
 import torch.utils.checkpoint
 
@@ -40,6 +41,15 @@ from preprocess import preprocess
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 from torch import Tensor, inf
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
+
+def zipdir(path, ziph, extension = '.py'):
+    # Zip the directory
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if file.endswith(extension):
+                ziph.write(os.path.join(root, file),
+                           os.path.relpath(os.path.join(root, file), 
+                                           os.path.join(path, '..')))
 
 def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonfinite = False):
     if isinstance(parameters, torch.Tensor):
@@ -109,7 +119,7 @@ def main(
         text_encoder_two,
         vae,
         unet,
-    ) = load_models(config.pretrained_model, config.device, weight_dtype)
+    ) = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
@@ -122,16 +132,18 @@ def main(
     '''
     embedding_handler.initialize_new_tokens(
         inserting_toks=config.inserting_list_tokens, 
-        # starting_toks = ["person", "face"],
+        #starting_toks = ["style", "object"],
         starting_toks=None, 
         seed=config.seed
     )
 
     unet.requires_grad_(False)
+    vae.requires_grad_(False)
     text_encoders = [text_encoder_one, text_encoder_two]
     text_encoder_parameters = []
     for text_encoder in text_encoders:
         if text_encoder is not  None:
+            text_encoder.train()
             text_encoder.requires_grad_(False)
             for name, param in text_encoder.named_parameters():
                 if "token_embedding" in name:
@@ -241,8 +253,11 @@ def main(
         aspect_ratio_bucketing=config.aspect_ratio_bucketing,
         train_batch_size=config.train_batch_size
     )
-
-    vae = vae.to(weight_dtype)
+    # offload the vae to cpu:
+    vae = vae.to('cpu')
+    # clear gpu memory:
+    gc.collect()
+    torch.cuda.empty_cache()
 
     print(f"# PTI : Loaded dataset, do_cache: {config.do_cache}")
     train_dataloader = torch.utils.data.DataLoader(
@@ -356,58 +371,15 @@ def main(
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
 
             # Predict the noise residual
-            if config.sd_model_version == 'sdxl':
-                model_pred = unet(
-                    noisy_latent,
-                    timesteps,
-                    encoder_hidden_states=prompt_embeds,
-                    added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
-                ).sample
-            elif config.sd_model_version == 'sd15':
-                model_pred = unet(
-                    noisy_latent,
-                    timesteps,
-                    prompt_embeds
-                ).sample
-
-            if 0: # dont remove yet, XANDER experiment to try and debug sd15 training
-                from PIL import Image
-                from torchvision import transforms
-
-                def decode_latents(vae, latents):
-                    image = vae.decode(latents / vae.config.scaling_factor, return_dict=False)[0]
-                    do_denormalize = [True] * image.shape[0]
-                    image = pipe.image_processor.postprocess(image, output_type="pil", do_denormalize=do_denormalize)
-                    return image
-
-                if global_step < 5:
-                    input_img_path = '/home/xander/Downloads/datasets/banny/1.src.jpg'
-                    banny_img = Image.open(input_img_path)
-                    size = (config.resolution, config.resolution)
-                    image_transforms = transforms.Compose(
-                        [
-                            transforms.Resize(size, interpolation=transforms.InterpolationMode.BILINEAR),
-                            transforms.CenterCrop(size),
-                        ]
-                    )
-                    banny_img = image_transforms(banny_img)
-                    banny_pixel_values = pipe.image_processor.preprocess(banny_img).to(config.device).to(vae.dtype)
-
-                    for i in range(4):
-                        latent_banny  = vae.encode(banny_pixel_values).latent_dist.sample()
-                        decoded_banny = decode_latents(vae, latent_banny)[0]
-                        decoded_banny.save(f'/home/xander/Downloads/datasets/decoded/source_img_decoded_{i}.jpg')
-
-                    shutil.copy(input_img_path, f'/home/xander/Downloads/datasets/decoded/source_img.jpg')
-                    
-                # Save the current decoded image:
-                decoded_img = decode_latents(vae, noisy_latent)[0]
-                decoded_img.save(f'/home/xander/Downloads/datasets/decoded/decoded_training_sample_{int(time.time())}.jpg')
-
-
-
-
-
+            model_pred = unet(
+                noisy_latent,
+                timesteps,
+                encoder_hidden_states=prompt_embeds,
+                timestep_cond=None,
+                added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
+                return_dict=False,
+            )[0]
+            
             # Get the unet prediction target depending on the prediction type:
             if noise_scheduler.config.prediction_type == "epsilon":
                 target = noise
@@ -520,7 +492,7 @@ def main(
             except:
                 ti_lrs.append(0.0)
             
-            # This prob isnt needed:
+            # This prob isnt needed, TODO: see if this can be removed
             pipe.unet = unet
             pipe.text_encoder_one = text_encoders[0]
             try:
@@ -560,7 +532,7 @@ def main(
                             # Strip any backslashes from the token name:
                             token = token.replace("/", "_")
                             embedding = token_embeddings[f'txt_encoder_{idx}'][i]
-                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"embeddings_encoder_{idx}_token_id_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
+                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
                     embedding_handler.print_token_info()
                     plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
@@ -630,7 +602,17 @@ def main(
             os.path.join(output_save_dir, "training_args.json")
         )
 
+    if config.debug:
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Create a zipfile of all the *.py files in the directory
+        zip_file_path = os.path.join(config.output_dir, 'source_code.zip')
+        with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipdir(parent_dir, zipf)
+
     return output_save_dir, validation_prompts
+
+
+
 
 
 if __name__ == "__main__":
