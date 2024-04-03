@@ -463,7 +463,7 @@ def gpt4_v_caption_dataset(
         print(f"Skipping GPT-4 Vision captioning because OPENAI_API_KEY is not set.")
         return captions
 
-    prompt = "Accurate describe the contents of this image without assumptions. Avoid starting with statements like 'The image features...', just describe what you see."
+    prompt = "Concisely describe this image without assumptions with at most 30 words. Dont start with statements like 'The image features...', just describe what you see."
 
     headers = {
         "Content-Type": "application/json",
@@ -484,7 +484,7 @@ def gpt4_v_caption_dataset(
                     ]
                 }
             ],
-            "max_tokens": 100
+            "max_tokens": 60
         }
 
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)

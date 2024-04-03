@@ -84,6 +84,7 @@ def main(
         temp=config.clipseg_temperature,
         left_right_flip_augmentation=config.left_right_flip_augmentation,
         augment_imgs_up_to_n = config.augment_imgs_up_to_n,
+        caption_model = config.caption_model,
         seed = config.seed,
     )
 
@@ -285,7 +286,9 @@ def main(
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
-    
+    embedding_handler.visualize_random_token_embeddings(config.output_dir, n = 10)
+
+
     ti_lrs, lora_lrs = [], []
     # Gradient norm tracking:
     grad_norms = {}
@@ -570,11 +573,16 @@ def main(
                 last_save_step = global_step
 
                 if config.debug:
-                    token_embeddings = embedding_handler.get_trainable_embeddings()
-                    for i, token_embeddings_i in enumerate(token_embeddings):
-                        plot_torch_hist(token_embeddings_i[0], global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"embeddings_weights_token_0_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
-                        plot_torch_hist(token_embeddings_i[1], global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"embeddings_weights_token_1_{i}", min_val=-0.05, max_val=0.05, ymax_f = 0.05)
-                    
+                    token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
+                    for idx, text_encoder in enumerate(embedding_handler.text_encoders):
+                        n = len(token_embeddings[f'txt_encoder_{idx}'])
+                        for i in range(n):
+                            token = trainable_tokens[f'txt_encoder_{idx}'][i]
+                            # Strip any backslashes from the token name:
+                            token = token.replace("/", "_")
+                            embedding = token_embeddings[f'txt_encoder_{idx}'][i]
+                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"embeddings_encoder_{idx}_token_id_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
+
                     embedding_handler.print_token_info()
                     plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.3, max_val=0.3, ymax_f = 0.05)
                     plot_loss(losses, save_path=f'{config.output_dir}/losses.png')

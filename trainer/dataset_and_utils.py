@@ -38,8 +38,9 @@ def pick_best_gpu_id():
     print("Using GPU %d" %best_gpu_id)
     return best_gpu_id
 
-def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75):
+def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75, color = 'blue'):
     os.makedirs(checkpoint_dir, exist_ok=True)
+
     # Flatten and concatenate all parameters into a single tensor
     all_params = torch.cat([p.data.view(-1) for p in parameters])
 
@@ -48,13 +49,13 @@ def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1
 
     # Plot histogram
     plt.figure()
-    plt.hist(all_params_cpu, bins=bins, density=False)
-    plt.ylim(0, ymax_f * len(all_params_cpu))
+    plt.hist(all_params_cpu, bins=bins, density=False, color = color)
+    plt.ylim(0, ymax_f * len(all_params_cpu.flatten()))
     plt.xlim(min_val, max_val)
     plt.xlabel('Weight Value')
     plt.ylabel('Count')
-    plt.title(f'Step {step:03d} {name} Histogram (std = {np.std(all_params_cpu):.5f})')
-    plt.savefig(f"{checkpoint_dir}/{name}_histogram_{step:04d}.png")
+    plt.title(f'{name} (std: {np.std(all_params_cpu):.5f}, step {step:03d})')
+    plt.savefig(f"{checkpoint_dir}/{name}_hist_{step:04d}.png")
     plt.close()
 
 # plot the learning rates:
@@ -354,17 +355,44 @@ class TokenEmbeddingsHandler:
         self.embeddings_settings = {}
 
     def get_trainable_embeddings(self):
-        
-        trainable_embeddings = []
+        return self.get_embeddings_and_tokens(self.train_ids)
+
+    def get_embeddings_and_tokens(self, indices):
+        """
+        Get the embeddings and tokens for the given indices
+        """
+        embeddings, tokens = {}, {}
         for idx, text_encoder in enumerate(self.text_encoders):
             if text_encoder is None:
                 continue
-            
-            trainable_embeddings.append(
-                text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids]
-            )
 
-        return trainable_embeddings
+            embeddings['txt_encoder_%d' % idx] = []
+            tokens['txt_encoder_%d' % idx] = []
+
+            for index in indices:
+                token_embedding = text_encoder.text_model.embeddings.token_embedding.weight.data[index]
+                embeddings['txt_encoder_%d' % idx].append(token_embedding)
+
+                # also get the corresponding token for this embedding id:
+                token = self.tokenizers[idx].convert_ids_to_tokens([index])[0]
+                tokens['txt_encoder_%d' % idx].append(token)
+
+        return embeddings, tokens
+
+    def visualize_random_token_embeddings(self, output_dir, n = 5):
+        """
+        Visualize the embeddings of n random tokens from each text encoder
+        """
+        n_tokens = len(self.text_encoders[0].text_model.embeddings.token_embedding.weight.data)
+        embeddings, tokens = self.get_embeddings_and_tokens(np.random.randint(0, n_tokens, n))
+
+        for idx, text_encoder in enumerate(self.text_encoders):
+            for i in range(n):
+                token = tokens[f'txt_encoder_{idx}'][i]
+                # Strip any backslashes from the token name:
+                token = token.replace("/", "_")
+                embedding = embeddings[f'txt_encoder_{idx}'][i]
+                plot_torch_hist(embedding, 0, os.path.join(output_dir, 'ti_embeddings') , f"frozen_embeddings_encoder_{idx}_token_id_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'green')
 
     def find_nearest_tokens(self, query_embedding, tokenizer, text_encoder, idx, distance_metric, top_k = 5):
         # given a query embedding, compute the distance to all embeddings in the text encoder
@@ -391,7 +419,7 @@ class TokenEmbeddingsHandler:
 
     def print_token_info(self, distance_metric = "cosine"):
         print(f"----------- Closest tokens (distance_metric = {distance_metric}) --------------")
-        current_token_embeddings = self.get_trainable_embeddings()
+        current_token_embeddings, current_tokens = self.get_trainable_embeddings()
         idx = 0
 
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
@@ -399,13 +427,14 @@ class TokenEmbeddingsHandler:
                 idx += 1
                 continue
 
-            query_embeddings = current_token_embeddings[idx]
+            query_embeddings = current_token_embeddings[f'txt_encoder_{idx}']
+            query_tokens = current_tokens[f'txt_encoder_{idx}']
 
             for token_id, query_embedding in enumerate(query_embeddings):
                 nearest_tokens, distances = self.find_nearest_tokens(query_embedding, tokenizer, text_encoder, idx, distance_metric)
 
                 # print the results:
-                print(f"txt-encoder {idx}, token {token_id}: :")
+                print(f"txt-encoder {idx}, token {token_id}: {query_tokens[token_id]}:")
                 for i, (token, dist) in enumerate(zip(nearest_tokens, distances)):
                     print(f"---> {distance_metric} of {dist:.4f}: {token}")
 
