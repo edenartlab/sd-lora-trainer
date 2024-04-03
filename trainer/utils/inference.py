@@ -12,44 +12,50 @@ from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
 
 
-def get_conditioning_signals(config, token_indices, vae_latent, mask, text_encoders, weight_dtype):
+def get_conditioning_signals(config, token_indices, text_encoders, weight_dtype):
 
-    if len(token_indices) == 1:
-        token_indices = (token_indices[0], None)
+    if config.sd_model_version == 'sdxl':
+        if len(token_indices) == 1:
+            token_indices = (token_indices[0], None)
 
-    vae_latent = vae_latent.to(weight_dtype)
+        # tokens to text embeds
+        prompt_embeds_list = []
+        for tok, text_encoder in zip(token_indices, text_encoders):
+            if tok is None:
+                continue
 
-    # tokens to text embeds
-    prompt_embeds_list = []
-    for tok, text_encoder in zip(token_indices, text_encoders):
-        if tok is None:
-            continue
+            prompt_embeds_out = text_encoder(
+                tok.to(text_encoder.device),
+                output_hidden_states=True,
+            )
 
-        prompt_embeds_out = text_encoder(
-            tok.to(text_encoder.device),
-            output_hidden_states=True,
+            pooled_prompt_embeds = prompt_embeds_out[0]
+            prompt_embeds = prompt_embeds_out.hidden_states[-2]
+            bs_embed, seq_len, _ = prompt_embeds.shape
+            prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
+            prompt_embeds_list.append(prompt_embeds)
+
+        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
+        pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
+
+        # Create Spatial-dimensional conditions.
+        original_size = (config.resolution, config.resolution)
+        target_size   = (config.resolution, config.resolution)
+        crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
+        add_time_ids = list(original_size + crops_coords_top_left + target_size)
+        add_time_ids = torch.tensor([add_time_ids])
+        add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
+            bs_embed, 1
         )
 
-        pooled_prompt_embeds = prompt_embeds_out[0]
-        prompt_embeds = prompt_embeds_out.hidden_states[-2]
-        bs_embed, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-        prompt_embeds_list.append(prompt_embeds)
+    elif config.sd_model_version == 'sd15':
+        prompt_embeds = text_encoders[0](
+                    token_indices[0].to(text_encoders[0].device),
+                    output_hidden_states=True,
+                )[0]
+        pooled_prompt_embeds, add_time_ids = None, None
 
-    prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-    pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
-
-    # Create Spatial-dimensional conditions.
-    original_size = (config.resolution, config.resolution)
-    target_size   = (config.resolution, config.resolution)
-    crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
-    add_time_ids = list(original_size + crops_coords_top_left + target_size)
-    add_time_ids = torch.tensor([add_time_ids])
-    add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
-        bs_embed, 1
-    )
-
-    return prompt_embeds, pooled_prompt_embeds, add_time_ids, vae_latent, mask
+    return prompt_embeds, pooled_prompt_embeds, add_time_ids
 
 
 

@@ -287,7 +287,7 @@ def main(
     #embedding_handler.pre_optimize_token_embeddings(train_dataset)
     embedding_handler.visualize_random_token_embeddings(config.output_dir,
         token_list = ['face', 'man', 'butterfly', 'chess', 'fly', 'the', ' ', '.'])
-    
+
     ti_lrs, lora_lrs = [], []
     # Gradient norm tracking:
     grad_norms = {}
@@ -327,11 +327,12 @@ def main(
             else:
                 token_indices, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
                     
-            prompt_embeds, pooled_prompt_embeds, add_time_ids, vae_latent, mask = get_conditioning_signals(
-                config, token_indices, vae_latent, mask, text_encoders, weight_dtype
+            prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
+                config, token_indices, text_encoders, weight_dtype
             )
             
             # Sample noise that we'll add to the latents:
+            vae_latent = vae_latent.to(weight_dtype)
             noise = torch.randn_like(vae_latent)
 
             if config.noise_offset > 0.0:
@@ -355,13 +356,19 @@ def main(
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
 
             # Predict the noise residual
-            model_pred = unet(
-                noisy_latent,
-                timesteps,
-                encoder_hidden_states=prompt_embeds,
-                added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
-            ).sample
-
+            if config.sd_model_version == 'sdxl':
+                model_pred = unet(
+                    noisy_latent,
+                    timesteps,
+                    encoder_hidden_states=prompt_embeds,
+                    added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
+                ).sample
+            elif config.sd_model_version == 'sd15':
+                model_pred = unet(
+                    noisy_latent,
+                    timesteps,
+                    prompt_embeds
+                ).sample
 
             if 0: # dont remove yet, XANDER experiment to try and debug sd15 training
                 from PIL import Image
