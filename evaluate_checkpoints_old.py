@@ -1,332 +1,120 @@
-import random, os, cv2, time, json, shutil
-from random import shuffle
-import numpy as np
-from PIL import Image
-import pickle
-import pandas as pd
-import sys
-
-clip_classifier_dir = '/home/xander/Projects/cog/CLIP_active_learning_classifier/CLIP_assisted_data_labeling'
-sys.path.append(clip_classifier_dir)
-from utils.nn_model import device, SimpleFC
-from _1_embed_with_CLIP import CLIP_Feature_Dataset
-
-sys.path.append('..')
-from settings import StableDiffusionSettings
-from generation import *
-
-def load_prompts(path):
-    text_inputs = []
-    with open(txt_path) as f:
-        for line in f:
-            text_inputs.append(line.strip())
-    return text_inputs
-
+import argparse
+from trainer.utils.inference import render_images_eval
+from trainer.utils.json_stuff import save_as_json
+from trainer.models import pretrained_models
 import clip
-def compute_cosine_similarity(image_embeddings, text_embeddings):
-    image_embeddings = image_embeddings / torch.norm(image_embeddings, dim=-1, keepdim=True)
-    text_embeddings = text_embeddings / torch.norm(text_embeddings, dim=-1, keepdim=True)
-    cosine_similarity = torch.matmul(image_embeddings, text_embeddings.T)
-    return cosine_similarity
+from PIL import Image
+import torch
+import numpy as np
+import os
+from creator_lora.models.resnet50 import ResNet50MLP
 
 """
-
-
-cd /home/xander/Projects/cog/eden-sd-pipelines/eden/xander
-python evaluate_checkpoints.py
-
-
-
-Given a list of SD checkpoints:
-    - load each checkpoint
-    - Generate n images (using deterministic seed)
-    - Compute the avg perceptual score using the perceptual classifier
-    - Compute a diversity metric (e.g. avg pairwise L2 distance in CLIP space)
-    - Compute the img-txt alignment (using cosine-sim in clip space)
-    - plot the results for all checkpoints
-
+todos:
+    - aesthetic scoring (need aesthetic scoring model checkpoint!!)
+    - image-text alignment (need captions)
+    - run eval on user-defined captions
 """
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Render controls:
-n_samples     = 197*2
-deterministic = 1
+class Evaluation:
+    def __init__(self, image_filenames: list):
+        self.image_filenames = image_filenames
 
-txt_path = '/home/xander/Projects/cog/eden-sd-pipelines/eden/random_prompts.txt'
-ckpt_dir = '/data/models/eden_ckpts'
-outdir   = 'images/evaluate_eden_checkpoints_final'
+    def clip_diversity(self, device: str):
 
-scoring_model_path = '/home/xander/Projects/cog/CLIP_active_learning_classifier/CLIP_assisted_data_labeling/models/combo_2023-04-25_16:17:14_2.7k_imgs_70_epochs_-1.0000_mse.pkl'
-clip_model = ''
+        all_image_features  = []
+        model, preprocess = clip.load("ViT-B/32", device=device)
 
-clip_model_name = "ViT-L-14-336/openai"  # "ViT-L-14/openai" #SD 1.x  //  "ViT-H-14/laion2b_s32b_b79k" #SD 2.x
-clip_model_path = "/home/xander/Projects/cog/cache"
+        for f in self.image_filenames:
+            image = preprocess(Image.open(f)).unsqueeze(0).to(device)
 
+            with torch.no_grad():
+                image_features = model.encode_image(image)
+                all_image_features.append(image_features.float())
 
-#########################################################
+        all_image_features = torch.cat(all_image_features, dim = 0)
+        distances = torch.cdist(all_image_features, all_image_features, p=2.0)
+        distances = distances.detach().cpu().numpy()
+        # Get the upper triangle:
+        upper_triangle = np.triu(distances, k=1).flatten()
+        # Drop distances from imgs that are super super similar:
+        upper_triangle = upper_triangle[upper_triangle >= 0.2]
+        return upper_triangle.mean().item()
 
-checkpoint_options = sorted([os.path.join(ckpt_dir, f) for f in os.listdir(ckpt_dir)])
-
-if 1:
-    checkpoint_options += [
-        "stabilityai/stable-diffusion-2-1",
-        "runwayml/stable-diffusion-v1-5",
-        "dreamlike-art/dreamlike-photoreal-2.0", 
-        #"/data/models/EdenI_0.38_to_1.00_from_2.1_no_txt_finetune_20230425-124315/ckpts/EdenI_0.38_to_1.00_from_2.1_no_txt_finetune-ep03-gs11100",
-        #"/data/models/EdenI_0.38_to_1.00_from_2.1_no_txt_finetune_20230425-124315/ckpts/EdenI_0.38_to_1.00_from_2.1_no_txt_finetune-ep07-gs22413",
-        #"/data/models/EdenI_0.39_to_1.00_from_2.1_no_txt_finetune_20230426-032832/ckpts/EdenI_0.39_to_1.00_from_2.1_no_txt_finetune-ep01-gs01888",
-        #"/data/models/EdenI_0.38_to_1.00_from_2.1_txt_finetune_20230425-140646/ckpts/EdenI_0.38_to_1.00_from_2.1_txt_finetune-ep04-gs13095",
-    ]
-
-text_inputs        = load_prompts(txt_path)
-results_path       = os.path.join(outdir, 'results.csv')
-
-print(f"Sampling from {len(text_inputs)} prompts")
-
-if os.path.exists(results_path):
-    # delete results_path from filesystem:
-    os.remove(results_path)
-
-results_df = pd.DataFrame(columns = ['ckpt_name', 'aesthetic_score_mean', 'aesthetic_score_std', 'diversity_score'])
-
-#########################################################
-
-
-def batch_generate_imgs(ckpt_path, n, output_dir):
-    print(f"Generating {n} samples to {output_dir}..")
-    os.makedirs(output_dir, exist_ok = True)
-
-    for i in range(n):
-        print(f"--- Generating img {i} of {n}..")
-        seed = i if deterministic else int(time.time())
-        seed_everything(seed)
-
-        args = StableDiffusionSettings(
-            mode = "generate",
-            ckpt=ckpt_path,
-            sampler = "euler",
-            W = 960,
-            H = 768,
-            seed = seed,
-            text_input = text_inputs[(i+1)%len(text_inputs)],
-            init_image_data = None,
-            init_image_strength = 0.0,
-            steps = 30,
-            guidance_scale = random.choice([6,7,8,9]),
-            upscale_f = 1.5,
-            n_samples = 1,
-            #uc_text = '',
+    def aesthetic_score(self, device: str, checkpoint_path: str):
+        # assert os.path.exists(checkpoint_path), f"invalid checkpoint_path: {checkpoint_path}"
+        model = ResNet50MLP(
+            model_path=checkpoint_path,
+            device = device
         )
 
-        _, generator = generate(args)
+        scores = []
+        for f in self.image_filenames:
+            score = model.predict_score(pil_image=Image.open(f))
+            scores.append(score)
 
-        #####################################################################################
+        return sum(scores)/len(scores)
 
-        # Save to disk
-        ckpt_name = args.ckpt.split('/')[-1]
-        name = f'{args.text_input[:40]}_{ckpt_name}_{int(time.time())}'
-        name = name.replace("/", "_")
-
-        for i, img in enumerate(generator):
-            frame = f'{name}.jpg'
-            img.save(os.path.join(output_dir, frame), quality=95)
-
-        # save settings
-        settings_filename = f'{output_dir}/{name}.json'
-        save_settings(args, settings_filename)
-
-def score_images(image_directory, scoring_model):
-    df = pd.DataFrame(columns = ['name', 'aesthetic_score'])
-
-    crop_names = scoring_model.crop_names
-    use_img_stat_features = scoring_model.use_img_stat_features
-
-    # get all images:
-    img_paths = sorted([f for f in os.listdir(image_directory) if f.endswith('.jpg')])
-    for img_path in img_paths:
-        feature_path = os.path.join(image_directory, img_path.replace('.jpg', '.pt'))
-        feature_dict = torch.load(feature_path)
-
-        clip_features = torch.cat([feature_dict[crop_name] for crop_name in crop_names if crop_name in feature_dict], dim=0).flatten()
-        missing_crops = set(crop_names) - set(feature_dict.keys())
-        if missing_crops:
-            raise Exception(f"Missing crops {missing_crops} for {uuid}, either re-embed the image, or adjust the crop_names variable for training!")
-
-        if use_img_stat_features:
-            img_stat_feature_names = [key for key in feature_dict.keys() if key.startswith("img_stat_")]
-            img_stat_features = torch.stack([feature_dict[img_stat_feature_name] for img_stat_feature_name in img_stat_feature_names], dim=0).to(device)
-            all_features = torch.cat([clip_features, img_stat_features], dim=0)
-        else:
-            all_features = clip_features 
-
-        output = scoring_model(all_features.unsqueeze(0))
-        output = output.detach().cpu().numpy().item()
-        new_row = pd.DataFrame({'name': [img_path], 'aesthetic_score': [output]})
-        df = pd.concat([df, new_row], ignore_index=True)
-
-    return df
-
-def compute_diversity(ckpt_dir):
-    clip_embeddings = []
-    images = sorted([f for f in os.listdir(ckpt_dir) if f.endswith('.jpg')])
-    for img in images:
-        feature_path = os.path.join(ckpt_dir, img.replace('.jpg', '.pt'))
-        feature_vector = torch.load(feature_path)['centre_crop'].flatten().to(device).float()
-        clip_embeddings.append(feature_vector)
-
-    clip_embeddings = torch.stack(clip_embeddings, dim=0)
-    # Compute pairwise distances:
-    #distance = nn.PairwiseDistance(p=2)
-    #distance = nn.CosineSimilarity(dim=1, eps=1e-6)
-    #distances = distance(clip_embeddings, clip_embeddings)
-    distances = torch.cdist(clip_embeddings, clip_embeddings, p=2.0)
-
-    distances = distances.detach().cpu().numpy()
-
-    # Get the upper triangle:
-    upper_triangle = np.triu(distances, k=1)
-
-    return upper_triangle.flatten()
-
-def compute_img_txt_alignment(image_directory, clip_model_name):
-    df = pd.DataFrame(columns = ['name', 'alignment_score'])
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, preprocess = clip.load(clip_model_name, device=device)
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Script for generating images based on prompts and computing similarities.")
     
-    cosine_similarities = []
+    parser.add_argument("--sd_model_version", type=str, required=True, default = "sdxl", help="sdxl or sd15")
+    parser.add_argument("--lora_path", type=str, required=True,
+                        help="Path to LoRa.")
+    parser.add_argument("--output_json", type=str, required=True,
+                        help="Path to json where we save result values")
+    parser.add_argument("--concept_mode", type=str, required=True,
+                        help="style or face")
+    parser.add_argument("--output_folder", type=str, required=True,
+                        help="style or face")
+    args = parser.parse_args()
+    return args
 
-    img_paths = sorted([f for f in os.listdir(image_directory) if f.endswith('.jpg')])
+args = parse_arguments()
 
-    for img_path in img_paths:
-            image = Image.open(os.path.join(image_directory, img_path)).convert("RGB")
-            preprocessed_image = preprocess(image).unsqueeze(0).to(device)
+os.system(f"mkdir -p {args.output_folder}")
 
-            # Load corresponding json file
-            json_file = os.path.splitext(img_path)[0] + ".json"
-            json_path = os.path.join(image_directory, json_file)
-            with open(json_path, "r") as f:
-                json_data = json.load(f)
-                text_input = json_data["text_input"]
+image_filenames = render_images_eval(
+    output_folder=args.output_folder,
+    concept_mode=args.concept_mode,
+    render_size=(1024,1024),
+    lora_path=args.lora_path,
+    pretrained_model=pretrained_models[args.sd_model_version],
+    seed=0,
+    is_lora = True,
+    trigger_text=" in the style of TOK,"
+)
 
-            # Encode image and text
-            with torch.no_grad():
-                image_embeddings = model.encode_image(preprocessed_image)
-                text_embeddings = model.encode_text(clip.tokenize(text_input).to(device))
+eval = Evaluation(image_filenames=image_filenames)
+clip_diversity = eval.clip_diversity(device=device)
 
-            # Compute cosine similarity
-            cosine_similarity = compute_cosine_similarity(image_embeddings, text_embeddings)
+# TODO: replace checkpoint_path=None with the correct checkpoint path
+aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path=None)
 
-            new_row = pd.DataFrame({'name': [img_path], 'alignment_score': [cosine_similarity.item()]})
-            df = pd.concat([df, new_row], ignore_index=True)
+result = {
+    "sd_model_version": args.sd_model_version,
+    "lora_path": os.path.abspath(args.lora_path),
+    "concept_mode": args.concept_mode,
+    "output_folder": args.output_folder,
+    "scores": {
+        "clip_diversity": clip_diversity,
+        "aesthetic_score": aesthetic_score
+    }
+}
 
-    return df
+save_as_json(
+    dictionary_or_list=result,
+    filename=args.output_json
+)
 
-###############################################################
-
-
-# Evaluate images with classifier:
-with open(scoring_model_path, "rb") as file:
-    scoring_model = pickle.load(file)
-    scoring_model = scoring_model.to(device)
-
-results = {}
-for ckpt_path in checkpoint_options:
-
-    ckpt_name = os.path.basename(ckpt_path)
-    ckpt_out_dir = f'{outdir}/{ckpt_name}'
-
-    try:
-        images_present = len([f for f in os.listdir(ckpt_out_dir) if f.endswith('.jpg')])
-    except:
-        images_present = 0
-
-    if images_present == n_samples:
-        print(f"Images for {ckpt_name} already generated!")
-    else:
-        if os.path.exists(ckpt_out_dir): # do a full restart to make sure
-            shutil.rmtree(ckpt_out_dir)
-        batch_generate_imgs(ckpt_path, n_samples, ckpt_out_dir)
-
-    if 1:
-        # embed images with CLIP:
-        batch_size = 4
-        dataset = CLIP_Feature_Dataset(ckpt_out_dir, clip_model_name, batch_size, 
-            clip_model_path = clip_model_path, 
-            force_reencode = False,
-            num_workers = 0)
-        dataset.process()
-
-    df_aesthetic = score_images(ckpt_out_dir, scoring_model)
-    img_scores = df_aesthetic['aesthetic_score'].tolist()
-
-    # Compute diversity metric:
-    pairwise_distances = compute_diversity(ckpt_out_dir)
-    # Drop distances from imgs that are super super similar:
-    pairwise_distances = pairwise_distances[pairwise_distances >= 0.2]
-
-    # Compute alignment metric:
-    df_alignment = compute_img_txt_alignment(ckpt_out_dir, "ViT-B/32")
-    alignment_scores = df_alignment['alignment_score'].tolist()
-
-    # merge df_aesthetic and df_alignment:
-    df = pd.merge(df_aesthetic, df_alignment, on='name')
-    df.to_csv(f'{outdir}/{ckpt_name}_aesthetic_and_alignment_scores.csv', index = False)
-
-    # Save ckpt-averaged results:
-    results[ckpt_name] = {
-        'aesthetic_scores': img_scores, 
-        'alignment_scores': alignment_scores,
-        'pairwise_distances':  pairwise_distances,
-        }
-
-    print(f"Evaluation of {ckpt_name} done!")
-
-
-print("All done! Plotting results...")
-import matplotlib.pyplot as plt
-
-ckpt_names = results.keys()
-colors = plt.cm.terrain(np.linspace(0, 1, len(ckpt_names)))
-colormap = dict(zip(ckpt_names, colors))
-figure_size=(20, 14)
-
-def violin_plot(results, n_samples, ckpt_names, metric, outdir, figure_size):
-    fig, ax = plt.subplots(figsize=figure_size)
-    offsets = [0.0, 0.03]
-    for idx, ckpt_name in enumerate(ckpt_names):
-        scores = results[ckpt_name][metric]
-        vplot = ax.violinplot(scores, positions=[idx], widths=0.9, showmeans=True, showextrema=True, showmedians=False)
-        
-        for pc in vplot['bodies']:
-            pc.set_facecolor(colormap[ckpt_name])
-            pc.set_edgecolor('black')
-            pc.set_alpha(0.75)
-
-        # Set the color of other plot elements
-        for partname in ('cbars', 'cmins', 'cmaxes', 'cmeans'):
-            vp = vplot[partname]
-            vp.set_edgecolor('black')
-            vp.set_linewidth(1)
-
-        # Add an annotation for the checkpoint name
-        offset = offsets[idx % len(offsets)]
-        ax.annotate(ckpt_name, xy=(idx, 0.93 + offset), xycoords=('data', 'axes fraction'), xytext=(0, 5), textcoords='offset points', fontsize=8, ha='center')
-
-
-    # Remove the x-axis labels (we'll use annotations instead)
-    ax.set_xticks(range(len(ckpt_names)))
-    ax.set_xticklabels([''] * len(ckpt_names))
-    ax.set_xlabel('Checkpoint')
-    ax.set_ylabel(metric)
-    ax.set_title(f'{metric} vs Checkpoint ({n_samples} imgs)')
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f'{metric}_vs_checkpoint_.png'))
-
-violin_plot(results, n_samples, ckpt_names, "aesthetic_scores", outdir, figure_size)
-violin_plot(results, n_samples, ckpt_names, "alignment_scores", outdir, figure_size)
-violin_plot(results, n_samples, ckpt_names, "pairwise_distances", outdir, figure_size)
-
-
-
-
+"""
+Example command
+python3 evaluate.py \
+--sd_model_version sdxl \
+--output_folder eval_images \
+--concept_mode style \
+--lora_path lora_models/clipx_tiny_dora_only---sdxl_style_dora/checkpoints/checkpoint-600 \
+--output_json eval_results.json
+"""
