@@ -141,3 +141,4 @@ def generate_sh_script(folder_path, output_sh_path):
             sh_file.write(command)
 
 generate_sh_script(config_output_dir, output_sh_path)
+print(f"\n---> Saved the executable shell script to {output_sh_path}")
