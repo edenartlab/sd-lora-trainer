@@ -225,13 +225,15 @@ class PreprocessedDataset(Dataset):
             self.masks = []
             self.do_cache = True
 
+            print("Caching latents, masks and token_IDs...\n")
+            
             for idx in range(len(self.data)):
                 token, vae_latent, mask = self._process(idx)
                 self.vae_latents.append(vae_latent)
                 self.tokens_tuple.append(token)
                 self.masks.append(mask)
 
-            print(f"Cached latents and masks for {len(self.vae_latents)} images.")
+            print(f"\nCached latents masks and token_IDs for {len(self.vae_latents)} images.")
             del self.vae_encoder
 
         else:

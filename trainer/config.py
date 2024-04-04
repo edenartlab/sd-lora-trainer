@@ -31,6 +31,7 @@ class TrainingConfig(BaseModel):
     l1_penalty: float = 0.1
     noise_offset: float = 0.02
     snr_gamma: float = 5.0
+    lora_alpha_multiplier: float = 1.0
     lora_rank: int = 12
     use_dora: bool = False
     caption_prefix: str = ""
@@ -81,6 +82,6 @@ class TrainingConfig(BaseModel):
         # add some metrics to the foldername:
         lora_str = "dora" if config_data["use_dora"] else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
-        config_data["output_dir"] = config_data["output_dir"] + f"{timestamp_short}---{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
+        config_data["output_dir"] = config_data["output_dir"] + f"--{timestamp_short}-{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
 
         return cls(**config_data)

@@ -212,7 +212,7 @@ def main(
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
         unet_lora_config = LoraConfig(
             r=config.lora_rank,
-            lora_alpha=config.lora_rank,
+            lora_alpha=config.lora_rank * config.lora_alpha_multiplier,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
             #use_rslora=True,
@@ -653,11 +653,8 @@ def main(
     return output_save_dir, validation_prompts
 
 
-import torch.multiprocessing as mp
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn', force=True)
-
     parser = argparse.ArgumentParser(description='Train a concept')
     parser.add_argument("-c", '--config-filename', type=str, help='Input string to be processed')
     args = parser.parse_args()

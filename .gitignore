@@ -13,5 +13,6 @@ train.py
 debug/*
 test_images
 !debug/*.py
+gridsearch*
 
 training_args_x_*.json
