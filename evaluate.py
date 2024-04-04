@@ -12,29 +12,63 @@ from creator_lora.models.resnet50 import ResNet50MLP
 """
 todos:
     - aesthetic scoring (need aesthetic scoring model checkpoint!!)
-    - image-text alignment (need captions)
+    - replace <s0><s1> with mask_target_prompts in image-text alignment
+    - cosine similarity for diversity score
     - run eval on user-defined captions
 """
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+def filter_style_prompt(prompt, remove_this = "in the style of <s0><s1>,"):
+    assert  remove_this in prompt, f"Expected '{remove_this}' to be present in the prompt: '{prompt}'"
+    return prompt.replace(
+        remove_this,
+        ""
+    )
+
 class Evaluation:
     def __init__(self, image_filenames: list):
         self.image_filenames = image_filenames
+        self.image_features = None
+
+    def obtain_image_features(self):
+
+        if self.image_features is None:
+            all_image_features  = []
+            model, preprocess = clip.load("ViT-B/32", device=device)
+
+            for f in self.image_filenames:
+                image = preprocess(Image.open(f)).unsqueeze(0).to(device)
+                with torch.no_grad():
+                    image_features = model.encode_image(image)
+                    all_image_features.append(image_features.float())
+
+            all_image_features = torch.cat(all_image_features, dim = 0)
+            self.image_features = all_image_features
+
+        return self.image_features
+
+    def obtain_text_features(self, prompts: list, device):
+        model, preprocess = clip.load("ViT-B/32", device=device)
+        text = clip.tokenize(prompts).to(device)
+
+        with torch.no_grad():
+            text_features = model.encode_text(text)
+        return text_features
+
+    def image_text_alignment(self, device, prompts: list):
+
+        image_features = self.obtain_image_features().to(device)
+        assert image_features.shape[0] == len(prompts), f'Expected len(prompts) ({len(prompts)}) to have the same number of prompts as the number of images provided: {image_features.shape}'
+        text_features = self.obtain_text_features(prompts=prompts, device=device)
+        cossim = torch.nn.functional.cosine_similarity(
+            text_features, image_features, dim = -1
+        ).mean().item()
+        raise cossim 
 
     def clip_diversity(self, device: str):
 
-        all_image_features  = []
-        model, preprocess = clip.load("ViT-B/32", device=device)
-
-        for f in self.image_filenames:
-            image = preprocess(Image.open(f)).unsqueeze(0).to(device)
-
-            with torch.no_grad():
-                image_features = model.encode_image(image)
-                all_image_features.append(image_features.float())
-
-        all_image_features = torch.cat(all_image_features, dim = 0)
+        all_image_features = self.obtain_image_features().to(device)
         distances = torch.cdist(all_image_features, all_image_features, p=2.0)
         distances = distances.detach().cpu().numpy()
         # Get the upper triangle:
@@ -76,7 +110,7 @@ args = parse_arguments()
 
 os.system(f"mkdir -p {args.output_folder}")
 
-image_filenames = render_images_eval(
+image_filenames, prompts = render_images_eval(
     output_folder=args.output_folder,
     concept_mode=args.concept_mode,
     render_size=(1024,1024),
@@ -87,11 +121,17 @@ image_filenames = render_images_eval(
     trigger_text=" in the style of TOK,"
 )
 
+if args.concept_mode == "style":
+    prompts = [filter_style_prompt(x) for x in prompts]
+else:
+    raise NotImplementedError("prompt filtering for other concept modes is not implemented yet.")
+
 eval = Evaluation(image_filenames=image_filenames)
 clip_diversity = eval.clip_diversity(device=device)
 
 # TODO: replace checkpoint_path=None with the correct checkpoint path
 aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path=None)
+image_text_alignment = eval.image_text_alignment(device=device, prompts=prompts)
 
 result = {
     "sd_model_version": args.sd_model_version,
@@ -100,7 +140,8 @@ result = {
     "output_folder": args.output_folder,
     "scores": {
         "clip_diversity": clip_diversity,
-        "aesthetic_score": aesthetic_score
+        "aesthetic_score": aesthetic_score,
+        "image_text_alignment": image_text_alignment
     }
 }
 
