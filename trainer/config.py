@@ -1,4 +1,5 @@
 from typing import Union, List, Dict
+from datetime import datetime
 from pydantic import BaseModel
 import json
 from typing import Literal
@@ -28,7 +29,7 @@ class TrainingConfig(BaseModel):
     ti_weight_decay: float = 3e-4
     lora_weight_decay: float = 0.002
     l1_penalty: float = 0.1
-    noise_offset: float = 0.0
+    noise_offset: float = 0.02
     snr_gamma: float = 5.0
     lora_rank: int = 12
     use_dora: bool = False
@@ -79,6 +80,7 @@ class TrainingConfig(BaseModel):
 
         # add some metrics to the foldername:
         lora_str = "dora" if config_data["use_dora"] else "lora"
-        config_data["output_dir"] = config_data["output_dir"] + f"---{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
+        timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
+        config_data["output_dir"] = config_data["output_dir"] + f"{timestamp_short}---{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
 
         return cls(**config_data)

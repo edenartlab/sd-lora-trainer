@@ -19,6 +19,7 @@ from trainer.dataset_and_utils import (
     PreprocessedDataset, 
     plot_torch_hist, 
     plot_grad_norms,
+    plot_curve,
     plot_loss, 
     plot_token_stds,
     plot_lrs,
@@ -155,17 +156,34 @@ def main(
                     param.requires_grad = False
 
     # Optimizer creation
+    ti_prod_opt = 0
+
     params_to_optimize_ti = [
         {
             "params": text_encoder_parameters,
-            "lr": config.ti_lr,
+            "lr": config.ti_lr if (not ti_prod_opt) else 1.0,
             "weight_decay": config.ti_weight_decay,
         },
     ]
-    optimizer_ti = torch.optim.AdamW(
-        params_to_optimize_ti,
-        weight_decay=config.ti_weight_decay,
-    )
+    if ti_prod_opt:
+        import prodigyopt
+        optimizer_ti = prodigyopt.Prodigy(
+                            params_to_optimize_ti,
+                            d_coef = 1.0,
+                            lr=1.0,
+                            decouple=True,
+                            use_bias_correction=True,
+                            safeguard_warmup=True,
+                            weight_decay=config.ti_weight_decay,
+                            betas=(0.9, 0.99),
+                            #growth_rate=5.0,  # this slows down the lr_rampup
+                        )
+    else:
+        optimizer_ti = torch.optim.AdamW(
+            params_to_optimize_ti,
+            weight_decay=config.ti_weight_decay,
+        )
+        
 
     unet_param_to_optimize = []
     unet_lora_params_to_optimize = []
@@ -307,7 +325,7 @@ def main(
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0
-    ti_lrs, lora_lrs = [], []
+    ti_lrs, lora_lrs, prompt_embeds_norms = [], [], []
     losses = {'img_loss': [], 'tot_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
@@ -334,14 +352,15 @@ def main(
                                 del optimizer_ti.state[param]
                         optimizer_ti = None
 
-            else: # Update learning rates gradually:
+            elif not ti_prod_opt: # Update learning rates gradually:
                 finegrained_epoch = epoch + step / len(train_dataloader)
                 completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
                 optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
             # warmup the token embedding lr:
-            if config.token_embedding_lr_warmup_steps > 0:
+            config.token_embedding_lr_warmup_steps = 60
+            if (not ti_prod_opt) and config.token_embedding_lr_warmup_steps > 0:
                 warmup_f = min(global_step / config.token_embedding_lr_warmup_steps, 1.0)
                 optimizer_ti.param_groups[0]['lr'] *= warmup_f
 
@@ -364,7 +383,6 @@ def main(
                     (noise.shape[0], noise.shape[1], 1, 1), device=noise.device)
 
             bsz = vae_latent.shape[0]
-
             timesteps = torch.randint(
                 0,
                 noise_scheduler.config.num_train_timesteps,
@@ -376,6 +394,9 @@ def main(
             noise_sigma = 0.0
             if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
                 prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
+
+            # Compute the norms of the conditioning signals:
+            prompt_embeds_norms.append(prompt_embeds.norm(dim=-1).mean().item())
 
             # Predict the noise residual
             model_pred = unet(
@@ -454,7 +475,7 @@ def main(
                         target_stds = embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].float()
                         target_stds = target_stds.unsqueeze(0).expand_as(embedding_stds)
                         std_loss = token_embedding_std_penalty * (embedding_stds - target_stds).pow(2).mean()
-                        loss +=  std_loss
+                        #loss +=  std_loss
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps
@@ -538,7 +559,7 @@ def main(
                     name=name
                 )
                 last_save_step = global_step
-                
+
                 token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
                 for idx, text_encoder in enumerate(embedding_handler.text_encoders):
                     if text_encoder is None:
@@ -557,6 +578,7 @@ def main(
                 plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
                 plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                 plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
+                plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
                 validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
                 
                 gc.collect()
@@ -631,10 +653,10 @@ def main(
     return output_save_dir, validation_prompts
 
 
-
-
+import torch.multiprocessing as mp
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn', force=True)
 
     parser = argparse.ArgumentParser(description='Train a concept')
     parser.add_argument("-c", '--config-filename', type=str, help='Input string to be processed')

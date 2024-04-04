@@ -16,6 +16,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PretrainedConfig
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+from .utils.seed import seed_everything
 
 def pick_best_gpu_id():
     # pick the GPU with the most free memory:
@@ -59,6 +60,18 @@ def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1
     plt.savefig(f"{checkpoint_dir}/{name}_hist_{step:04d}.png")
     plt.close()
 
+def plot_curve(values, xlabel, ylabel, title, save_path, log_scale = False):
+    plt.figure()
+    plt.plot(range(len(values)), values)
+    if log_scale:
+        plt.yscale('log')  # Set y-axis to log scale
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
+
 # plot the learning rates:
 def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
     plt.figure()
@@ -95,16 +108,21 @@ def plot_grad_norms(grad_norms, save_path='grad_norms.png'):
 
 def plot_token_stds(token_std_dict, save_path='token_stds.png'):
     plt.figure()
+    anchor_values = []
     for key in token_std_dict.keys():
         tokenizer_i_token_stds = token_std_dict[key]
         for i in range(len(tokenizer_i_token_stds)):
             stds = tokenizer_i_token_stds[i]
             if len(stds) == 0:
                 continue
+            anchor_values.append(stds[0])
             plt.plot(range(len(stds)), stds, label=f'{key}_tok_{i}')
 
     plt.xlabel('Step')
     plt.ylabel('Token Embedding Std')
+    centre_value = np.mean(anchor_values)
+    up_f, down_f = 1.20, 1.15
+    plt.ylim(centre_value/down_f, centre_value*up_f)
     plt.title('Token Embedding Std')
     plt.legend()
     plt.savefig(save_path)
@@ -570,8 +588,7 @@ class TokenEmbeddingsHandler:
         print(f"Initializing new tokens: {inserting_toks}")
         self.inserting_toks = inserting_toks
 
-
-        torch.manual_seed(seed)
+        seed_everything(seed)
         idx = 0
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if tokenizer is None:
@@ -703,14 +720,14 @@ class TokenEmbeddingsHandler:
             new_embeddings = None
         else:
             index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
-            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"].float()
+            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]#.float()
             index_updates = ~index_no_updates
-            new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates].float()
+            new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates]#.float()
             new_stds = new_embeddings.std(dim=1)
             assert new_stds.shape[0] == len(self.train_ids), "Something went wrong with the std computation"
             off_ratio = std_token_embedding / new_stds.mean()
 
-        return off_ratio, new_embeddings
+        return off_ratio.float(), new_embeddings
 
     def fix_embedding_std(self, off_ratio_power = 0.1):
         if off_ratio_power == 0.0:
