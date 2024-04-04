@@ -222,4 +222,4 @@ def render_images_eval(
         )
         filenames.append(filename)
 
-    return filenames
+    return filenames, validation_prompts
