@@ -205,6 +205,7 @@ def render_images_eval(
     else:
         cross_attention_kwargs = None
     
+    filenames = []
     for i in range(n_imgs):
         pipeline_args["prompt"] = validation_prompts[i]
         print(f"Rendering validation img with prompt: {validation_prompts[i]}")
@@ -213,10 +214,12 @@ def render_images_eval(
             generator=generator,
             cross_attention_kwargs=cross_attention_kwargs,
         ).images[0]
+        filename = os.path.join(output_folder, f"{i}.jpg")
         image.save(
-            os.path.join(output_folder, f"{i}.jpg"),
+            filename,
             format="JPEG",
             quality=95,
         )
+        filenames.append(filename)
 
-    return validation_prompts_raw
+    return filenames
