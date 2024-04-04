@@ -32,5 +32,6 @@
     "hard_pivot": false,
     "weight_type": "bf16",
     "dataloader_num_workers": 0,
-    "aspect_ratio_bucketing": false
+    "aspect_ratio_bucketing": true,
+    "do_cache": false
 }
