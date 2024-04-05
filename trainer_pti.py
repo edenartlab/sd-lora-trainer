@@ -405,7 +405,7 @@ def main(
                 raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
             # Make sure we're computing the loss at full precision:
-            target, model_pred, mask = target.float(), model_pred.float(), mask.float()
+            #target, model_pred, mask = target.float(), model_pred.float(), mask.float()
 
             # Compute the loss:
             loss = (model_pred - target).pow(2) * mask
@@ -450,8 +450,8 @@ def main(
             main_norm_reg_loss_multiplier = 0.00001
             tok_norm_reg_loss_multiplier = 0.00001
 
-            main_norm_reg_loss_multiplier = 0.0
-            tok_norm_reg_loss_multiplier = 0.0
+            #main_norm_reg_loss_multiplier = 0.0
+            #tok_norm_reg_loss_multiplier = 0.0
 
             if 1:
                 # Compute the norms of the conditioning signals:
@@ -560,7 +560,7 @@ def main(
                 ti_lrs.append(0.0)
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0): # and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(

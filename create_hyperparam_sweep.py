@@ -34,7 +34,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_banny_ti_sdxl"
+exp_name             = "gridsearch_plantoid_ti_sd15"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
@@ -49,13 +49,13 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/xander/Downloads/datasets/banny_best",
+        "/home/xander/Downloads/datasets/plantoid",
     ],
     "concept_mode": ['object'],
-    "mask_target_prompts": ["bananaman"],
+    "mask_target_prompts": ["mechanical flower sculpture"],
     "seed": [5],
     "resolution": [512],
-    "validation_img_size": [[1024, 1024]],
+    "validation_img_size": [[768, 768]],
     "train_batch_size": [4],
     "n_sample_imgs": [4],
     "max_train_steps": [600],
@@ -63,11 +63,13 @@ hyperparameters = {
     "gradient_accumulation_steps": [1],
     "clip_grad_norm": [-1.0],
     "prodigy_d_coef": [0.0],
-    "ti_lr": [0.003, 0.001, 0.0002],
-    "ti_weight_decay": [0.01, 0.001, 0.0001, 0.0],
+    "ti_lr": [0.001, 0.0003],
+    "ti_weight_decay": [0.01, 0.002, 0.0],
     "lora_weight_decay": [0.0],
     "l1_penalty": [0.1],
-    "off_ratio_power": [0.0, 0.01, 0.05, 0.1],
+    "off_ratio_power": [0.0, 0.01, 0.05],
+    "hard_pivot": ['false', 'true'],
+    "token_embedding_lr_warmup_steps": [0,60],
     "snr_gamma": [0.0, 5.0],
     "lora_rank": [12],
     "use_dora": ['true'],
