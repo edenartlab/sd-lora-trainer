@@ -128,7 +128,8 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png'):
             if len(stds) == 0:
                 continue
             anchor_values.append(stds[0])
-            plt.plot(range(len(stds)), stds, label=f'{key}_tok_{i}')
+            encoder_index = int(key.split('_')[-1])
+            plt.plot(range(len(stds)), stds, label=f'{key}_tok_{i}', linestyle='dashed' if encoder_index > 0 else 'solid')
 
     plt.xlabel('Step')
     plt.ylabel('Token Embedding Std')

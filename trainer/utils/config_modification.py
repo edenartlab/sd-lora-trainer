@@ -18,4 +18,10 @@ def modify_args_based_on_concept_mode(config: TrainingConfig):
         config.l1_penalty = 0.0
         config.lora_weight_decay = 0.0
 
+
+    # build the inserting_list_tokens and token dict using n_tokens:
+    inserting_list_tokens = [f"<s{i}>" for i in range(config.n_tokens)]
+    config.inserting_list_tokens = inserting_list_tokens
+    config.token_dict = {"TOK": "".join(inserting_list_tokens)}
+
     return config

@@ -84,10 +84,5 @@ class TrainingConfig(BaseModel):
         lora_str = "dora" if config_data["use_dora"] else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
         config_data["output_dir"] = config_data["output_dir"] + f"--{timestamp_short}-{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
-
-        # build the inserting_list_tokens and token dict using n_tokens:
-        inserting_list_tokens = [f"<s{i}>" for i in range(config_data["n_tokens"])]
-        config_data["inserting_list_tokens"] = inserting_list_tokens
-        config_data["token_dict"] = {"TOK": "".join(inserting_list_tokens)}
-
+        
         return cls(**config_data)
