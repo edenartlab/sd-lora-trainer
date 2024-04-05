@@ -446,7 +446,14 @@ def main(
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss +=  config.l1_penalty * l1_norm
 
-            if 0:
+            # Some ugly hardcoded stuff for now, still optimizing these regularization params:
+            main_norm_reg_loss_multiplier = 0.00001
+            tok_norm_reg_loss_multiplier = 0.00001
+
+            main_norm_reg_loss_multiplier = 0.0
+            tok_norm_reg_loss_multiplier = 0.0
+
+            if 1:
                 # Compute the norms of the conditioning signals:
                 conditioning_norms = prompt_embeds.norm(dim=-1).mean(dim=0)
                 regularization_norm_value = conditioning_norms[2:].mean()
@@ -459,9 +466,9 @@ def main(
 
                 regularization_loss = (regularization_norm_value - target_norm).pow(2)
                 prompt_embeds_norms['main'].append(regularization_norm_value.item())
-                loss += 0.00001 * regularization_loss
+                loss += main_norm_reg_loss_multiplier * regularization_loss
 
-            if 0: # regularize the txt-conditioning of several regularization prompts containing the new tokens:
+            if 1: # regularize the txt-conditioning of several regularization prompts containing the new tokens:
                 reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
                 reg_captions = [caption.replace("TOK", "<s0><s1>") for caption in reg_captions]
                 reg_token_indices = [[],[]]
@@ -489,8 +496,7 @@ def main(
                 reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)
                 regularization_norm_value = reg_conditioning_norms[2:].mean()
                 regularization_loss = (regularization_norm_value - target_norm).pow(2)
-                loss += 0.00001* regularization_loss
-                print(f"Reg norm value: {regularization_norm_value.item()}")
+                loss += tok_norm_reg_loss_multiplier * regularization_loss
                 prompt_embeds_norms['reg'].append(regularization_norm_value.item())
 
             losses['tot_loss'].append(loss.item())
