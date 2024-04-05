@@ -239,6 +239,10 @@ def clipseg_mask_generator(
 
         masks.append(mask)
 
+    del model
+    gc.collect()
+    torch.cuda.empty_cache()
+
     return masks
 
 
