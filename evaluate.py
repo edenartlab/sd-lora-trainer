@@ -26,6 +26,19 @@ def filter_style_prompt(prompt, remove_this = "in the style of <s0><s1>,"):
         ""
     )
 
+def get_similarity_matrix(a, b, eps=1e-8):
+    """
+    finds the cosine similarity matrix between each item of a w.r.t each item of b
+    a and b are expected to be 2 dimensional
+    added eps for numerical stability
+    source: https://stackoverflow.com/a/58144658
+    """
+    a_n, b_n = a.norm(dim=1)[:, None], b.norm(dim=1)[:, None]
+    a_norm = a / torch.max(a_n, eps * torch.ones_like(a_n))
+    b_norm = b / torch.max(b_n, eps * torch.ones_like(b_n))
+    sim_mt = torch.mm(a_norm, b_norm.transpose(0, 1))
+    return sim_mt
+
 class Evaluation:
     def __init__(self, image_filenames: list):
         self.image_filenames = image_filenames
@@ -64,12 +77,17 @@ class Evaluation:
         cossim = torch.nn.functional.cosine_similarity(
             text_features, image_features, dim = -1
         ).mean().item()
-        raise cossim 
+        return  cossim
 
     def clip_diversity(self, device: str):
 
         all_image_features = self.obtain_image_features().to(device)
-        distances = torch.cdist(all_image_features, all_image_features, p=2.0)
+
+        distances = 1 - get_similarity_matrix(all_image_features, all_image_features)
+        assert distances.shape == (
+            all_image_features.shape[0],
+            all_image_features.shape[0]
+        ), f'Expected the shape of the distance matrix to be (num_images, num_images) i.e {(all_image_features.shape[0], all_image_features.shape[0])} but got: {distances.shape}'
         distances = distances.detach().cpu().numpy()
         # Get the upper triangle:
         upper_triangle = np.triu(distances, k=1).flatten()
