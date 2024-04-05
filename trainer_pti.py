@@ -10,7 +10,7 @@ import itertools
 import zipfile
 import torch
 import torch.utils.checkpoint
-
+import matplotlib.pyplot as plt
 from peft import LoraConfig, get_peft_model
 from diffusers.optimization import get_scheduler
 from tqdm import tqdm
@@ -79,11 +79,13 @@ def main(
     config: TrainingConfig,
 ):
     seed_everything(config.seed)
-    pick_best_gpu_id()
+    gpu_id = pick_best_gpu_id()
+    config.device = f'cuda:{gpu_id}'
 
     config = modify_args_based_on_concept_mode(config)
 
     input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
+        config,
         working_directory=config.output_dir,
         concept_mode=config.concept_mode,
         input_zip_path=config.lora_training_urls,
@@ -141,7 +143,7 @@ def main(
 
     unet.requires_grad_(False)
     vae.requires_grad_(False)
-    text_encoders = [text_encoder_one, text_encoder_two]
+    text_encoders = embedding_handler.text_encoders
     text_encoder_parameters = []
     for text_encoder in text_encoders:
         if text_encoder is not  None:
@@ -156,7 +158,7 @@ def main(
                     param.requires_grad = False
 
     # Optimizer creation
-    ti_prod_opt = 0
+    ti_prod_opt = False
 
     params_to_optimize_ti = [
         {
@@ -165,6 +167,7 @@ def main(
             "weight_decay": config.ti_weight_decay,
         },
     ]
+
     if ti_prod_opt:
         import prodigyopt
         optimizer_ti = prodigyopt.Prodigy(
@@ -230,17 +233,6 @@ def main(
                 "weight_decay": config.lora_weight_decay if not config.use_dora else 0.0,
             },
         ]
-
-    # Make sure the trainable params are in float32.
-    if 0:
-        models = [unet]
-        #for text_encoder in text_encoders:
-        #    if text_encoder is not None:
-        #        models.extend([text_encoder])
-        for model in models:
-            for param in model.parameters():
-                if param.requires_grad:
-                    param.data = param.to(torch.float32)
 
     optimizer_type = "prodigy" # hardcode for now
 
@@ -308,7 +300,6 @@ def main(
         print(f"--- Total optimization steps = {config.max_train_steps}\n")
 
     global_step = 0
-    first_epoch = 0
     last_save_step = 0
 
     progress_bar = tqdm(range(global_step, config.max_train_steps), position=0, leave=True)
@@ -325,7 +316,7 @@ def main(
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0
-    ti_lrs, lora_lrs, prompt_embeds_norms = [], [], []
+    ti_lrs, lora_lrs, prompt_embeds_norms = [], [], {'main':[], 'reg':[]}
     losses = {'img_loss': [], 'tot_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
@@ -334,7 +325,7 @@ def main(
 
     #######################################################################################################
 
-    for epoch in range(first_epoch, config.num_train_epochs):
+    for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
             train_dataset.bucket_manager.start_epoch()
         progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
@@ -359,7 +350,6 @@ def main(
                 optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
             # warmup the token embedding lr:
-            config.token_embedding_lr_warmup_steps = 60
             if (not ti_prod_opt) and config.token_embedding_lr_warmup_steps > 0:
                 warmup_f = min(global_step / config.token_embedding_lr_warmup_steps, 1.0)
                 optimizer_ti.param_groups[0]['lr'] *= warmup_f
@@ -370,7 +360,7 @@ def main(
                 token_indices, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
                     
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
-                config, token_indices, text_encoders, weight_dtype
+                config, pipe, token_indices, text_encoders, weight_dtype
             )
             
             # Sample noise that we'll add to the latents:
@@ -393,10 +383,7 @@ def main(
             noisy_latent = noise_scheduler.add_noise(vae_latent, noise, timesteps)
             noise_sigma = 0.0
             if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
-                prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,1:-2,:]) * noise_sigma
-
-            # Compute the norms of the conditioning signals:
-            prompt_embeds_norms.append(prompt_embeds.norm(dim=-1).mean().item())
+                prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma
 
             # Predict the noise residual
             model_pred = unet(
@@ -421,15 +408,13 @@ def main(
             target, model_pred, mask = target.float(), model_pred.float(), mask.float()
 
             # Compute the loss:
-            if config.snr_gamma is None or config.snr_gamma == 0.0:
-                loss = (model_pred - target).pow(2) * mask
+            loss = (model_pred - target).pow(2) * mask
 
+            if config.snr_gamma is None or config.snr_gamma == 0.0:
                 # modulate loss by the inverse of the mask's mean value
                 mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
                 mean_mask_values = mean_mask_values / mean_mask_values.mean()
                 loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
-
-                # Average the normalized errors across the batch
                 loss = loss.mean()
 
             else:
@@ -448,14 +433,12 @@ def main(
                     mse_loss_weights = base_weight
 
                 mse_loss_weights = mse_loss_weights / mse_loss_weights.mean()
-                loss = (model_pred - target).pow(2) * mask
                 loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
 
-                if 1: # modulate loss by the inverse of the mask's mean value
-                    mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
-                    mean_mask_values = mean_mask_values / mean_mask_values.mean()
-                    loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
-
+                # modulate loss by the inverse of the mask's mean value
+                mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
+                mean_mask_values = mean_mask_values / mean_mask_values.mean()
+                loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
                 loss = loss.mean()
 
             if config.l1_penalty > 0.0 and not config.use_dora:
@@ -463,33 +446,62 @@ def main(
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss +=  config.l1_penalty * l1_norm
 
-            if 1:
-                token_embedding_std_penalty = 0.0
-                trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
-                for idx in range(len(text_encoders)):
-                    if text_encoders[idx] is not None:
-                        embedding = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).float()
-                        embedding_stds = embedding.std(dim=1)
-                        for std_i, std in enumerate(embedding_stds):
-                            token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
-                        target_stds = embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].float()
-                        target_stds = target_stds.unsqueeze(0).expand_as(embedding_stds)
-                        std_loss = token_embedding_std_penalty * (embedding_stds - target_stds).pow(2).mean()
-                        #loss +=  std_loss
+            if 0:
+                # Compute the norms of the conditioning signals:
+                conditioning_norms = prompt_embeds.norm(dim=-1).mean(dim=0)
+                regularization_norm_value = conditioning_norms[2:].mean()
+
+                # Create a loss to fix the regularization norm to a target value:
+                if config.sd_model_version == 'sdxl':
+                    target_norm = 34.8
+                if config.sd_model_version == 'sd15':
+                    target_norm = 27.8
+
+                regularization_loss = (regularization_norm_value - target_norm).pow(2)
+                prompt_embeds_norms['main'].append(regularization_norm_value.item())
+                loss += 0.00001 * regularization_loss
+
+            if 0: # regularize the txt-conditioning of several regularization prompts containing the new tokens:
+                reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
+                reg_captions = [caption.replace("TOK", "<s0><s1>") for caption in reg_captions]
+                reg_token_indices = [[],[]]
+
+                for i, tokenizer in enumerate(embedding_handler.tokenizers):
+                    if tokenizer is not None:
+                        for caption in reg_captions:
+                            token_indices = tokenizer(
+                                caption,
+                                padding="max_length",
+                                max_length=tokenizer.model_max_length,
+                                truncation=True,
+                                add_special_tokens=True,
+                                return_tensors="pt",
+                            ).input_ids.squeeze()
+                            reg_token_indices[i].append(token_indices)
+                        reg_token_indices[i] = torch.stack(reg_token_indices[i])
+                    else:
+                        reg_token_indices[i] = None
+
+                reg_prompt_embeds, reg_pooled_prompt_embeds, reg_add_time_ids = get_conditioning_signals(
+                config, pipe, reg_token_indices, text_encoders, weight_dtype
+                )
+
+                reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)
+                regularization_norm_value = reg_conditioning_norms[2:].mean()
+                regularization_loss = (regularization_norm_value - target_norm).pow(2)
+                loss += 0.00001* regularization_loss
+                print(f"Reg norm value: {regularization_norm_value.item()}")
+                prompt_embeds_norms['reg'].append(regularization_norm_value.item())
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
-            '''
-            apart from the usual gradient accumulation steps,
-            we also do a backward pass after computing the last forward pass in the epoch (last_batch == True)
-            this is to make sure that we're not missing out on any data 
-            '''
             last_batch = (step + 1 == len(train_dataloader))
             if (step + 1) % config.gradient_accumulation_steps == 0 or last_batch:
+                optimizer_lora_unet.step()
+
                 if optimizer_ti is not None:
-                    
                     # zero out the gradients of the non-trained text-encoder embeddings
                     for embedding_tensor in text_encoder_parameters:
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
@@ -515,14 +527,24 @@ def main(
                                 torch.nn.utils.clip_grad_norm_(text_encoder_params_with_grad, clip_grad_norm)
 
                     optimizer_ti.step()
+
+                    # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
+                    # embedding_handler.retract_embeddings()
+                    embedding_handler.fix_embedding_std(config.off_ratio_power)
+
                     optimizer_ti.zero_grad()
-                
-                optimizer_lora_unet.step()
                 optimizer_lora_unet.zero_grad()
 
-                # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
-                # embedding_handler.retract_embeddings()
-                embedding_handler.fix_embedding_std(config.off_ratio_power)
+            #############################################################################################################
+
+            # Track the token embedding stds:
+            trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
+            for idx in range(len(text_encoders)):
+                if text_encoders[idx] is not None:
+                    embedding_stds = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).detach().float().std(dim=1)
+                    for std_i, std in enumerate(embedding_stds):
+                        token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
+
             
             # Track the learning rates for final plotting:
             lora_lrs.append(get_avg_lr(optimizer_lora_unet))
@@ -530,17 +552,9 @@ def main(
                 ti_lrs.append(optimizer_ti.param_groups[0]['lr'])
             except:
                 ti_lrs.append(0.0)
-            
-            # This prob isnt needed, TODO: see if this can be removed
-            pipe.unet = unet
-            pipe.text_encoder_one = text_encoders[0]
-            try:
-                pipe.text_encoder_two = text_encoders[1]
-            except:
-                pass
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0): # and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -561,7 +575,7 @@ def main(
                 last_save_step = global_step
 
                 token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
-                for idx, text_encoder in enumerate(embedding_handler.text_encoders):
+                for idx, text_encoder in enumerate(text_encoders):
                     if text_encoder is None:
                         continue
                     n = len(token_embeddings[f'txt_encoder_{idx}'])
@@ -579,7 +593,7 @@ def main(
                 plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                 plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-                validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text)
+                validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text, device = config.device)
                 
                 gc.collect()
                 torch.cuda.empty_cache()
@@ -624,7 +638,7 @@ def main(
             name=name
         )
 
-        validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text)
+        validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text, device = config.device)
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

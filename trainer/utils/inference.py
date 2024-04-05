@@ -12,7 +12,7 @@ from .prompt import prepare_prompt_for_lora
 from .io import make_validation_img_grid
 
 
-def get_conditioning_signals(config, token_indices, text_encoders, weight_dtype):
+def get_conditioning_signals(config, pipe, token_indices, text_encoders, weight_dtype):
 
     if config.sd_model_version == 'sdxl':
         if len(token_indices) == 1:
@@ -41,9 +41,28 @@ def get_conditioning_signals(config, token_indices, text_encoders, weight_dtype)
         # Create Spatial-dimensional conditions.
         original_size = (config.resolution, config.resolution)
         target_size   = (config.resolution, config.resolution)
+
+        # I dont understand why, but I get better results hardcoding these values...
+        original_size = (1024, 1024)
+        #target_size   = (768, 768)
+
         crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
-        add_time_ids = list(original_size + crops_coords_top_left + target_size)
-        add_time_ids = torch.tensor([add_time_ids])
+        #add_time_ids = list(original_size + crops_coords_top_left + target_size)
+        #add_time_ids = torch.tensor([add_time_ids])
+        
+        if pipe.text_encoder_2 is None:
+            text_encoder_projection_dim = int(pooled_prompt_embeds.shape[-1])
+        else:
+            text_encoder_projection_dim = pipe.text_encoder_2.config.projection_dim
+
+        add_time_ids = pipe._get_add_time_ids(
+            original_size,
+            crops_coords_top_left,
+            target_size,
+            dtype=prompt_embeds.dtype,
+            text_encoder_projection_dim=text_encoder_projection_dim,
+        )
+
         add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
             bs_embed, 1
         )

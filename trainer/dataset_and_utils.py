@@ -19,25 +19,32 @@ import matplotlib.pyplot as plt
 from .utils.seed import seed_everything
 
 def pick_best_gpu_id():
-    # pick the GPU with the most free memory:
-    gpu_ids = [i for i in range(torch.cuda.device_count())]
-    print(f"# of visible GPUs: {len(gpu_ids)}")
-    gpu_mem = []
-    for gpu_id in gpu_ids:
-        free_memory, tot_mem = torch.cuda.mem_get_info(device=gpu_id)
-        gpu_mem.append(free_memory)
-        print("GPU %d: %d MB free" %(gpu_id, free_memory / 1024 / 1024))
-    
-    if len(gpu_ids) == 0:
-        # no GPUs available, use CPU:
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
-        return None
+    try:
+        # pick the GPU with the most free memory:
+        gpu_ids = [i for i in range(torch.cuda.device_count())]
+        print(f"# of visible GPUs: {len(gpu_ids)}")
+        gpu_mem = []
+        for gpu_id in gpu_ids:
+            free_memory, tot_mem = torch.cuda.mem_get_info(device=gpu_id)
+            gpu_mem.append(free_memory)
+            print("GPU %d: %d MB free" %(gpu_id, free_memory / 1024 / 1024))
+        
+        if len(gpu_ids) == 0:
+            # no GPUs available, use CPU:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            return None
 
-    best_gpu_id = gpu_ids[np.argmax(gpu_mem)]
-    # set this to be the active GPU:
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(best_gpu_id)
-    print("Using GPU %d" %best_gpu_id)
-    return best_gpu_id
+        best_gpu_id = gpu_ids[np.argmax(gpu_mem)]
+        # set this to be the active GPU:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(best_gpu_id)
+        print("Using GPU %d" %best_gpu_id)
+        return best_gpu_id
+    except Exception as e:
+        print(f'Error picking best gpu: {e}')
+        print(f'Falling back to GPU 0')
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        return 0
+
 
 def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75, color = 'blue'):
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -60,13 +67,18 @@ def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1
     plt.savefig(f"{checkpoint_dir}/{name}_hist_{step:04d}.png")
     plt.close()
 
-def plot_curve(values, xlabel, ylabel, title, save_path, log_scale = False):
+def plot_curve(value_dict, xlabel, ylabel, title, save_path, log_scale = False, y_lims = None):
     plt.figure()
-    plt.plot(range(len(values)), values)
+    for key in value_dict.keys():
+        values = value_dict[key]
+        plt.plot(range(len(values)), values, label=key)
+
     if log_scale:
         plt.yscale('log')  # Set y-axis to log scale
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    if y_lims is not None:
+        plt.ylim(y_lims[0], y_lims[1])
     plt.title(title)
     plt.legend()
     plt.savefig(save_path)
@@ -121,8 +133,11 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png'):
     plt.xlabel('Step')
     plt.ylabel('Token Embedding Std')
     centre_value = np.mean(anchor_values)
-    up_f, down_f = 1.20, 1.15
-    plt.ylim(centre_value/down_f, centre_value*up_f)
+    up_f, down_f = 1.5, 1.25
+    try:
+        plt.ylim(centre_value/down_f, centre_value*up_f)
+    except:
+        pass
     plt.title('Token Embedding Std')
     plt.legend()
     plt.savefig(save_path)
@@ -226,7 +241,7 @@ class PreprocessedDataset(Dataset):
             self.do_cache = True
 
             print("Caching latents, masks and token_IDs...\n")
-            
+
             for idx in range(len(self.data)):
                 token, vae_latent, mask = self._process(idx)
                 self.vae_latents.append(vae_latent)
@@ -722,12 +737,11 @@ class TokenEmbeddingsHandler:
             new_embeddings = None
         else:
             index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
-            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]#.float()
+            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"].float()
             index_updates = ~index_no_updates
             new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates]#.float()
             new_stds = new_embeddings.std(dim=1)
-            assert new_stds.shape[0] == len(self.train_ids), "Something went wrong with the std computation"
-            off_ratio = std_token_embedding / new_stds.mean()
+            off_ratio = std_token_embedding / new_stds.mean().float()
 
         return off_ratio.float(), new_embeddings
 

@@ -77,6 +77,7 @@ def _find_files(pattern, dir="."):
 
 
 def preprocess(
+    config,
     working_directory,
     concept_mode, 
     input_zip_path: Path,
@@ -109,6 +110,7 @@ def preprocess(
     download_and_prep_training_data(input_zip_path, TEMP_IN_DIR)
 
     n_training_imgs, trigger_text, segmentation_prompt, captions = load_and_save_masks_and_captions(
+        config,
         concept_mode, 
         files=TEMP_IN_DIR,
         output_dir=TEMP_OUT_DIR,
@@ -647,6 +649,7 @@ def augment_image(image):
 
 
 def load_and_save_masks_and_captions(
+    config,
     concept_mode: str,
     files: Union[str, List[str]],
     output_dir: str = "tmp_out",
@@ -789,6 +792,13 @@ def load_and_save_masks_and_captions(
     captions = ["TOK, " + caption if "TOK" not in caption else caption for caption in captions]
     for caption in captions:
         print(caption)
+
+    if config.remove_ti_token_from_prompts:
+        print('------------ WARNING ------------')
+        print("Removing 'TOK, ' from captions...")
+        print("This will completely break textual_inversion!!")
+        print('------------ WARNING ------------')
+        captions = [caption.replace("TOK, ", "") for caption in captions]
 
     # iterate through the images, masks, and captions and add a row to the dataframe for each
     print("Saving final training dataset...")

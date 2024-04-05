@@ -11,11 +11,11 @@ SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/j
 #SDXL_MODEL_CACHE = "./models/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
 #SDXL_URL         = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9/resolve/main/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
 
-#SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
-#SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
+SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
+SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
 
-SD15_MODEL_CACHE = "./models/DreamShaper_6.31_BakedVae.safetensors"
-SD15_URL         = "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_6.31_BakedVae.safetensors"
+#SD15_MODEL_CACHE = "./models/DreamShaper_6.31_BakedVae.safetensors"
+#SD15_URL         = "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_6.31_BakedVae.safetensors"
 
 #SD15_MODEL_CACHE = "./models/v1-5-pruned.safetensors"
 #SD15_URL         = "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_6.31_BakedVae.safetensors"
@@ -52,16 +52,17 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     text_encoder_one = pipe.text_encoder
 
     vae.requires_grad_(False)
-    text_encoder_one.requires_grad_(False)
-
-    text_encoder_one.to(device, dtype=weight_dtype)
-    unet.to(device, dtype=weight_dtype)
     if keep_vae_float32:
         vae.to(device, dtype=torch.float32)
     else:
         vae.to(device, dtype=weight_dtype)
         if weight_dtype != torch.float32:
             print(f"Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but might not be for training..")
+
+    unet.to(device, dtype=weight_dtype)
+    text_encoder_one.requires_grad_(False)
+    text_encoder_one.to(device, dtype=weight_dtype)
+
 
     tokenizer_two = text_encoder_two = None
     if pretrained_model['version'] == "sdxl":

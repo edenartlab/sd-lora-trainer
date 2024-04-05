@@ -34,7 +34,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_banny_ti_sd15"
+exp_name             = "gridsearch_banny_ti_sdxl"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
@@ -47,18 +47,18 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sd15"],
+    "sd_model_version": ["sdxl"],
     "lora_training_urls": [
         "/home/xander/Downloads/datasets/banny_best",
     ],
     "concept_mode": ['object'],
     "mask_target_prompts": ["bananaman"],
     "seed": [5],
-    "resolution": [512, 640],
-    "validation_img_size": [[640, 640]],
-    "train_batch_size": [4,2],
+    "resolution": [512],
+    "validation_img_size": [[1024, 1024]],
+    "train_batch_size": [4],
     "n_sample_imgs": [4],
-    "max_train_steps": [800],
+    "max_train_steps": [600],
     "checkpointing_steps": [200],
     "gradient_accumulation_steps": [1],
     "clip_grad_norm": [-1.0],
