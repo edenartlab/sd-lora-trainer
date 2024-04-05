@@ -14,7 +14,6 @@ from creator_lora.models.resnet50 import ResNet50MLP
 """
 todos:
     - aesthetic scoring (need aesthetic scoring model checkpoint!!)
-    - replace <s0><s1> with mask_target_prompts in image-text alignment
     - run eval on user-defined captions
 """
 
