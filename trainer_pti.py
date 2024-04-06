@@ -250,7 +250,8 @@ def main(
                         safeguard_warmup=True,
                         weight_decay=config.lora_weight_decay if not config.use_dora else 0.0,
                         betas=(0.9, 0.99),
-                        growth_rate=1.025,  # this slows down the lr_rampup
+                        #growth_rate=1.025,  # this slows down the lr_rampup
+                        growth_rate=1.05,  # this slows down the lr_rampup
                     )
         
     train_dataset = PreprocessedDataset(
@@ -560,7 +561,7 @@ def main(
                 ti_lrs.append(0.0)
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0): # and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(

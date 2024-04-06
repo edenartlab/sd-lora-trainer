@@ -16,62 +16,51 @@ from diffusers.utils import (
 )
 '''
 
+"""
 
-def blend_conditions(embeds1, embeds2, lora_scale, 
-        token_scale_power = 0.5,  # adjusts the curve of the interpolation
-        min_token_scale   = 0.5,  # minimum token scale (corresponds to lora_scale = 0)
-        verbose = True,
-        ):
-        
-    """
-    using lora_scale, apply linear interpolation between two sets of embeddings
-    """
+from peft import get_peft_model
 
-    c1, uc1, pc1, puc1 = embeds1
-    c2, uc2, pc2, puc2 = embeds2
+base_model = ...  # load the base model, e.g. from transformers
+peft_model = PeftMixedModel.from_pretrained(base_model, path_to_adapter1, "adapter1").eval()
+peft_model.load_adapter(path_to_adapter2, "adapter2")
+peft_model.set_adapter(["adapter1", "adapter2"])  # activate both adapters
+peft_model(data)  # forward pass using both adapters
 
-    token_scale = lora_scale ** token_scale_power
-    # rescale the [0,1] range to [min_token_scale, 1] range:
-    token_scale = min_token_scale + (1 - min_token_scale) * token_scale
+"""
 
-    if verbose:
-        print(f"Setting token_scale to {token_scale:.2f} (lora_scale = {lora_scale}, power = {token_scale_power})")
-        print('-------------------------')
-    try:
-        c   = (1 - token_scale) * c1   + token_scale * c2
-        pc  = (1 - token_scale) * pc1  + token_scale * pc2
-        uc  = (1 - token_scale) * uc1  + token_scale * uc2
-        puc = (1 - token_scale) * puc1 + token_scale * puc2
-    except:
-        print(f"Error in blending conditions, reverting to c2, uc2, pc2, puc2")
-        token_scale = 1.0
-        c   = c2
-        pc  = pc2
-        uc  = uc2
-        puc = puc2
 
-    return (c, uc, pc, puc), token_scale
 
 def patch_pipe_with_lora(pipe, lora_path, lora_scale = 1.0):
     """
     update the pipe with the lora model and the token embeddings
     """
 
-    pipe.unet = PeftModel.from_pretrained(pipe.unet, lora_path)
-    pipe.unet.merge_adapter()
+    pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
+
+    #peft_model.load_adapter(path_to_adapter2, "adapter2")
+    #peft_model.set_adapter(["adapter1", "adapter2"])  # activate both adapters
+
+    # First lets see if any lora's are active and unload them:
+    #pipe.unet.unmerge_adapter()
 
     list_adapters_component_wise = pipe.get_list_adapters()
     print(f"list_adapters_component_wise: {list_adapters_component_wise}")
 
-    #pipe.load_lora_weights(lora_path, adapter_name = "my_adapter", weight_name="pytorch_lora_weights.safetensors")
+    #state_dict, network_alphas = pipe.lora_state_dict(lora_path)
+    #for key in state_dict.keys():
+    #    print(f"{key}")
+
+    #pipe.load_lora_weights(lora_path, adapter_name = "eden_lora")#, weight_name="pytorch_lora_weights.safetensors")
     #scales = {...}
-    #pipe.set_adapters("my_adapter", scales)
+    #pipe.set_adapters("eden_lora", scales)
 
     for key in list_adapters_component_wise:
         adapter_names = list_adapters_component_wise[key]
         for adapter_name in adapter_names:
             print(f"Set adapter '{adapter_name}' of '{key}' with scale = {lora_scale}")
             pipe.set_adapters(adapter_name, adapter_weights=[lora_scale])
+    
+    pipe.unet.merge_adapter()
 
     # Load the textual_inversion token embeddings into the pipeline:
     try: #SDXL
@@ -123,9 +112,10 @@ def save_lora(
     elif len(unet_lora_parameters) > 0:
         unet.save_pretrained(save_directory = output_dir)
 
-    if 0:
-        unet_lora_layers_to_save = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+    lora_tensors = get_peft_model_state_dict(unet)
 
+    if 1:
+        unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
         StableDiffusionXLPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
@@ -135,7 +125,6 @@ def save_lora(
 
     if 1:
         #lora_tensors = unet_attn_processors_state_dict(unet)
-        lora_tensors = get_peft_model_state_dict(unet)
         save_file(lora_tensors, f"{output_dir}/{name}_lora_orig.safetensors")
         
     embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")

@@ -41,7 +41,7 @@ class TrainingConfig(BaseModel):
     mask_target_prompts: Union[None, str] = None
     crop_based_on_salience: bool = True
     use_face_detection_instead: bool = False
-    clipseg_temperature: float = 0.7
+    clipseg_temperature: float = 0.6
     n_sample_imgs: int = 4
     verbose: bool = False
     run_name: str = "default_run_name"
@@ -84,5 +84,5 @@ class TrainingConfig(BaseModel):
         lora_str = "dora" if config_data["use_dora"] else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
         config_data["output_dir"] = config_data["output_dir"] + f"--{timestamp_short}-{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
-        
+
         return cls(**config_data)

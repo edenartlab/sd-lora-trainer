@@ -96,11 +96,11 @@ def merge_datasets(path_A, path_B, out_path, token_names):
 
 
 
-def make_validation_img_grid(img_folder):
+def make_validation_img_grid(img_folder, rows = 2):
     """
 
     find all the .jpg imgs in img_folder (template = *.jpg)
-    if >=4 validation imgs, create a 2xn grid of them
+    if >=4 validation imgs, create a rows x n grid of them
     otherwise just return the first validation img
 
     """
@@ -113,20 +113,20 @@ def make_validation_img_grid(img_folder):
         return os.path.join(img_folder, validation_imgs[0])
     else:
         # If >= 4 validation images, create 2xn grid
-        n_imgs = len(validation_imgs) // 2 * 2
+        n_imgs = len(validation_imgs) // rows * rows
         imgs = [Image.open(os.path.join(img_folder, img)) for img in validation_imgs[:n_imgs]]
 
-        n_cols = int(n_imgs / 2)
+        n_cols = int(n_imgs / rows)
 
         # Assuming all images are the same size, get dimensions of first image
         width, height = imgs[0].size
 
         # Create an empty image with 2x2 grid size
-        grid_img = Image.new("RGB", (n_cols * width, 2 * height))
+        grid_img = Image.new("RGB", (n_cols * width, rows * height))
 
         # Paste the images into the grid
         for i in range(n_cols):
-            for j in range(2):
+            for j in range(rows):
                 grid_img.paste(imgs.pop(0), (i * width, j * height))
 
         # Save the new image
