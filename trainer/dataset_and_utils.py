@@ -18,6 +18,15 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from .utils.seed import seed_everything
 
+def zipdir(path, ziph, extension = '.py'):
+    # Zip the directory
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if file.endswith(extension):
+                ziph.write(os.path.join(root, file),
+                           os.path.relpath(os.path.join(root, file), 
+                                           os.path.join(path, '..')))
+
 def pick_best_gpu_id():
     try:
         # pick the GPU with the most free memory:

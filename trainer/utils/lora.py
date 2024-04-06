@@ -35,9 +35,10 @@ def patch_pipe_with_lora(pipe, lora_path, lora_scale = 1.0):
     update the pipe with the lora model and the token embeddings
     """
 
-    pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
+    # this loads the lora model into the pipeline at full strength (1.0)
+    
+    pipe.unet.load_adapter(lora_path, "eden_lora")
 
-    #peft_model.load_adapter(path_to_adapter2, "adapter2")
     #peft_model.set_adapter(["adapter1", "adapter2"])  # activate both adapters
 
     # First lets see if any lora's are active and unload them:
@@ -54,13 +55,14 @@ def patch_pipe_with_lora(pipe, lora_path, lora_scale = 1.0):
     #scales = {...}
     #pipe.set_adapters("eden_lora", scales)
 
-    for key in list_adapters_component_wise:
-        adapter_names = list_adapters_component_wise[key]
-        for adapter_name in adapter_names:
-            print(f"Set adapter '{adapter_name}' of '{key}' with scale = {lora_scale}")
-            pipe.set_adapters(adapter_name, adapter_weights=[lora_scale])
+    if 1:
+        for key in list_adapters_component_wise:
+            adapter_names = list_adapters_component_wise[key]
+            for adapter_name in adapter_names:
+                print(f"Set adapter '{adapter_name}' of '{key}' with scale = {lora_scale:.2f}")
+                pipe.set_adapters(adapter_name, adapter_weights=[lora_scale])
     
-    pipe.unet.merge_adapter()
+        pipe.unet.merge_adapter()
 
     # Load the textual_inversion token embeddings into the pipeline:
     try: #SDXL

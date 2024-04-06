@@ -23,7 +23,22 @@ def replace_in_string(s, replacements):
             break
     return s
 
+def fix_prompt(prompt):
+    # Fix common mistakes
+    fix_replacements = {
+        r",,": ",",
+        r"\s\s+": " ",  # Replaces one or more whitespace characters with a single space
+        r"\s\.": ".",
+        r"\s,": ","
+    }
+    return replace_in_string(prompt, fix_replacements)
+
 def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
+    """
+    This function is rather ugly, but implements a custom token-replacement policy we adopted at Eden:
+    Basically you trigger the lora with a token "TOK" or "<concept>", and then this token gets replaced with the actual learned tokens
+    """
+
     if "_no_token" in lora_path:
         return prompt
         
@@ -91,15 +106,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
     # Replace tokens based on token map
     prompt = replace_in_string(prompt, token_map)
-
-    # Fix common mistakes
-    fix_replacements = {
-        r",,": ",",
-        r"\s\s+": " ",  # Replaces one or more whitespace characters with a single space
-        r"\s\.": ".",
-        r"\s,": ","
-    }
-    prompt = replace_in_string(prompt, fix_replacements)
+    prompt = fix_prompt(prompt)
 
     if verbose:
         print('-------------------------')
@@ -175,11 +182,11 @@ def get_conditioning_signals(config, pipe, token_indices, text_encoders, weight_
 
     return prompt_embeds, pooled_prompt_embeds, add_time_ids
 
-def blend_conditions(embeds1, embeds2, lora_scale, 
-        token_scale_power = 0.5,  # adjusts the curve of the interpolation
+def blend_conditions(embeds1, embeds2, lora_scale,
+        token_scale_power = 0.4,  # adjusts the curve of the interpolation
         min_token_scale   = 0.5,  # minimum token scale (corresponds to lora_scale = 0)
         token_scale       = None,
-        verbose = True,
+        verbose = 1,
         ):
         
     """
@@ -195,7 +202,7 @@ def blend_conditions(embeds1, embeds2, lora_scale,
         token_scale = min_token_scale + (1 - min_token_scale) * token_scale
 
     if verbose:
-        print(f"Setting token_scale to {token_scale:.2f} (lora_scale = {lora_scale}, power = {token_scale_power})")
+        print(f"Setting token_scale to {token_scale:.2f} (lora_scale = {lora_scale:.2f}, power = {token_scale_power})")
         print('-------------------------')
     try:
         c   = (1 - token_scale) * c1   + token_scale * c2
@@ -221,6 +228,7 @@ def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale,
 
     lora_prompt = prepare_prompt_for_lora(prompt, lora_path, verbose=1)
     zero_prompt = prompt.replace('<concept>', "")
+    zero_prompt = fix_prompt(zero_prompt)
 
     print(f'Embedding lora prompt: {lora_prompt}')
     embeds = pipe.encode_prompt(
@@ -240,7 +248,13 @@ def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale,
 
 
 @torch.no_grad()
-def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretrained_model, trigger_text: str, lora_scale = 0.75, n_steps = 25, n_imgs = 4, device = "cuda:0", verbose: bool = True):
+def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretrained_model, lora_scale,
+        trigger_text: str, 
+        n_steps = 25, 
+        n_imgs = 4, 
+        device = "cuda:0", 
+        verbose: bool = True
+    ):
     training_scheduler = pipe.scheduler
     random.seed(seed)
 

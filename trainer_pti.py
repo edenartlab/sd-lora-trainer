@@ -23,7 +23,8 @@ from trainer.dataset_and_utils import (
     plot_loss, 
     plot_token_stds,
     plot_lrs,
-    pick_best_gpu_id
+    pick_best_gpu_id,
+    zipdir
 )
 from trainer.utils.seed import seed_everything
 from trainer.utils.lora import (
@@ -34,6 +35,7 @@ from trainer.utils.lora import (
 from trainer.utils.dtype import dtype_map
 from trainer.config import TrainingConfig
 from trainer.models import print_trainable_parameters, load_models
+from trainer.loss import *
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images, get_conditioning_signals
@@ -43,35 +45,6 @@ from preprocess import preprocess
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 from torch import Tensor, inf
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
-
-def zipdir(path, ziph, extension = '.py'):
-    # Zip the directory
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            if file.endswith(extension):
-                ziph.write(os.path.join(root, file),
-                           os.path.relpath(os.path.join(root, file), 
-                                           os.path.join(path, '..')))
-
-def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonfinite = False):
-    if isinstance(parameters, torch.Tensor):
-        parameters = [parameters]
-    grads = [p.grad for p in parameters if p.grad is not None]
-    first_device = grads[0].device
-    grouped_grads = _group_tensors_by_device_and_dtype([[g.detach() for g in grads]])
-    norms = []
-    for ((device, _), ([grads], _)) in grouped_grads.items():
-        if (foreach is None or foreach) and _has_foreach_support(grads, device=device):
-            norms.extend(torch._foreach_norm(grads, norm_type))
-        elif foreach:
-            raise RuntimeError(f'foreach=True was passed, but can\'t use the foreach API on {device.type} tensors')
-        else:
-            norms.extend([torch.linalg.vector_norm(g, norm_type) for g in grads])
-
-    total_norm = torch.linalg.vector_norm(torch.stack([norm.to(first_device) for norm in norms]), norm_type)
-
-    return total_norm
-
 
 
 
@@ -251,7 +224,7 @@ def main(
                         weight_decay=config.lora_weight_decay if not config.use_dora else 0.0,
                         betas=(0.9, 0.99),
                         #growth_rate=1.025,  # this slows down the lr_rampup
-                        growth_rate=1.05,  # this slows down the lr_rampup
+                        growth_rate=1.04,  # this slows down the lr_rampup
                     )
         
     train_dataset = PreprocessedDataset(
@@ -600,7 +573,16 @@ def main(
                 plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                 plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-                validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, verbose=config.verbose, trigger_text=trigger_text, device = config.device)
+                validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, 
+                    config.seed, 
+                    config.is_lora, 
+                    config.pretrained_model, 
+                    config.sample_imgs_lora_scale,
+                    n_imgs = config.n_sample_imgs, 
+                    verbose=config.verbose, 
+                    trigger_text=trigger_text, 
+                    device = config.device
+                    )
                 
                 gc.collect()
                 torch.cuda.empty_cache()
@@ -644,8 +626,17 @@ def main(
             unet_param_to_optimize=unet_param_to_optimize,
             name=name
         )
-
-        validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, config.seed, config.is_lora, config.pretrained_model, n_imgs = config.n_sample_imgs, n_steps = 30, verbose=config.verbose, trigger_text=trigger_text, device = config.device)
+        validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, 
+            config.seed, 
+            config.is_lora, 
+            config.pretrained_model, 
+            config.sample_imgs_lora_scale,
+            n_imgs = config.n_sample_imgs, 
+            n_steps = 30, 
+            verbose=config.verbose, 
+            trigger_text=trigger_text, 
+            device = config.device
+            )
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

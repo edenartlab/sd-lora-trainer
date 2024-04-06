@@ -11,7 +11,7 @@ xander*.sh
 tests/
 train.py
 debug/*
-test_images
+rendered_images*
 !debug/*.py
 gridsearch*
 
