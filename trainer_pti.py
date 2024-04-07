@@ -44,13 +44,13 @@ from preprocess import preprocess
 
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 from torch import Tensor, inf
-from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
-
-
 
 def main(
     config: TrainingConfig,
-):
+):  
+    if not config.seed:
+        config.seed = int(time.time())
+
     seed_everything(config.seed)
     gpu_id = pick_best_gpu_id()
     config.device = f'cuda:{gpu_id}'

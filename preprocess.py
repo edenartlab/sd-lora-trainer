@@ -202,6 +202,7 @@ def clipseg_mask_generator(
         )
         target_prompts = [target_prompts] * len(images)
 
+    model = None
     if any(target_prompts):
         processor = CLIPSegProcessor.from_pretrained(model_id, cache_dir=MODEL_PATH)
         model = CLIPSegForImageSegmentation.from_pretrained(
@@ -239,6 +240,7 @@ def clipseg_mask_generator(
 
         masks.append(mask)
 
+    # cleanup
     del model
     gc.collect()
     torch.cuda.empty_cache()

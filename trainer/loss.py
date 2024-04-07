@@ -1,4 +1,5 @@
 import torch
+from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
 
 def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonfinite = False):
     if isinstance(parameters, torch.Tensor):
