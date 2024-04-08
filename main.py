@@ -551,7 +551,10 @@ def main(
         with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             zipdir(parent_dir, zipf)
 
-    return output_save_dir, validation_prompts
+    config.job_time = time.time() - config.start_time
+    config.training_attributes["validation_prompts"] = validation_prompts
+
+    return config, output_save_dir
 
 
 

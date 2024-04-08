@@ -69,6 +69,8 @@ class TrainingConfig(BaseModel):
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False
+    start_time: float = 0.0
+    job_time: float = 0.0
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -100,6 +102,7 @@ class TrainingConfig(BaseModel):
 
         gpu_id = pick_best_gpu_id()
         self.device = f'cuda:{gpu_id}'
+        self.start_time = time.time()
 
     @classmethod
     def from_json(cls, file_path: str):

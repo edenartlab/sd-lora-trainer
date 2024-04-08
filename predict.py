@@ -140,39 +140,34 @@ class Predictor(BasePredictor):
         bs=6: 8.0 imgs/s,
         """
 
-        start_time = time.time()
-
-        config = TrainingConfig(
-            output_dir="path/to/output",
-            name="my_training",
-            lora_training_urls="https://example.com/lora",
-            concept_mode="face",
-            sd_model_version="sdxl",
-            # Add other parameters as needed
-        )
-
-        out_root_dir = "lora_models"
-
-        if seed is None:
-            seed = np.random.randint(0, 2**32 - 1)
-
-        # Try to make the training reproducible:
-        seed_everything(seed = seed)
-
-        print(f"cog:predict:train_lora:{concept_mode}")
-
+        print("cog:predict starting new training job...")
         if not debug:
             yield CogOutput(name=name, progress=0.0)
-
-        # Initialize pretrained_model dictionary
-        pretrained_model = pretrained_models[sd_model_version]
-
-        # hardcoded for now:
-        token_list = [f"TOK:{n_tokens}"]
-
-        inserting_list_tokens, token_dict = obtain_inserting_list_tokens(token_list=token_list)
-
-
+        
+        config = TrainingConfig(
+            name=name,
+            lora_training_urls=lora_training_urls,
+            concept_mode=concept_mode,
+            sd_model_version=sd_model_version,
+            seed=seed,
+            resolution=resolution,
+            train_batch_size=train_batch_size,
+            max_train_steps=max_train_steps,
+            checkpointing_steps=checkpointing_steps,
+            is_lora=is_lora,
+            prodigy_d_coef=prodigy_d_coef,
+            ti_lr=ti_lr,
+            ti_weight_decay=ti_weight_decay,
+            lora_weight_decay=lora_weight_decay,
+            l1_penalty=l1_penalty,
+            lora_rank=lora_rank,
+            caption_model=caption_model,
+            n_tokens=n_tokens,
+            verbose=verbose,
+            debug=debug,
+            off_ratio_power=off_ratio_power
+        )
+        
         if XANDER_EXPERIMENT:
             # overwrite some settings for experimentation:
             lora_param_scaler = 0.1
@@ -239,73 +234,9 @@ class Predictor(BasePredictor):
             merge_datasets(input_dir1, input_dir2, input_dir, token_dict.keys())
 
         else: # normal, single token run:
-            
-            output_dir = os.path.join(out_root_dir, run_name)
-
-        if not debug:
-            yield CogOutput(name=name, progress=0.05)  
-
-        config = TrainingConfig(
-            name=name,
-            pretrained_model=pretrained_model,
-            lora_training_urls=lora_training_urls,
-            concept_mode=concept_mode,
-            sd_model_version=sd_model_version,
-            seed=seed,
-            resolution=resolution,
-            train_batch_size=train_batch_size,
-            num_train_epochs=num_train_epochs,
-            max_train_steps=max_train_steps,
-            checkpointing_steps=checkpointing_steps,
-            gradient_accumulation_steps=gradient_accumulation_steps,
-            is_lora=is_lora,
-            prodigy_d_coef=prodigy_d_coef,
-            ti_lr=ti_lr,
-            ti_weight_decay=ti_weight_decay,
-            lora_weight_decay=lora_weight_decay,
-            l1_penalty=l1_penalty,
-            lora_param_scaler=lora_param_scaler,
-            snr_gamma=snr_gamma,
-            lora_rank=lora_rank,
-            caption_prefix=caption_prefix,
-            caption_model=caption_model,
-            left_right_flip_augmentation=left_right_flip_augmentation,
-            augment_imgs_up_to_n=augment_imgs_up_to_n,
-            n_tokens=n_tokens,
-            mask_target_prompts=mask_target_prompts,
-            crop_based_on_salience=crop_based_on_salience,
-            use_face_detection_instead=use_face_detection_instead,
-            clipseg_temperature=clipseg_temperature,
-            verbose=verbose,
-            run_name=run_name,
-            debug=debug,
-            hard_pivot=hard_pivot,
-            off_ratio_power=off_ratio_power,
-            allow_tf32 = True,
-            weight_type="bf16",
-            inserting_list_tokens=inserting_list_tokens,
-            token_dict=token_dict,
-            device="cuda:0",
-            output_dir=output_dir,
-            scale_lr=False,
-            crops_coords_top_left_h = 0,
-            crops_coords_top_left_w = 0,
-            do_cache = True,
-            unet_learning_rate = 1.0,
-            lr_scheduler = "constant",
-            lr_warmup_steps = 50,
-            lr_num_cycles = 1,
-            lr_power = 1.0,
-            dataloader_num_workers = 0,
-        )
-
-        config.save_as_json(
-            os.path.join(output_dir, "training_args.json")
-        )
-
-        train_generator = main(
-            config=config
-        )
+            pass
+        
+        train_generator = main(config=config)
 
         while True:
             try:
@@ -313,7 +244,7 @@ class Predictor(BasePredictor):
                 if not debug:
                     yield CogOutput(name=name, progress=np.round(progress_f, 2))
             except StopIteration as e:
-                output_save_dir, validation_prompts = e.value  # Capture the return value
+                config, output_save_dir = e.value  # Capture the return value
                 break
 
         # save final training_args:
@@ -336,9 +267,8 @@ class Predictor(BasePredictor):
             tar.add("instructions_README.md", arcname="README.md")
 
         attributes = {}
-        attributes['grid_prompts'] = validation_prompts
-        runtime = time.time() - start_time
-        attributes['job_time_seconds'] = runtime
+        attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
+        attributes['job_time_seconds'] = config.job_time
 
         print(f"LORA training finished in {runtime:.1f} seconds")
         print(f"Returning {out_path}")
