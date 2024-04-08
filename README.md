@@ -39,7 +39,7 @@ Algo:
 - test if textual inversion training can also happen with prodigy_optimizer
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
-- Improve the img captioning by swapping BLIP for cogVLM: https://github.com/THUDM/CogVLM
+- improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
 
 
 Bigger improvements:

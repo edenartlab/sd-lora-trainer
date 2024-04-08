@@ -29,7 +29,7 @@ def load_model(pretrained_model):
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = '/data/xander/Projects/cog/GitHub_repos/diffusion_trainer2/lora_models/xander--07_19-19-35-sdxl_face_dora/checkpoints/checkpoint-360'
+    lora_path      = 'lora_models/xander--07_19-19-35-sdxl_face_dora/checkpoints/checkpoint-360'
     lora_scales    = np.linspace(0.4, 0.6, 3)
     render_size    = (1024, 256+1024)  # H,W
     n_imgs         = 10
