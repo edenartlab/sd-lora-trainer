@@ -3,32 +3,9 @@ import torch
 from safetensors.torch import load_file
 from typing import Dict
 from peft import PeftModel
-from ..dataset_and_utils import TokenEmbeddingsHandler
+from trainer.embedding_handler import TokenEmbeddingsHandler
 from safetensors.torch import save_file
-
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
-
-'''
-from diffusers.utils import (
-    convert_all_state_dict_to_peft,
-    convert_state_dict_to_diffusers,
-    convert_unet_state_dict_to_peft
-)
-'''
-
-"""
-
-from peft import get_peft_model
-
-base_model = ...  # load the base model, e.g. from transformers
-peft_model = PeftMixedModel.from_pretrained(base_model, path_to_adapter1, "adapter1").eval()
-peft_model.load_adapter(path_to_adapter2, "adapter2")
-peft_model.set_adapter(["adapter1", "adapter2"])  # activate both adapters
-peft_model(data)  # forward pass using both adapters
-
-"""
-
-
 
 def patch_pipe_with_lora(pipe, lora_path, lora_scale = 1.0):
     """

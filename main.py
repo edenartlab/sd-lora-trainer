@@ -10,39 +10,23 @@ import itertools
 import zipfile
 import torch
 import torch.utils.checkpoint
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from peft import LoraConfig, get_peft_model
 from diffusers.optimization import get_scheduler
-from tqdm import tqdm
+from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 
-from trainer.dataset_and_utils import (
-    PreprocessedDataset, 
-    plot_torch_hist, 
-    plot_grad_norms,
-    plot_curve,
-    plot_loss, 
-    plot_token_stds,
-    plot_lrs,
-    zipdir
-)
-from trainer.utils.seed import seed_everything
-from trainer.utils.lora import (
-    save_lora,
-    TokenEmbeddingsHandler
-)
-
-from trainer.utils.dtype import dtype_map
+from trainer.utils.utils import *
+from trainer.lora import save_lora
+from trainer.embedding_handler import TokenEmbeddingsHandler
+from trainer.dataset import PreprocessedDataset
 from trainer.config import TrainingConfig
 from trainer.models import print_trainable_parameters, load_models
 from trainer.loss import *
-from trainer.utils.training_info import get_avg_lr
-from trainer.utils.inference import render_images, get_conditioning_signals
-from preprocess import preprocess
+from trainer.inference import render_images, get_conditioning_signals
+from trainer.preprocess import preprocess
 
-from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
-from torch import Tensor, inf
-
-def main(
+def train(
     config: TrainingConfig,
 ):  
     seed_everything(config.seed)
@@ -566,7 +550,7 @@ if __name__ == "__main__":
     config = TrainingConfig.from_json(
         file_path=args.config_filename
     )
-    for progress in main(config=config):
+    for progress in train(config=config):
         print(f"Progress: {(100*progress):.2f}%", end="\r")
 
     print("Training done :)")

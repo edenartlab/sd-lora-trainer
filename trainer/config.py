@@ -3,9 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel
 import json, time
 from typing import Literal
-# Parse the model:
 from trainer.models import pretrained_models
-from trainer.dataset_and_utils import pick_best_gpu_id
+from trainer.utils.utils import pick_best_gpu_id
 
 class TrainingConfig(BaseModel):
     lora_training_urls: str

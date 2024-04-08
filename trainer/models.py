@@ -1,6 +1,8 @@
+import os
+import time
+import subprocess
 import torch
 from diffusers import AutoencoderKL, DDPMScheduler, EulerDiscreteScheduler, UNet2DConditionModel, StableDiffusionPipeline, StableDiffusionXLPipeline
-
 
 ############################################################################################################
 
@@ -27,7 +29,6 @@ pretrained_models = {
 }
 
 ############################################################################################################
-
 
 
 def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae_float32 = False):
@@ -66,8 +67,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     unet.to(device, dtype=weight_dtype)
     text_encoder_one.requires_grad_(False)
     text_encoder_one.to(device, dtype=weight_dtype)
-
-
+    
     tokenizer_two = text_encoder_two = None
     if pretrained_model['version'] == "sdxl":
         tokenizer_two = pipe.tokenizer_2
@@ -85,11 +85,6 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
         vae,
         unet,
     )
-
-
-import os
-import time
-import subprocess
 
 def download_weights(url, dest):
     start = time.time()

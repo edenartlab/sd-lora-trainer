@@ -1,6 +1,6 @@
 import torch
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
-from trainer.utils.inference import get_conditioning_signals
+from trainer.inference import get_conditioning_signals
 
 def compute_snr(noise_scheduler, timesteps):
     """

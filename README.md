@@ -20,7 +20,7 @@ sudo chmod +x /usr/local/bin/cog
 ```
 
 2. Build the image with `sudo cog build`
-3. Run a training run with `sudo sh test_train.sh`
+3. Run a training run with `sudo sh cog_test_train.sh`
 
 
 ## TODO's

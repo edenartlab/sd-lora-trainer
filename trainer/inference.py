@@ -6,10 +6,11 @@ import json
 import gc
 import re
 from diffusers import EulerDiscreteScheduler
-from .val_prompts import val_prompts
-from ..models import load_models
-from .lora import patch_pipe_with_lora
-from .io import make_validation_img_grid
+
+from trainer.utils.val_prompts import val_prompts
+from trainer.models import load_models
+from trainer.lora import patch_pipe_with_lora
+from trainer.utils.io import make_validation_img_grid
 
 def replace_in_string(s, replacements):
     while True:
@@ -192,9 +193,13 @@ def blend_conditions(embeds1, embeds2, lora_scale,
     """
     using lora_scale, apply linear interpolation between two sets of embeddings
     """
-
-    c1, uc1, pc1, puc1 = embeds1
-    c2, uc2, pc2, puc2 = embeds2
+    try: # sdxl:
+        c1, uc1, pc1, puc1 = embeds1
+        c2, uc2, pc2, puc2 = embeds2
+    except: # sd15:
+        c1, uc1 = embeds1
+        c2, uc2 = embeds2
+        pc1, pc2, puc1, puc2 = None, None, None, None
 
     if token_scale is None: # compute the token_scale based on lora_scale:
         token_scale = lora_scale ** token_scale_power
@@ -203,22 +208,23 @@ def blend_conditions(embeds1, embeds2, lora_scale,
 
     if verbose:
         print(f"Setting token_scale to {token_scale:.2f} (lora_scale = {lora_scale:.2f}, power = {token_scale_power})")
-        print('-------------------------')
+
     try:
         c   = (1 - token_scale) * c1   + token_scale * c2
-        pc  = (1 - token_scale) * pc1  + token_scale * pc2
         uc  = (1 - token_scale) * uc1  + token_scale * uc2
-        puc = (1 - token_scale) * puc1 + token_scale * puc2
+        try:
+            pc  = (1 - token_scale) * pc1  + token_scale * pc2
+            puc = (1 - token_scale) * puc1 + token_scale * puc2
+        except:
+            pc, puc = None, None
+
+        embeds = (c, uc, pc, puc)
     except:
-        print(f"Error in blending conditions, reverting to c2, uc2, pc2, puc2")
+        print(f"Error in blending conditions for toking interpolation, falling back to embeds2")
         token_scale = 1.0
-        c   = c2
-        pc  = pc2
-        uc  = uc2
-        puc = puc2
+        embeds = (c2, uc2, pc2, puc2)
 
-    return (c, uc, pc, puc), token_scale
-
+    return embeds, token_scale
 
 def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale, guidance_scale, token_scale = None, concept_mode = None):
     """
@@ -238,16 +244,29 @@ def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale,
     zero_prompt = fix_prompt(zero_prompt)
 
     print(f'Embedding lora prompt: {lora_prompt}')
-    embeds = pipe.encode_prompt(
-        lora_prompt,
-        do_classifier_free_guidance=guidance_scale > 1,
-        negative_prompt=negative_prompt)
-
     print(f"Embedding zero prompt: {zero_prompt}")
-    zero_embeds = pipe.encode_prompt(
-        zero_prompt,
-        do_classifier_free_guidance=guidance_scale > 1,
-        negative_prompt=negative_prompt)
+
+    try: # sdxl:
+        embeds = pipe.encode_prompt(
+            lora_prompt,
+            do_classifier_free_guidance=guidance_scale > 1,
+            negative_prompt=negative_prompt)
+
+        zero_embeds = pipe.encode_prompt(
+            zero_prompt,
+            do_classifier_free_guidance=guidance_scale > 1,
+            negative_prompt=negative_prompt)
+
+    except: # sd15:
+        embeds = pipe.encode_prompt(
+            lora_prompt,
+            pipe.device,
+            1, True, negative_prompt)
+
+        zero_embeds = pipe.encode_prompt(
+            zero_prompt,
+            pipe.device,
+            1, True, negative_prompt)
 
     embeds, token_scale = blend_conditions(zero_embeds, embeds, lora_scale, token_scale=token_scale)
 
@@ -325,6 +344,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
         image.save(os.path.join(lora_path, f"img_{train_step:04d}_{i}.jpg"), format="JPEG", quality=95)
 
     img_grid_path = make_validation_img_grid(lora_path)
+
     # Copy the grid image to the parent directory for easier comparison:
     grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
     shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))

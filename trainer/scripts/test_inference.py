@@ -1,18 +1,17 @@
-from trainer.models import load_models, pretrained_models
-from trainer.utils.lora import patch_pipe_with_lora
-from trainer.utils.val_prompts import val_prompts
-from trainer.utils.io import make_validation_img_grid
-from trainer.dataset_and_utils import pick_best_gpu_id
-from trainer.utils.seed import seed_everything
-from diffusers import EulerDiscreteScheduler
-from trainer.utils.inference import encode_prompt_advanced
-
 from diffusers import DDPMScheduler, EulerDiscreteScheduler, StableDiffusionPipeline, StableDiffusionXLPipeline
 from peft import PeftModel
 import numpy as np
 import torch
 from huggingface_hub import hf_hub_download
-import os, json, random, time
+import os, json, random, time, sys
+
+sys.path.append('..')
+from trainer.models import load_models, pretrained_models
+from trainer.lora import patch_pipe_with_lora
+from trainer.utils.val_prompts import val_prompts
+from trainer.utils.io import make_validation_img_grid
+from trainer.utils.utils import seed_everything, pick_best_gpu_id
+from trainer.utils.inference import encode_prompt_advanced
 
 def load_model(pretrained_model):
     if pretrained_model['version'] == "sd15":
