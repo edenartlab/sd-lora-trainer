@@ -1,7 +1,7 @@
 from typing import Union, List, Dict
 from datetime import datetime
 from pydantic import BaseModel
-import json, time
+import json, time, os
 from typing import Literal
 from trainer.models import pretrained_models
 from trainer.utils.utils import pick_best_gpu_id
@@ -45,7 +45,7 @@ class TrainingConfig(BaseModel):
     n_sample_imgs: int = 4
     verbose: bool = False
     name: str = "unnamed"
-    output_dir: str = "lora_models"
+    output_dir: str = "lora_models/unnamed"
     debug: bool = False
     hard_pivot: bool = False
     off_ratio_power: float = False
@@ -73,12 +73,13 @@ class TrainingConfig(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        self.pretrained_model = pretrained_models[data["sd_model_version"]]
+        self.pretrained_model = pretrained_models[self.sd_model_version]
 
         # add some metrics to the foldername:
-        lora_str = "dora" if data["use_dora"] else "lora"
+        lora_str = "dora" if self.use_dora else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
-        self.output_dir = data["output_dir"] + f"--{timestamp_short}-{data['sd_model_version']}_{data['concept_mode']}_{lora_str}"
+        self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}"
+        os.makedirs(self.output_dir, exist_ok=True)
 
         if not self.seed:
             self.seed = int(time.time())

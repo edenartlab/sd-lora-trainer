@@ -13,11 +13,11 @@ from dotenv import load_dotenv
 from main import train
 from typing import Iterator, Optional
 
-from trainer.utils.io import clean_filename
 from trainer.preprocess import preprocess
-from trainer.dataset_and_utils import seed_everything
 from trainer.models import pretrained_models
 from trainer.config import TrainingConfig
+from trainer.utils.io import clean_filename
+from trainer.utils.utils import seed_everything
 
 DEBUG_MODE = False
 XANDER_EXPERIMENT = False
@@ -235,7 +235,7 @@ class Predictor(BasePredictor):
             off_ratio_power=off_ratio_power
         )
         
-        train_generator = main(config=config)
+        train_generator = train(config=config)
 
         while True:
             try:
