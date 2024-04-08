@@ -30,13 +30,13 @@ def load_model(pretrained_model):
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/gene_best--06_01-05-09-sdxl_face_dora/checkpoints/checkpoint-300'
-    lora_scales    = np.linspace(0.5, 1.0, 4)
-    render_size    = (1024, 1024)  # H,W
-    n_imgs         = 10
+    lora_path      = 'lora_models/gene--07_16-57-33-sdxl_face_dora/checkpoints/checkpoint-400'
+    lora_scales    = np.linspace(0.7, 0.7, 1)
+    render_size    = (1024, 256+1024)  # H,W
+    n_imgs         = 20
 
-    n_steps        = 25
-    guidance_scale = 8
+    n_steps        = 30
+    guidance_scale = 7.5
     seed           = 0
     use_lightning  = 0
 
@@ -83,12 +83,10 @@ if __name__ == "__main__":
 
             pipe = load_model(pretrained_model)
             pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
-
-            
             pipe = patch_pipe_with_lora(pipe, lora_path, lora_scale=lora_scale)
             generator = torch.Generator(device='cuda').manual_seed(seed)
 
-            c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale)
+            c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale, token_scale = 0.0)
 
             pipeline_args['prompt_embeds'] = c
             pipeline_args['negative_prompt_embeds'] = uc

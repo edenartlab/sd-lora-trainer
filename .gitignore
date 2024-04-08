@@ -14,5 +14,6 @@ debug/*
 rendered_images*
 !debug/*.py
 gridsearch*
+xander*
 
 training_args_x_*.json

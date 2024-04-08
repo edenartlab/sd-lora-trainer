@@ -220,7 +220,7 @@ def blend_conditions(embeds1, embeds2, lora_scale,
     return (c, uc, pc, puc), token_scale
 
 
-def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale, guidance_scale):
+def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale, guidance_scale, token_scale = None):
     """
     Helper function to encode the lora_prompt (containing a trained token) and a zero prompt (without the token)
     This allows interpolating the strength of the trained token in the final image.
@@ -242,7 +242,7 @@ def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale,
         do_classifier_free_guidance=guidance_scale > 1,
         negative_prompt=negative_prompt)
 
-    embeds, token_scale = blend_conditions(zero_embeds, embeds, lora_scale)
+    embeds, token_scale = blend_conditions(zero_embeds, embeds, lora_scale, token_scale=token_scale)
 
     return embeds
 
