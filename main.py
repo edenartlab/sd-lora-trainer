@@ -50,9 +50,7 @@ def train(
 
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
-
-    print("Using seed", config.seed)
-    torch.manual_seed(config.seed)
+    
     weight_dtype = dtype_map[config.weight_type]
 
     (   
@@ -407,7 +405,7 @@ def train(
                 ti_lrs.append(0.0)
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0): # and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(

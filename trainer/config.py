@@ -81,7 +81,7 @@ class TrainingConfig(BaseModel):
         self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}"
         os.makedirs(self.output_dir, exist_ok=True)
 
-        if not self.seed:
+        if self.seed is None:
             self.seed = int(time.time())
 
         if self.concept_mode == "face":

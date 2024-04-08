@@ -320,7 +320,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
         pipe.vae = pipe.vae.to(device).to(pipe.unet.dtype)
         
     pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
-    generator = torch.Generator(device=device).manual_seed(0)
+    generator = torch.Generator(device=device).manual_seed(seed)
     negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
     pipeline_args = {
                 "num_inference_steps": n_steps,

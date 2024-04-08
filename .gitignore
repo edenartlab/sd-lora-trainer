@@ -3,6 +3,7 @@ lora_models*
 remove
 cache
 __pycache__
+scripts/gridsearch*
 *.tar
 .env
 .cog
