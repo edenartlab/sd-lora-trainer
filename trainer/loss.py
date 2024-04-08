@@ -26,7 +26,7 @@ def compute_snr(noise_scheduler, timesteps):
     # Compute SNR.
     snr = (alpha / sigma) ** 2
     return snr
-    
+
 def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonfinite = False):
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
@@ -99,7 +99,7 @@ class ConditioningRegularizer:
     def __init__(self, config, embedding_handler):
         self.config = config
         self.embedding_handler = embedding_handler
-        self.target_norm = 34.8 if config.sd_model_version == 'sdxl' else 27.8
+        self.target_norm = 34.5 if config.sd_model_version == 'sdxl' else 27.8
         self.reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
         self.token_replacement = config.token_dict.get("TOK", "TOK")  # Fallback to "TOK" if not in dict
 
