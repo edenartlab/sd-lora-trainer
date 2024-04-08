@@ -159,7 +159,7 @@ def main(
     unet_param_to_optimize = []
     unet_lora_params_to_optimize = []
 
-    if not config.is_lora:
+    if not config.is_lora: # This code pathway has not been tested in a long while
         WHITELIST_PATTERNS = [
             # "*.attn*.weight",
             # "*ff*.weight",
@@ -342,7 +342,7 @@ def main(
                 # https://www.crosslabs.org//blog/diffusion-with-offset-noise
                 noise += config.noise_offset * torch.randn(
                     (noise.shape[0], noise.shape[1], 1, 1), device=noise.device)
-            
+
             timesteps = torch.randint(
                 0,
                 noise_scheduler.config.num_train_timesteps,
