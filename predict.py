@@ -16,7 +16,6 @@ from typing import Iterator, Optional
 from trainer.utils.io import clean_filename
 
 from trainer.utils.seed import seed_everything
-from trainer.utils.download import download_weights
 from trainer.utils.config_modification import post_process_args
 from trainer.utils.tokens import obtain_inserting_list_tokens
 from trainer.models import pretrained_models
@@ -70,31 +69,23 @@ class Predictor(BasePredictor):
             default=None,
         ),
         resolution: int = Input(
-            description="Square pixel resolution which your images will be resized to for training recommended [768-1024]",
-            default=960,
+            description="Square pixel resolution which your images will be resized to for training, recommended [512-640]",
+            default=512,
         ),
         train_batch_size: int = Input(
             description="Batch size (per device) for training",
             default=4,
         ),
-        num_train_epochs: int = Input(
-            description="Number of epochs to loop through your training dataset",
-            default=10000,
-        ),
         max_train_steps: int = Input(
-            description="Number of individual training steps. Takes precedence over num_train_epochs",
+            description="Number of training steps.",
             default=600,
         ),
         checkpointing_steps: int = Input(
-            description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need one.",
+            description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need intermediate checkpoints.",
             default=10000,
         ),
-        gradient_accumulation_steps: int = Input(
-             description="Number of training steps to accumulate before a backward pass. Effective batch size = gradient_accumulation_steps * batch_size",
-             default=1,
-         ),
         is_lora: bool = Input(
-            description="Whether to use LoRA training. If set to False, will use Full fine tuning",
+            description="Whether to use LoRA training. If set to False, will use full fine tuning",
             default=True,
         ),
         prodigy_d_coef: float = Input(
@@ -117,70 +108,26 @@ class Predictor(BasePredictor):
             description="Sparsity penalty for the LoRA matrices, possibly improves merge-ability and generalization",
             default=0.1,
         ),
-        lora_param_scaler: float = Input(
-            description="Multiplier for the starting weights of the lora matrices",
-            default=0.5,
-        ),
-        snr_gamma: float = Input(
-            description="see https://arxiv.org/pdf/2303.09556.pdf, set to None to disable snr training",
-            default=5.0,
-        ),
         lora_rank: int = Input(
             description="Rank of LoRA embeddings. For faces 5 is good, for complex concepts / styles you can try 8 or 12",
             default=12,
-        ),
-        caption_prefix: str = Input(
-            description="Prefix text prepended to automatic captioning. Must contain the 'TOK'. Example is 'a photo of TOK, '.  If empty, chatgpt will take care of this automatically",
-            default="",
         ),
         caption_model: str = Input(
             description="Which captioning model to use. ['gpt4-v', 'blip'] are supported right now",
             default="blip",
         ),
-        left_right_flip_augmentation: bool = Input(
-            description="Add left-right flipped version of each img to the training data, recommended for most cases. If you are learning a face, you prob want to disable this",
-            default=True,
-        ),
-        augment_imgs_up_to_n: int = Input(
-            description="Apply data augmentation (no lr-flipping) until there are n training samples (0 disables augmentation completely)",
-            default=20,
-        ),
         n_tokens: int = Input(
             description="How many new tokens to inject per concept",
             default=2,
         ),
-        mask_target_prompts: str = Input(
-            description="Prompt that describes most important part of the image, will be used for CLIP-segmentation. For example, if you are learning a person 'face' would be a good segmentation prompt",
-            default=None,
-        ),
-        crop_based_on_salience: bool = Input(
-            description="If you want to crop the image to `target_size` based on the important parts of the image, set this to True. If you want to crop the image based on face detection, set this to False",
-            default=True,
-        ),
-        use_face_detection_instead: bool = Input(
-            description="If you want to use face detection instead of CLIPSeg for masking. For face applications, we recommend using this option.",
-            default=False,
-        ),
-        clipseg_temperature: float = Input(
-            description="How blurry you want the CLIPSeg mask to be. We recommend this value be something between `0.5` to `1.0`. If you want to have more sharp mask (but thus more errorful), you can decrease this value.",
-            default=0.7,
-        ),
         verbose: bool = Input(description="verbose output", default=True),
-        run_name: str = Input(
-            description="Subdirectory where all files will be saved",
-            default=str(int(time.time())),
-        ),
         debug: bool = Input(
-            description="for debugging locally only (dont activate this on replicate)",
-            default=False,
-        ),
-        hard_pivot: bool = Input(
-            description="Use hard freeze for ti_lr. If set to False, will use soft transition of learning rates",
+            description="For debugging locally only (dont activate this on replicate)",
             default=False,
         ),
         off_ratio_power: float = Input(
             description="How strongly to correct the embedding std vs the avg-std (0=off, 0.05=weak, 0.1=standard)",
-            default=0.1,
+            default=0.05,
         ),
 
     ) -> Iterator[GENERATOR_OUTPUT_TYPE]:
@@ -194,6 +141,16 @@ class Predictor(BasePredictor):
         """
 
         start_time = time.time()
+
+        config = TrainingConfig(
+            output_dir="path/to/output",
+            name="my_training",
+            lora_training_urls="https://example.com/lora",
+            concept_mode="face",
+            sd_model_version="sdxl",
+            # Add other parameters as needed
+        )
+
         out_root_dir = "lora_models"
 
         if seed is None:
@@ -210,10 +167,6 @@ class Predictor(BasePredictor):
         # Initialize pretrained_model dictionary
         pretrained_model = pretrained_models[sd_model_version]
 
-        # Download the weights if they don't exist locally
-        if not os.path.exists(pretrained_model['path']):
-            download_weights(pretrained_model['url'], pretrained_model['path'])
-        
         # hardcoded for now:
         token_list = [f"TOK:{n_tokens}"]
 

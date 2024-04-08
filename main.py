@@ -23,7 +23,6 @@ from trainer.dataset_and_utils import (
     plot_loss, 
     plot_token_stds,
     plot_lrs,
-    pick_best_gpu_id,
     zipdir
 )
 from trainer.utils.seed import seed_everything
@@ -38,7 +37,6 @@ from trainer.models import print_trainable_parameters, load_models
 from trainer.loss import *
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images, get_conditioning_signals
-from trainer.utils.config_modification import post_process_args
 from preprocess import preprocess
 
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
@@ -47,10 +45,7 @@ from torch import Tensor, inf
 def main(
     config: TrainingConfig,
 ):  
-    config = post_process_args(config)
     seed_everything(config.seed)
-    gpu_id = pick_best_gpu_id()
-    config.device = f'cuda:{gpu_id}'
 
     input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
         config,

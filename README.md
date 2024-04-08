@@ -5,7 +5,7 @@ Code for finetuning and training LoRa modules on top of Stable Diffusion.
 ## Setup
 
 Install all dependencies manually and run:
-`python trainer_pti.py -c training_args.json`
+`python main.py -c training_args.json`
 
 Adjust the arguments inside `training_args.json` accordingly.
 

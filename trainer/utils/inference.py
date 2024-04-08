@@ -220,14 +220,21 @@ def blend_conditions(embeds1, embeds2, lora_scale,
     return (c, uc, pc, puc), token_scale
 
 
-def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale, guidance_scale, token_scale = None):
+def encode_prompt_advanced(pipe, lora_path, prompt, negative_prompt, lora_scale, guidance_scale, token_scale = None, concept_mode = None):
     """
     Helper function to encode the lora_prompt (containing a trained token) and a zero prompt (without the token)
     This allows interpolating the strength of the trained token in the final image.
     """
 
     lora_prompt = prepare_prompt_for_lora(prompt, lora_path, verbose=1)
-    zero_prompt = prompt.replace('<concept>', "")
+    if concept_mode == "face":
+        replace_str = "person"
+    elif concept_mode == "object":
+        replace_str = "object"
+    else:        
+        replace_str = ""
+
+    zero_prompt = prompt.replace('<concept>', replace_str)
     zero_prompt = fix_prompt(zero_prompt)
 
     print(f'Embedding lora prompt: {lora_prompt}')
@@ -306,7 +313,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
 
     for i in range(n_imgs):
         print(f"Rendering validation img with prompt: {validation_prompts_raw[i]}")
-        c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale = 8)
+        c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale = 8, concept_mode = concept_mode)
 
         pipeline_args['prompt_embeds'] = c
         pipeline_args['negative_prompt_embeds'] = uc

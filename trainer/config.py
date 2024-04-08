@@ -1,14 +1,13 @@
 from typing import Union, List, Dict
 from datetime import datetime
 from pydantic import BaseModel
-import json
+import json, time
 from typing import Literal
 # Parse the model:
 from trainer.models import pretrained_models
+from trainer.dataset_and_utils import pick_best_gpu_id
 
 class TrainingConfig(BaseModel):
-    output_dir: str
-    name: str = "unnamed"
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
     sd_model_version: Literal["sdxl", "sd15"]
@@ -46,7 +45,8 @@ class TrainingConfig(BaseModel):
     clipseg_temperature: float = 0.6
     n_sample_imgs: int = 4
     verbose: bool = False
-    run_name: str = "default_run_name"
+    name: str = "unnamed"
+    output_dir: str = "lora_models"
     debug: bool = False
     hard_pivot: bool = False
     off_ratio_power: float = False
@@ -70,22 +70,44 @@ class TrainingConfig(BaseModel):
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False
 
-    def save_as_json(self, file_path: str) -> None:
-        with open(file_path, 'w') as f:
-            json.dump(self.dict(), f, indent=4)
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.pretrained_model = pretrained_models[data["sd_model_version"]]
+
+        # add some metrics to the foldername:
+        lora_str = "dora" if data["use_dora"] else "lora"
+        timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
+        self.output_dir = data["output_dir"] + f"--{timestamp_short}-{data['sd_model_version']}_{data['concept_mode']}_{lora_str}"
+
+        if not self.seed:
+            self.seed = int(time.time())
+
+        if self.concept_mode == "face":
+            print(f"Face mode is active ----> disabling left-right flips and setting mask_target_prompts to 'face'.")
+            self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
+            self.mask_target_prompts = "face"
+            self.clipseg_temperature = 0.4
+        
+        if self.use_dora:
+            print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")
+            self.l1_penalty = 0.0
+            self.lora_weight_decay = 0.0
+
+        # build the inserting_list_tokens and token dict using n_tokens:
+        inserting_list_tokens = [f"<s{i}>" for i in range(self.n_tokens)]
+        self.inserting_list_tokens = inserting_list_tokens
+        self.token_dict = {"TOK": "".join(inserting_list_tokens)}
+
+        gpu_id = pick_best_gpu_id()
+        self.device = f'cuda:{gpu_id}'
 
     @classmethod
     def from_json(cls, file_path: str):
         with open(file_path, 'r') as f:
-            config_data = json.load(f)
+            data = json.load(f)
 
-        # Parse the model:
-        from trainer.models import pretrained_models
-        config_data["pretrained_model"] = pretrained_models[config_data["sd_model_version"]]
-
-        # add some metrics to the foldername:
-        lora_str = "dora" if config_data["use_dora"] else "lora"
-        timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
-        config_data["output_dir"] = config_data["output_dir"] + f"--{timestamp_short}-{config_data['sd_model_version']}_{config_data['concept_mode']}_{lora_str}"
-
-        return cls(**config_data)
+        return cls(**data)
+    
+    def save_as_json(self, file_path: str) -> None:
+        with open(file_path, 'w') as f:
+            json.dump(self.dict(), f, indent=4)
