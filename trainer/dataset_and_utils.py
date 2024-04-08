@@ -200,7 +200,7 @@ def prepare_mask(
 class PreprocessedDataset(Dataset):
     def __init__(
         self,
-        csv_path: str,
+        data_dir: str,
         pipe,
         tokenizer_1,
         tokenizer_2,
@@ -215,8 +215,9 @@ class PreprocessedDataset(Dataset):
         substitute_caption_map: Dict[str, str] = {},
     ):
         super().__init__()
-        self.data = pd.read_csv(csv_path)
-        self.csv_path = csv_path
+        self.data_dir = data_dir
+        self.csv_path = os.path.join(data_dir, "captions.csv")
+        self.data = pd.read_csv(self.csv_path)
 
         self.caption = self.data["caption"]
         # make it lowercase
@@ -270,7 +271,7 @@ class PreprocessedDataset(Dataset):
             from .utils.aspect_ratio_bucketing import BucketManager
             aspect_ratios = {}
             for idx in range(len(self.data)):
-                aspect_ratios[idx] = Image.open(os.path.join(os.path.dirname(self.csv_path), self.image_path[idx])).size
+                aspect_ratios[idx] = Image.open(os.path.join(self.data_dir, self.image_path[idx])).size
 
             print(aspect_ratios)
             self.bucket_manager = BucketManager(
@@ -323,7 +324,7 @@ class PreprocessedDataset(Dataset):
         self, idx: int, bucketing_resolution: tuple = None
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
         image_path = self.image_path[idx]
-        image_path = os.path.join(os.path.dirname(self.csv_path), image_path)
+        image_path = os.path.join(self.data_dir, image_path)
         image = PIL.Image.open(image_path).convert("RGB")
         if bucketing_resolution is None:
             image = prepare_image(image, w = self.size, h = self.size, pipe = self.pipe).to(
@@ -369,7 +370,7 @@ class PreprocessedDataset(Dataset):
 
         else:
             mask_path = self.mask_path[idx]
-            mask_path = os.path.join(os.path.dirname(self.csv_path), mask_path)
+            mask_path = os.path.join(self.data_dir, mask_path)
             mask = PIL.Image.open(mask_path)
             mask = prepare_mask(mask, self.size, self.size).to(
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
@@ -678,7 +679,7 @@ class TokenEmbeddingsHandler:
         for idx in range(len(train_dataset)):
             (tok1, tok2), vae_latent, mask = train_dataset[idx]
             image_path = train_dataset.image_path[idx]
-            image_path = os.path.join(os.path.dirname(train_dataset.csv_path), image_path)
+            image_path = os.path.join(train_dataset.data_dir, image_path)
             image = PIL.Image.open(image_path).convert("RGB")
 
             print(f"---> Loaded sample {idx}:")

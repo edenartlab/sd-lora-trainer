@@ -47,7 +47,7 @@ def main(
 ):  
     seed_everything(config.seed)
 
-    input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
+    config, input_dir = preprocess(
         config,
         working_directory=config.output_dir,
         concept_mode=config.concept_mode,
@@ -63,12 +63,6 @@ def main(
         caption_model = config.caption_model,
         seed = config.seed,
     )
-
-    # Update the training attributes with some info from the pre-processing:
-    config.training_attributes["n_training_imgs"] = n_imgs
-    config.training_attributes["trigger_text"] = trigger_text
-    config.training_attributes["segmentation_prompt"] = segmentation_prompt
-    config.training_attributes["captions"] = captions
 
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -218,7 +212,7 @@ def main(
                     )
         
     train_dataset = PreprocessedDataset(
-        os.path.join(input_dir, "captions.csv"),
+        input_dir,
         pipe,
         tokenizer_one,
         tokenizer_two,
@@ -474,8 +468,8 @@ def main(
                     config.pretrained_model, 
                     config.sample_imgs_lora_scale,
                     n_imgs = config.n_sample_imgs, 
-                    verbose=config.verbose, 
-                    trigger_text=trigger_text, 
+                    verbose = config.verbose, 
+                    trigger_text = config.training_attributes["trigger_text"],
                     device = config.device
                     )
                 
@@ -529,7 +523,7 @@ def main(
             n_imgs = config.n_sample_imgs, 
             n_steps = 30, 
             verbose=config.verbose, 
-            trigger_text=trigger_text, 
+            trigger_text=config.training_attributes["trigger_text"],
             device = config.device
             )
     else:

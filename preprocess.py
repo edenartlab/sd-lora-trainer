@@ -109,7 +109,7 @@ def preprocess(
 
     download_and_prep_training_data(input_zip_path, TEMP_IN_DIR)
 
-    n_training_imgs, trigger_text, segmentation_prompt, captions = load_and_save_masks_and_captions(
+    config = load_and_save_masks_and_captions(
         config,
         concept_mode, 
         files=TEMP_IN_DIR,
@@ -126,7 +126,7 @@ def preprocess(
         caption_model = caption_model
     )
 
-    return Path(TEMP_OUT_DIR), n_training_imgs, trigger_text, segmentation_prompt, captions
+    return config, Path(TEMP_OUT_DIR)
 
 
 @torch.no_grad()
@@ -248,7 +248,7 @@ def clipseg_mask_generator(
     return masks
 
 
-
+import textwrap
 def cleanup_prompts_with_chatgpt(
     prompts, 
     concept_mode,    # face / object / style
@@ -256,59 +256,59 @@ def cleanup_prompts_with_chatgpt(
     verbose = True):
 
     if concept_mode == "object_injection":
-        chat_gpt_prompt_1 = """
+        chat_gpt_prompt_1 = textwrap.dedent("""
             I have a set of images, each containing the same concept / figure. I have the following (poor) descriptions for each image:
-            """
+            """)
         
-        chat_gpt_prompt_2 = """
+        chat_gpt_prompt_2 = textwrap.dedent("""
             I want you to:
             1. Find a good, short name/description of the single central concept that's in all the images. This [Concept Name]  might eg already be present in the descriptions above, pick the most obvious name or words that would fit in all descriptions.
             2. Insert the text "TOK, [Concept Name]" into all the descriptions above by rephrasing them where needed to naturally contain the text TOK, [Concept Name] while keeping as much of the description as possible.
 
             Reply by first stating the "Concept Name:", followed by an enumerated list (using "-") of all the revised "Descriptions:".
-            """
+            """)
 
     if concept_mode == "object":
-        chat_gpt_prompt_1 = """
+        chat_gpt_prompt_1 = textwrap.dedent("""
         Analyze a set of (poor) image descriptions each featuring the same concept, figure or thing.
         Tasks:
         1. Deduce a concise, fitting name for the concept that is visually descriptive (Concept Name).
         2. Substitute the concept in each description with the placeholder "TOK", rearranging or adjusting the text where needed. Hallucinate TOK into the description if necessary (but dont mention when doing so, simply provide the final description)!
         3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of the placeholder string "TOK".
         The descriptions are:
-        """
+        """)
         
-        chat_gpt_prompt_2 = """
+        chat_gpt_prompt_2 = textwrap.dedent("""
         Respond with the chosen "Concept Name:" followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
-        """
+        """)
 
     elif concept_mode == "face":
-        chat_gpt_prompt_1 = """
+        chat_gpt_prompt_1 = textwrap.dedent("""
         Analyze a set of (poor) image descriptions, each featuring a person named TOK.
         Tasks:
         1. Rewrite each description, ensuring it refers only to a single person or character.
         2. Integrate "a photo of TOK" naturally into each description, rearranging or adjusting where needed.
         3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
         The descriptions are:
-        """
+        """)
         
-        chat_gpt_prompt_2 = """
+        chat_gpt_prompt_2 = textwrap.dedent("""
         Respond with "Concept Name: TOK" followed by a list (using "-") of all the revised descriptions, each mentioning "a photo of TOK".
-        """
+        """)
 
     elif concept_mode == "style":
-        chat_gpt_prompt_1 = """
+        chat_gpt_prompt_1 = textwrap.dedent("""
         Analyze a set of (poor) image descriptions, each featuring the same style named TOK.
         Tasks:
         1. Rewrite each description to focus solely on the TOK style.
         2. Integrate "in the style of TOK" naturally into each description, typically at the beginning.
         3. Summarize each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
         The descriptions are:
-        """
+        """)
         
-        chat_gpt_prompt_2 = """
+        chat_gpt_prompt_2 = textwrap.dedent("""
         Respond with "Style Name: TOK" followed by a list (using "-") of all the revised descriptions, each mentioning "in the style of TOK".
-        """
+        """)
 
     final_chatgpt_prompt = chat_gpt_prompt_1 + "\n- " + "\n- ".join(prompts) + "\n\n" + chat_gpt_prompt_2
     print("Final chatgpt prompt:")
@@ -826,7 +826,13 @@ def load_and_save_masks_and_captions(
     df.to_csv(os.path.join(output_dir, "captions.csv"), index=False)
     print("---> Training data 100% ready to go!")
 
-    return n_training_imgs, trigger_text, mask_target_prompts, captions
+    # Update the training attributes with some info from the pre-processing:
+    config.training_attributes["n_training_imgs"] = n_training_imgs
+    config.training_attributes["trigger_text"] = trigger_text
+    config.training_attributes["segmentation_prompt"] = mask_target_prompts
+    config.training_attributes["captions"] = captions
+
+    return config
 
 
 
