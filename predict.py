@@ -264,7 +264,7 @@ class Predictor(BasePredictor):
         attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
         attributes['job_time_seconds'] = config.job_time
 
-        print(f"LORA training finished in {runtime:.1f} seconds")
+        print(f"LORA training finished in {config.job_time:.1f} seconds")
         print(f"Returning {out_path}")
 
         if DEBUG_MODE or debug:
