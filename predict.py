@@ -17,7 +17,7 @@ from trainer.utils.io import clean_filename
 
 from trainer.utils.seed import seed_everything
 from trainer.utils.download import download_weights
-from trainer.utils.config_modification import modify_args_based_on_concept_mode
+from trainer.utils.config_modification import post_process_args
 from trainer.utils.tokens import obtain_inserting_list_tokens
 from trainer.models import pretrained_models
 from trainer.config import TrainingConfig

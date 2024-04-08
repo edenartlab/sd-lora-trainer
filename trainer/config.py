@@ -28,6 +28,8 @@ class TrainingConfig(BaseModel):
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
     lora_weight_decay: float = 0.002
+    cond_reg_w: float = 1e-5
+    tok_cond_reg_w: float = 1e-5
     l1_penalty: float = 0.1
     noise_offset: float = 0.02
     snr_gamma: float = 5.0

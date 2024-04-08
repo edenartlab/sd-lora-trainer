@@ -39,7 +39,7 @@ from trainer.loss import *
 from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images, get_conditioning_signals
-from trainer.utils.config_modification import modify_args_based_on_concept_mode
+from trainer.utils.config_modification import post_process_args
 from preprocess import preprocess
 
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
@@ -48,14 +48,10 @@ from torch import Tensor, inf
 def main(
     config: TrainingConfig,
 ):  
-    if not config.seed:
-        config.seed = int(time.time())
-
+    config = post_process_args(config)
     seed_everything(config.seed)
     gpu_id = pick_best_gpu_id()
     config.device = f'cuda:{gpu_id}'
-
-    config = modify_args_based_on_concept_mode(config)
 
     input_dir, n_imgs, trigger_text, segmentation_prompt, captions = preprocess(
         config,
@@ -334,7 +330,7 @@ def main(
                 token_indices, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
                     
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
-                config, pipe, token_indices, text_encoders, weight_dtype
+                config, pipe, token_indices, text_encoders
             )
             
             # Sample noise that we'll add to the latents:
@@ -420,58 +416,9 @@ def main(
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss +=  config.l1_penalty * l1_norm
 
-            # Some ugly hardcoded stuff for now, still optimizing these regularization params:
-            main_norm_reg_loss_multiplier = 0.00001
-            tok_norm_reg_loss_multiplier = 0.00001
-
-            #main_norm_reg_loss_multiplier = 0.0
-            #tok_norm_reg_loss_multiplier = 0.0
-
-            if 1:
-                # Compute the norms of the conditioning signals:
-                conditioning_norms = prompt_embeds.norm(dim=-1).mean(dim=0)
-                regularization_norm_value = conditioning_norms[2:].mean()
-
-                # Create a loss to fix the regularization norm to a target value:
-                if config.sd_model_version == 'sdxl':
-                    target_norm = 34.8
-                if config.sd_model_version == 'sd15':
-                    target_norm = 27.8
-
-                regularization_loss = (regularization_norm_value - target_norm).pow(2)
-                prompt_embeds_norms['main'].append(regularization_norm_value.item())
-                loss += main_norm_reg_loss_multiplier * regularization_loss
-
-            if 1: # regularize the txt-conditioning of several regularization prompts containing the new tokens:
-                reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
-                reg_captions = [caption.replace("TOK", "<s0><s1>") for caption in reg_captions]
-                reg_token_indices = [[],[]]
-
-                for i, tokenizer in enumerate(embedding_handler.tokenizers):
-                    if tokenizer is not None:
-                        for caption in reg_captions:
-                            token_indices = tokenizer(
-                                caption,
-                                padding="max_length",
-                                max_length=tokenizer.model_max_length,
-                                truncation=True,
-                                add_special_tokens=True,
-                                return_tensors="pt",
-                            ).input_ids.squeeze()
-                            reg_token_indices[i].append(token_indices)
-                        reg_token_indices[i] = torch.stack(reg_token_indices[i])
-                    else:
-                        reg_token_indices[i] = None
-
-                reg_prompt_embeds, reg_pooled_prompt_embeds, reg_add_time_ids = get_conditioning_signals(
-                config, pipe, reg_token_indices, text_encoders, weight_dtype
-                )
-
-                reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)
-                regularization_norm_value = reg_conditioning_norms[2:].mean()
-                regularization_loss = (regularization_norm_value - target_norm).pow(2)
-                loss += tok_norm_reg_loss_multiplier * regularization_loss
-                prompt_embeds_norms['reg'].append(regularization_norm_value.item())
+            # Some custom regularization terms: # TODO test how much these actually help!!
+            loss, prompt_embeds_norms = conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms, prompt_embeds)
+            loss, prompt_embeds_norms = tok_conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms, pipe, embedding_handler)
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps

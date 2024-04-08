@@ -118,7 +118,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
     return prompt
 
-def get_conditioning_signals(config, pipe, token_indices, text_encoders, weight_dtype):
+def get_conditioning_signals(config, pipe, token_indices, text_encoders):
 
     if config.sd_model_version == 'sdxl':
         if len(token_indices) == 1:
