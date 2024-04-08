@@ -1,6 +1,32 @@
 import torch
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
+from trainer.utils.inference import get_conditioning_signals
 
+def compute_snr(noise_scheduler, timesteps):
+    """
+    Computes SNR as per
+    https://github.com/TiankaiHang/Min-SNR-Diffusion-Training/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L847-L849
+    """
+    alphas_cumprod = noise_scheduler.alphas_cumprod
+    sqrt_alphas_cumprod = alphas_cumprod**0.5
+    sqrt_one_minus_alphas_cumprod = (1.0 - alphas_cumprod) ** 0.5
+
+    # Expand the tensors.
+    # Adapted from https://github.com/TiankaiHang/Min-SNR-Diffusion-Training/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L1026
+    sqrt_alphas_cumprod = sqrt_alphas_cumprod.to(device=timesteps.device)[timesteps].float()
+    while len(sqrt_alphas_cumprod.shape) < len(timesteps.shape):
+        sqrt_alphas_cumprod = sqrt_alphas_cumprod[..., None]
+    alpha = sqrt_alphas_cumprod.expand(timesteps.shape)
+
+    sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod.to(device=timesteps.device)[timesteps].float()
+    while len(sqrt_one_minus_alphas_cumprod.shape) < len(timesteps.shape):
+        sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod[..., None]
+    sigma = sqrt_one_minus_alphas_cumprod.expand(timesteps.shape)
+
+    # Compute SNR.
+    snr = (alpha / sigma) ** 2
+    return snr
+    
 def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonfinite = False):
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
@@ -20,44 +46,91 @@ def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonf
 
     return total_norm
 
-def conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms, prompt_embeds):
-    # Adds a regularization loss to norms of the prompt_conditioning vectors.
+def compute_diffusion_loss(config, model_pred, noise, mask, noise_scheduler, timesteps):
+    # Get the unet prediction target depending on the prediction type:
+    if noise_scheduler.config.prediction_type == "epsilon":
+        target = noise
+    elif noise_scheduler.config.prediction_type == "v_prediction":
+        print(f"Using velocity prediction!")
+        target = noise_scheduler.get_velocity(noisy_latent, noise, timesteps)
+    else:
+        raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
+        
+    loss = (model_pred - target).pow(2) * mask
 
-    # Create a loss to fix the regularization norm to a target value:
-    if config.sd_model_version == 'sdxl':
-        target_norm = 34.8
-    if config.sd_model_version == 'sd15':
-        target_norm = 27.8
+    if config.snr_gamma is None or config.snr_gamma == 0.0:
+        # modulate loss by the inverse of the mask's mean value
+        mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
+        mean_mask_values = mean_mask_values / mean_mask_values.mean()
+        loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
+        loss = loss.mean()
 
-    if config.cond_reg_w > 0.0:
-        # Compute the norms of the conditioning signals:
+    else:
+        # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
+        # Since we predict the noise instead of x_0, the original formulation is slightly changed.
+        # This is discussed in Section 4.2 of the same paper.
+        snr = compute_snr(noise_scheduler, timesteps)
+        base_weight = (
+            torch.stack([snr, config.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
+        )
+        if noise_scheduler.config.prediction_type == "v_prediction":
+            # Velocity objective needs to be floored to an SNR weight of one.
+            mse_loss_weights = base_weight + 1
+        else:
+            # Epsilon and sample both use the same loss weights.
+            mse_loss_weights = base_weight
+
+        mse_loss_weights = mse_loss_weights / mse_loss_weights.mean()
+        loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+
+        # modulate loss by the inverse of the mask's mean value
+        mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
+        mean_mask_values = mean_mask_values / mean_mask_values.mean()
+        loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
+        loss = loss.mean()
+
+    return loss
+
+class ConditioningRegularizer:
+    """
+    Regularizes the norms of the prompt_conditioning vectors.
+    """
+
+    def __init__(self, config, embedding_handler):
+        self.config = config
+        self.embedding_handler = embedding_handler
+        self.target_norm = 34.8 if config.sd_model_version == 'sdxl' else 27.8
+        self.reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
+        self.token_replacement = config.token_dict.get("TOK", "TOK")  # Fallback to "TOK" if not in dict
+
+    def apply_regularization(self, loss, prompt_embeds_norms, prompt_embeds, pipe=None):
+        noise_sigma = 0.0
+        if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
+            prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma
+
+        if self.config.cond_reg_w > 0.0:
+            regularization_loss, regularization_norm_value = self._compute_regularization_loss(prompt_embeds)
+            loss += self.config.cond_reg_w * regularization_loss
+            prompt_embeds_norms['main'].append(regularization_norm_value.item())
+
+        if self.config.tok_cond_reg_w > 0.0 and pipe is not None:
+            regularization_loss, regularization_norm_value = self._compute_tok_regularization_loss(pipe)
+            loss += self.config.tok_cond_reg_w * regularization_loss
+            prompt_embeds_norms['reg'].append(regularization_norm_value.item())
+
+        return loss, prompt_embeds_norms
+
+    def _compute_regularization_loss(self, prompt_embeds):
         conditioning_norms = prompt_embeds.norm(dim=-1).mean(dim=0)
         regularization_norm_value = conditioning_norms[2:].mean()
-        regularization_loss = (regularization_norm_value - target_norm).pow(2)
-        prompt_embeds_norms['main'].append(regularization_norm_value.item())
-        loss += config.cond_reg_w * regularization_loss
+        regularization_loss = (regularization_norm_value - self.target_norm).pow(2)
+        return regularization_loss, regularization_norm_value
 
-    return loss, prompt_embeds_norms
+    def _compute_tok_regularization_loss(self, pipe):
+        reg_captions = [caption.replace("TOK", self.token_replacement) for caption in self.reg_captions]
+        reg_token_indices = [[], []]
 
-from trainer.utils.inference import get_conditioning_signals
-
-def tok_conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms, pipe, embedding_handler):
-    # Create a loss to fix the regularization norm to a target value:
-    if config.sd_model_version == 'sdxl':
-        target_norm = 34.8
-    if config.sd_model_version == 'sd15':
-        target_norm = 27.8
-
-    # These are some hardcoded, quite arbitrary prompts that contain the new tokens:
-    reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
-    token_replacement = config.token_dict["TOK"]
-    
-    if config.tok_cond_reg_w > 0.0: # regularize the txt-conditioning of several regularization prompts containing the new tokens:
-
-        reg_captions = [caption.replace("TOK", token_replacement) for caption in reg_captions]
-        reg_token_indices = [[],[]]
-
-        for i, tokenizer in enumerate(embedding_handler.tokenizers):
+        for i, tokenizer in enumerate(self.embedding_handler.tokenizers):
             if tokenizer is not None:
                 for caption in reg_captions:
                     token_indices = tokenizer(
@@ -74,13 +147,11 @@ def tok_conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms,
                 reg_token_indices[i] = None
 
         reg_prompt_embeds, reg_pooled_prompt_embeds, reg_add_time_ids = get_conditioning_signals(
-        config, pipe, reg_token_indices, embedding_handler.text_encoders
+            self.config, pipe, reg_token_indices, self.embedding_handler.text_encoders
         )
 
         reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)
         regularization_norm_value = reg_conditioning_norms[2:].mean()
-        regularization_loss = (regularization_norm_value - target_norm).pow(2)
-        loss += config.tok_cond_reg_w * regularization_loss
-        prompt_embeds_norms['reg'].append(regularization_norm_value.item())
+        regularization_loss = (regularization_norm_value - self.target_norm).pow(2)
 
-    return loss, prompt_embeds_norms
+        return regularization_loss, regularization_norm_value

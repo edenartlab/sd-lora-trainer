@@ -36,7 +36,6 @@ from trainer.utils.dtype import dtype_map
 from trainer.config import TrainingConfig
 from trainer.models import print_trainable_parameters, load_models
 from trainer.loss import *
-from trainer.utils.snr import compute_snr
 from trainer.utils.training_info import get_avg_lr
 from trainer.utils.inference import render_images, get_conditioning_signals
 from trainer.utils.config_modification import post_process_args
@@ -293,6 +292,8 @@ def main(
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
 
+    condtioning_regularizer = ConditioningRegularizer(config, embedding_handler)
+
     #######################################################################################################
 
     for epoch in range(config.num_train_epochs):
@@ -351,9 +352,6 @@ def main(
             ).long()
 
             noisy_latent = noise_scheduler.add_noise(vae_latent, noise, timesteps)
-            noise_sigma = 0.0
-            if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
-                prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma
 
             # Predict the noise residual
             model_pred = unet(
@@ -365,60 +363,16 @@ def main(
                 return_dict=False,
             )[0]
             
-            # Get the unet prediction target depending on the prediction type:
-            if noise_scheduler.config.prediction_type == "epsilon":
-                target = noise
-            elif noise_scheduler.config.prediction_type == "v_prediction":
-                print(f"Using velocity prediction!")
-                target = noise_scheduler.get_velocity(noisy_latent, noise, timesteps)
-            else:
-                raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
-
-            # Make sure we're computing the loss at full precision:
-            #target, model_pred, mask = target.float(), model_pred.float(), mask.float()
-
             # Compute the loss:
-            loss = (model_pred - target).pow(2) * mask
+            loss = compute_diffusion_loss(config, model_pred, noise, mask, noise_scheduler, timesteps)
 
-            if config.snr_gamma is None or config.snr_gamma == 0.0:
-                # modulate loss by the inverse of the mask's mean value
-                mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
-                mean_mask_values = mean_mask_values / mean_mask_values.mean()
-                loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
-                loss = loss.mean()
-
-            else:
-                # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
-                # Since we predict the noise instead of x_0, the original formulation is slightly changed.
-                # This is discussed in Section 4.2 of the same paper.
-                snr = compute_snr(noise_scheduler, timesteps)
-                base_weight = (
-                    torch.stack([snr, config.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
-                )
-                if noise_scheduler.config.prediction_type == "v_prediction":
-                    # Velocity objective needs to be floored to an SNR weight of one.
-                    mse_loss_weights = base_weight + 1
-                else:
-                    # Epsilon and sample both use the same loss weights.
-                    mse_loss_weights = base_weight
-
-                mse_loss_weights = mse_loss_weights / mse_loss_weights.mean()
-                loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-
-                # modulate loss by the inverse of the mask's mean value
-                mean_mask_values = mask.mean(dim=list(range(1, len(loss.shape))))
-                mean_mask_values = mean_mask_values / mean_mask_values.mean()
-                loss = loss.mean(dim=list(range(1, len(loss.shape)))) / mean_mask_values
-                loss = loss.mean()
-
-            if config.l1_penalty > 0.0 and not config.use_dora:
+            if config.l1_penalty > 0.0:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss +=  config.l1_penalty * l1_norm
 
-            # Some custom regularization terms: # TODO test how much these actually help!!
-            loss, prompt_embeds_norms = conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms, prompt_embeds)
-            loss, prompt_embeds_norms = tok_conditioning_norm_regularization_loss(loss, config, prompt_embeds_norms, pipe, embedding_handler)
+            # Some custom regularization: # TODO test how much these actually help!!
+            loss, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, prompt_embeds_norms, prompt_embeds, pipe)
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps
