@@ -11,9 +11,8 @@ import zipfile
 import torch
 import torch.utils.checkpoint
 from tqdm import tqdm
-import matplotlib.pyplot as plt
+
 from peft import LoraConfig, get_peft_model
-from diffusers.optimization import get_scheduler
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 
 from trainer.utils.utils import *
@@ -25,6 +24,7 @@ from trainer.models import print_trainable_parameters, load_models
 from trainer.loss import *
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
+from trainer.utils.io import make_validation_img_grid
 
 def train(
     config: TrainingConfig,
@@ -456,7 +456,9 @@ def train(
                     trigger_text = config.training_attributes["trigger_text"],
                     device = config.device
                     )
-                
+                img_grid_path = make_validation_img_grid(output_save_dir)
+                shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
+                        
                 gc.collect()
                 torch.cuda.empty_cache()
             
@@ -510,6 +512,10 @@ def train(
             trigger_text=config.training_attributes["trigger_text"],
             device = config.device
             )
+        
+        img_grid_path = make_validation_img_grid(output_save_dir)
+        shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
+
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 

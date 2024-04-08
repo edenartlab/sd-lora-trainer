@@ -10,7 +10,6 @@ from diffusers import EulerDiscreteScheduler
 from trainer.utils.val_prompts import val_prompts
 from trainer.models import load_models
 from trainer.lora import patch_pipe_with_lora
-from trainer.utils.io import make_validation_img_grid
 
 def replace_in_string(s, replacements):
     while True:
@@ -342,12 +341,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
 
         image = pipe(**pipeline_args, generator=generator).images[0]
         image.save(os.path.join(lora_path, f"img_{train_step:04d}_{i}.jpg"), format="JPEG", quality=95)
-
-    img_grid_path = make_validation_img_grid(lora_path)
-
-    # Copy the grid image to the parent directory for easier comparison:
-    grid_img_path = os.path.join(lora_path, "validation_grid.jpg")
-    shutil.copy(grid_img_path, os.path.join(os.path.dirname(lora_path), f"validation_grid_{train_step:04d}.jpg"))
+    
     pipe.scheduler = training_scheduler
 
     pipe.vae = pipe.vae.to('cpu')

@@ -31,7 +31,7 @@ Code / Cleanup:
 - ~~make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)~~
 - ~~make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later~~
 - Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
-- Make sure the trained concepts (with peft) are compatible with ComfyUI / AUTO1111
+- Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
 
 Algo:
 - Test if timesteps = torch.randint() can be improved: look at sdxl training code! (see https://github.com/huggingface/diffusers/blob/main/examples/advanced_diffusion_training/train_dreambooth_lora_sdxl_advanced.py#L1263, https://arxiv.org/pdf/2206.00364.pdf)
