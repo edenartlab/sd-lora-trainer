@@ -342,12 +342,11 @@ def main(
                 # https://www.crosslabs.org//blog/diffusion-with-offset-noise
                 noise += config.noise_offset * torch.randn(
                     (noise.shape[0], noise.shape[1], 1, 1), device=noise.device)
-
-            bsz = vae_latent.shape[0]
+            
             timesteps = torch.randint(
                 0,
                 noise_scheduler.config.num_train_timesteps,
-                (bsz,),
+                (vae_latent.shape[0],),
                 device=vae_latent.device,
             ).long()
 

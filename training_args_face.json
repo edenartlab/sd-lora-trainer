@@ -30,7 +30,6 @@
     "verbose": true,
     "debug": true,
     "hard_pivot": false,
-    "token_embedding_lr_warmup_steps": 60,
     "weight_type": "bf16",
     "dataloader_num_workers": 0,
     "name": "unnamed"

@@ -20,7 +20,7 @@ class TrainingConfig(BaseModel):
     num_train_epochs: int = 10000
     max_train_steps: int = 600
     checkpointing_steps: int = 10000
-    token_embedding_lr_warmup_steps: int = 60
+    token_embedding_lr_warmup_steps: int = 30
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     clip_grad_norm: float = -1
