@@ -9,6 +9,7 @@
     "train_batch_size": 4,
     "n_sample_imgs": 4,
     "max_train_steps": 500,
+    "token_warmup_steps": 40,
     "checkpointing_steps": 100,
     "gradient_accumulation_steps": 1,
     "n_tokens": 3,
