@@ -71,7 +71,8 @@ Algo:
 
 Bigger improvements:
 - create good model evaluation script:
-    - img/txt clip similarity (prompt following)
+    - ~~img/txt clip similarity (prompt following)~~
+    - ~~aesthetic score~~
     - some kind of img-feature similarity (eg CLIP or FID or ...) between training imgs and generated imgs
 - add stronger token regularization (eg CelebBasis spanning basis)
 - Add multi-token training
