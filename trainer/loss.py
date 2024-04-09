@@ -128,26 +128,8 @@ class ConditioningRegularizer:
 
     def _compute_tok_regularization_loss(self, pipe):
         reg_captions = [caption.replace("TOK", self.token_replacement) for caption in self.reg_captions]
-        reg_token_indices = [[], []]
-
-        for i, tokenizer in enumerate(self.embedding_handler.tokenizers):
-            if tokenizer is not None:
-                for caption in reg_captions:
-                    token_indices = tokenizer(
-                        caption,
-                        padding="max_length",
-                        max_length=tokenizer.model_max_length,
-                        truncation=True,
-                        add_special_tokens=True,
-                        return_tensors="pt",
-                    ).input_ids.squeeze()
-                    reg_token_indices[i].append(token_indices)
-                reg_token_indices[i] = torch.stack(reg_token_indices[i])
-            else:
-                reg_token_indices[i] = None
-
         reg_prompt_embeds, reg_pooled_prompt_embeds, reg_add_time_ids = get_conditioning_signals(
-            self.config, pipe, reg_token_indices, self.embedding_handler.text_encoders
+            self.config, pipe, reg_captions, self.embedding_handler.text_encoders
         )
 
         reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)

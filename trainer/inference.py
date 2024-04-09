@@ -98,44 +98,31 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
     return prompt
 
 
-def get_conditioning_signals(config, pipe, token_indices, text_encoders):
 
-    if config.sd_model_version == 'sdxl':
-        if len(token_indices) == 1:
-            token_indices = (token_indices[0], None)
+def get_conditioning_signals(config, pipe, captions, text_encoders):
+    conditioning_signals = pipe.encode_prompt(
+        prompt = captions,
+        device = pipe.unet.device,
+        num_images_per_prompt = 1,
+        do_classifier_free_guidance = True,
+        negative_prompt=None,
+        clip_skip = None)
 
-        # tokens to text embeds
-        prompt_embeds_list = []
-        for tok, text_encoder in zip(token_indices, text_encoders):
-            if tok is None:
-                continue
+    try: # sd15
+        prompt_embeds, negative_prompt_embeds = conditioning_signals
+        pooled_prompt_embeds, add_time_ids = None, None
 
-            prompt_embeds_out = text_encoder(
-                tok.to(text_encoder.device),
-                output_hidden_states=True,
-            )
-
-            pooled_prompt_embeds = prompt_embeds_out[0]
-            prompt_embeds = prompt_embeds_out.hidden_states[-2]
-            bs_embed, seq_len, _ = prompt_embeds.shape
-            prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-            prompt_embeds_list.append(prompt_embeds)
-
-        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-        pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
-
+    except: # sdxl
+        prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds = conditioning_signals
+        
         # Create Spatial-dimensional conditions.
-        original_size = (config.resolution, config.resolution)
+        # I dont understand why, but I get better results hardcoding the original_size values...
+        # original_size = (config.resolution, config.resolution)
+        original_size = (1024, 1024)
         target_size   = (config.resolution, config.resolution)
 
-        # I dont understand why, but I get better results hardcoding these values...
-        original_size = (1024, 1024)
-        #target_size   = (768, 768)
-
         crops_coords_top_left = (config.crops_coords_top_left_h, config.crops_coords_top_left_w)
-        #add_time_ids = list(original_size + crops_coords_top_left + target_size)
-        #add_time_ids = torch.tensor([add_time_ids])
-        
+
         if pipe.text_encoder_2 is None:
             text_encoder_projection_dim = int(pooled_prompt_embeds.shape[-1])
         else:
@@ -150,19 +137,10 @@ def get_conditioning_signals(config, pipe, token_indices, text_encoders):
         )
 
         add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
-            bs_embed, 1
+            prompt_embeds.shape[0], 1
         )
 
-    elif config.sd_model_version == 'sd15':
-        prompt_embeds = text_encoders[0](
-                    token_indices[0].to(text_encoders[0].device),
-                    output_hidden_states=True,
-                )[0]
-        pooled_prompt_embeds, add_time_ids = None, None
-
     return prompt_embeds, pooled_prompt_embeds, add_time_ids
-
-
 
 def blend_conditions(embeds1, embeds2, lora_scale,
         token_scale_power = 0.4,  # adjusts the curve of the interpolation

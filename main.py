@@ -203,8 +203,6 @@ def train(
     train_dataset = PreprocessedDataset(
         input_dir,
         pipe,
-        tokenizer_one,
-        tokenizer_two,
         vae.float(),
         size = config.resolution,
         do_cache=config.do_cache,
@@ -298,12 +296,14 @@ def train(
                 optimizer_ti.param_groups[0]['lr'] *= warmup_f
 
             if not config.aspect_ratio_bucketing:
-                token_indices, vae_latent, mask = batch
+                captions, vae_latent, mask = batch
             else:
-                token_indices, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
+                captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
+
+            captions = list(captions)
                     
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
-                config, pipe, token_indices, text_encoders
+                config, pipe, captions, text_encoders
             )
             
             # Sample noise that we'll add to the latents:

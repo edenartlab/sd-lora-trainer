@@ -32,6 +32,7 @@ Code / Cleanup:
 - ~~make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later~~
 - Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
 - Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
+- properly measure regularization target_values for conditioning and add pooled_prompt_embeds into regularizer for SDXL
 
 Algo:
 - add txt-encoder LoRa + full finetuning options

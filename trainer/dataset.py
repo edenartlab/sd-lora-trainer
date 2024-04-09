@@ -31,8 +31,6 @@ class PreprocessedDataset(Dataset):
         self,
         data_dir: str,
         pipe,
-        tokenizer_1,
-        tokenizer_2,
         vae_encoder,
         text_encoder_1=None,
         text_encoder_2=None,
@@ -40,19 +38,18 @@ class PreprocessedDataset(Dataset):
         size: int = 512,
         text_dropout: float = 0.0,
         aspect_ratio_bucketing: bool = False,
-        train_batch_size: int = None,# required for aspect_ratio_bucketing
+        train_batch_size: int = None, # required for aspect_ratio_bucketing
         substitute_caption_map: Dict[str, str] = {},
     ):
         super().__init__()
         self.data_dir = data_dir
         self.csv_path = os.path.join(data_dir, "captions.csv")
         self.data = pd.read_csv(self.csv_path)
-
-        self.caption = self.data["caption"]
-        # make it lowercase
-        self.caption = self.caption.str.lower()
+        
+        self.captions = self.data["caption"]
+        self.captions = self.captions.str.lower()
         for key, value in substitute_caption_map.items():
-            self.caption = self.caption.str.replace(key.lower(), value)
+            self.captions = self.captions.str.replace(key.lower(), value)
 
         self.image_path = self.data["image_path"]
 
@@ -66,31 +63,25 @@ class PreprocessedDataset(Dataset):
         self.text_encoder_1 = text_encoder_1
         self.text_encoder_2 = text_encoder_2
 
-        self.tokenizer_1 = tokenizer_1
-        self.tokenizer_2 = tokenizer_2
-
         self.vae_encoder = vae_encoder
         self.vae_scaling_factor = self.vae_encoder.config.scaling_factor
         self.text_dropout = text_dropout
         self.size = size
 
         if do_cache:
+            print("Caching latents, masks and captions...\n")
             self.vae_latents = []
-            self.tokens_tuple = []
             self.masks = []
             self.do_cache = True
 
-            print("Caching latents, masks and token_IDs...\n")
-
             for idx in range(len(self.data)):
-                token, vae_latent, mask = self._process(idx)
+                print(self.captions[idx])
+                vae_latent, mask = self._process(idx)
                 self.vae_latents.append(vae_latent)
-                self.tokens_tuple.append(token)
                 self.masks.append(mask)
 
-            print(f"\nCached latents masks and token_IDs for {len(self.vae_latents)} images.")
+            print(f"\nCached latents, masks and captions for {len(self.vae_latents)} images.")
             del self.vae_encoder
-
         else:
             self.do_cache = False
 
@@ -164,31 +155,6 @@ class PreprocessedDataset(Dataset):
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
 
-        caption = self.caption[idx]
-        print(caption)
-
-        # tokenizer_1
-        ti1 = self.tokenizer_1(
-            caption,
-            padding="max_length",
-            max_length=self.tokenizer_1.model_max_length,
-            truncation=True,
-            add_special_tokens=True,
-            return_tensors="pt",
-        ).input_ids.squeeze()
-
-        if self.tokenizer_2 is None:
-            ti2 = None
-        else:
-            ti2 = self.tokenizer_2(
-                caption,
-                padding="max_length",
-                max_length=self.tokenizer_2.model_max_length,
-                truncation=True,
-                add_special_tokens=True,
-                return_tensors="pt",
-            ).input_ids.squeeze()
-
         vae_latent = self.vae_encoder.encode(image).latent_dist
         dummy_vae_latent = vae_latent.sample()
 
@@ -215,10 +181,7 @@ class PreprocessedDataset(Dataset):
 
         assert len(mask.shape) == 4 and len(dummy_vae_latent.shape) == 4
 
-        if ti2 is None: # sd15
-            return [ti1], vae_latent, mask.squeeze()
-        else: # sdxl
-            return [ti1, ti2], vae_latent, mask.squeeze()
+        return vae_latent, mask.squeeze()
 
     def __getitem__(
         self, idx: int, bucketing_resolution:tuple = None
@@ -226,10 +189,10 @@ class PreprocessedDataset(Dataset):
 
         if self.do_cache:
             vae_latent = self.vae_latents[idx].sample() * self.vae_scaling_factor
-            return self.tokens_tuple[idx], vae_latent.squeeze(), self.masks[idx]
+            return self.captions[idx], vae_latent.squeeze(), self.masks[idx]
         else: # This code pathway has not been tested in a long time and might be broken
-            tokens, vae_latent, mask = self._process(idx, bucketing_resolution=bucketing_resolution)
+            caption, vae_latent, mask = self._process(idx, bucketing_resolution=bucketing_resolution)
             vae_latent = vae_latent.sample() * self.vae_scaling_factor
-            return tokens, vae_latent.squeeze(), mask
+            return caption, vae_latent.squeeze(), mask
 
 

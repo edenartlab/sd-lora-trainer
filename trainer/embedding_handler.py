@@ -256,10 +256,10 @@ class TokenEmbeddingsHandler:
         TODO: add CLIP-img similarity loss into this mix
         --> This requires loading the img-encoder part for each of the txt-encoders and figuring out the correct projection layer
         """
-
         target_prompt = config.training_attributes["gpt_description"]
-
+        
         if config.token_warmup_steps <= 0 or not target_prompt:
+            print("Skipping token embedding warmup.")
             return
 
         # This is the concept description from chatgpt:
