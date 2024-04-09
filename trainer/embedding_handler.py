@@ -4,9 +4,10 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import PIL
+from tqdm import tqdm
 from typing import List, Optional, Dict
 from safetensors.torch import save_file, safe_open
-
+import matplotlib.pyplot as plt
 from trainer.utils.utils import seed_everything, plot_torch_hist
 
 class TokenEmbeddingsHandler:
@@ -114,74 +115,6 @@ class TokenEmbeddingsHandler:
 
             idx += 1
 
-    def get_start_embedding(self, text_encoder, tokenizer, example_tokens, unk_token_id = 49407, verbose = False, desired_std_multiplier = 0.0):
-        print('-----------------------------------------------')
-        # do some cleanup:
-        example_tokens = [tok.lower() for tok in example_tokens]
-        example_tokens = list(set(example_tokens))
-
-        starting_ids = tokenizer.convert_tokens_to_ids(example_tokens)
-
-        # filter out any tokens that are mapped to unk_token_id:
-        example_tokens = [tok for tok, tok_id in zip(example_tokens, starting_ids) if tok_id != unk_token_id]
-        starting_ids = [tok_id for tok_id in starting_ids if tok_id != unk_token_id]
-
-        if verbose:
-            print("Token mapping:")
-            for i, token in enumerate(example_tokens):
-                print(f"{token} -> {starting_ids[i]}")
-
-        embeddings, stds = [], []
-        for i, token_index in enumerate(starting_ids):
-            embedding = text_encoder.text_model.embeddings.token_embedding.weight.data[token_index].clone()
-            embeddings.append(embedding)
-            stds.append(embedding.std())
-            #print(f"token: {example_tokens[i]}, embedding-std: {embedding.std():.4f}, embedding-mean: {embedding.mean():.4f}")
-
-        embeddings = torch.stack(embeddings)
-        #print(f"Embeddings: {embeddings.shape}, std: {embeddings.std():.4f}, mean: {embeddings.mean():.4f}")
-
-        if verbose:
-            # Compute the squared difference
-            squared_diff = (embeddings.unsqueeze(1) - embeddings.unsqueeze(0)) ** 2
-            squared_l2_dist = squared_diff.sum(-1)
-            l2_distance_matrix = torch.sqrt(squared_l2_dist)
-
-            print("Pairwise L2 Distance Matrix:")
-            print(" \t" + "\t".join(example_tokens))
-            for i, row in enumerate(l2_distance_matrix):
-                print(f"{example_tokens[i]}\t" + "\t".join(f"{dist:.4f}" for dist in row))
-
-
-        # We're working in cosine-similarity space
-        # So first, renormalize the embeddings to have norm 1
-        embedding_norms = torch.norm(embeddings, dim=-1, keepdim=True)
-        embeddings = embeddings / embedding_norms
-
-        print(f"embedding norms pre normalization:")
-        print(embedding_norms)
-        print(f"embedding norms post normalization:")
-        print(torch.norm(embeddings, dim=-1, keepdim=True))
-
-        print(f"Using {len(embeddings)} embeddings to compute initial embedding...")
-        init_embedding = embeddings.mean(dim=0)
-        # normalize the init_embedding to have norm 1:
-        init_embedding = init_embedding / torch.norm(init_embedding)
-
-        # rescale the init_embedding to have the same std as the average of the embeddings:
-        init_embedding = init_embedding * embedding_norms.mean()
-
-        print(f"init_embedding norm: {torch.norm(init_embedding):.4f}, std: {init_embedding.std():.4f}, mean: {init_embedding.mean():.4f}")
-
-        if (desired_std_multiplier is not None) and desired_std_multiplier > 0:
-            avg_std        = torch.stack(stds).mean()
-            current_std    = init_embedding.std()
-            scale_factor   = desired_std_multiplier * avg_std / current_std
-            init_embedding = init_embedding * scale_factor
-            print(f"Scaled Mean Embedding: std: {init_embedding.std():.4f}, mean: {init_embedding.mean():.4f}")
-        
-        return init_embedding
-
     def plot_token_embeddings(self, example_tokens, output_folder = ".", x_range = [-0.05, 0.05]):
         print(f"Plotting embeddings for tokens: {example_tokens}")
 
@@ -274,49 +207,137 @@ class TokenEmbeddingsHandler:
 
             idx += 1
 
-    def pre_optimize_token_embeddings(self, train_dataset, epochs=10):
+    def plot_tokenid(self, token_id, suffix = '', output_folder = ".", x_range = [-0.05, 0.05]):
+        idx = 0
+        for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
+            if tokenizer is None:
+                idx += 1
+                continue
+            
+            embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[token_id].clone()
+            plot_torch_hist(embeddings, 0, output_folder, f"tok_{token_id}_{idx}_{suffix}", bins=100, min_val=x_range[0], max_val=x_range[1], ymax_f = 0.05)
+            idx += 1
 
-        ### THIS FUNCTION IS NOT DONE YET
-        ### Idea here is to use CLIP-similarity between imgs and prompts to pre-optimize the embeddings
+    def encode_text(self, text, clip_skip = None):
+        prompt_embeds_list = []
 
-        for idx in range(len(train_dataset)):
-            (tok1, tok2), vae_latent, mask = train_dataset[idx]
-            image_path = train_dataset.image_path[idx]
-            image_path = os.path.join(train_dataset.data_dir, image_path)
-            image = PIL.Image.open(image_path).convert("RGB")
+        for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
+            text_input_ids = tokenizer(
+                text,
+                padding="max_length",
+                max_length=tokenizer.model_max_length,
+                truncation=True,
+                add_special_tokens=True,
+                return_tensors="pt",
+            ).input_ids
 
-            print(f"---> Loaded sample {idx}:")
-            print("Tokens:")
-            print(tok1.shape)
-            print(tok2.shape)
-            print("Image:")
-            print(image.size)
+            prompt_embeds = text_encoder(text_input_ids.to(text_encoder.device), output_hidden_states=True)
+            
+            # We are only ALWAYS interested in the pooled output of the final text encoder
+            pooled_prompt_embeds = prompt_embeds[0]
+            if clip_skip is None:
+                prompt_embeds = prompt_embeds.hidden_states[-2]
+            else: # "2" because SDXL always indexes from the penultimate layer.
+                prompt_embeds = prompt_embeds.hidden_states[-(clip_skip + 2)]
 
-            # tokens to text embeds
-            prompt_embeds_list = []
-            #for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
-            for tok, text_encoder in zip((tok1, tok2), self.text_encoders):
-                prompt_embeds_out = text_encoder(
-                    tok.to(text_encoder.device),
-                    output_hidden_states=True,
-                )
+            prompt_embeds_list.append(prompt_embeds)
 
-                print("prompt_embeds_out:")
-                print(prompt_embeds_out.shape)
+        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
 
-                pooled_prompt_embeds = prompt_embeds_out[0]
-                prompt_embeds = prompt_embeds_out.hidden_states[-2]
-                bs_embed, seq_len, _ = prompt_embeds.shape
-                prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-                prompt_embeds_list.append(prompt_embeds)
+        return prompt_embeds, pooled_prompt_embeds
 
-            prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-            pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
+    def pre_optimize_token_embeddings(self, config):
+        """
+        Warmup the token embeddings by optimizing them without using the image denoiser,
+        but simply using CLIP-txt and CLIP-img similarity losses
 
-            print("prompt_embeds:")
-            print(prompt_embeds.shape)
-            print("pooled_prompt_embeds:")
-            print(pooled_prompt_embeds.shape)
+        TODO: add CLIP-img similarity loss into this mix
+        --> This requires loading the img-encoder part for each of the txt-encoders and figuring out the correct projection layer
+        """
+
+        if config.token_warmup_steps <= 0:
+            return
+
+        # This is the concept description from chatgpt:
+        target_prompt = config.training_attributes["segmentation_prompt"]
+        target_prompt_embeds, target_pooled_prompt_embeds = self.encode_text(target_prompt)
+        print(f'Warming up token embeddings with prompt: {target_prompt}...')
+
+        # Setup the token optimizer:
+        ti_parameters = []
+        for text_encoder in self.text_encoders:
+            if text_encoder is not None:
+                text_encoder.train()
+                text_encoder.requires_grad_(False)
+                for name, param in text_encoder.named_parameters():
+                    if "token_embedding" in name:
+                        param.requires_grad = True
+                        ti_parameters.append(param)
+                    else:
+                        param.requires_grad = False
+        
+        params_to_optimize_ti = [{
+                "params": ti_parameters,
+                "lr": config.ti_lr,
+                "weight_decay": config.ti_weight_decay,
+            }]
+
+        optimizer_ti = torch.optim.AdamW(
+                params_to_optimize_ti,
+                weight_decay=config.ti_weight_decay,
+            )
+
+        token_string = config.token_dict["TOK"]
+        prompt_template = [
+            '{}',
+            '{}',
+            '{}',
+            'a {}',
+            '{} image',
+            'a picture of {}',
+        ]
+
+        #condtioning_regularizer = ConditioningRegularizer(config, self)
+        #loss, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, prompt_embeds_norms, prompt_embeds, pipe)
+
+        losses = []
+        for step in tqdm(range(config.token_warmup_steps)):
+            if step % 30 == 0 and config.debug and 0: # disalbe this for now
+                for i, token_index in enumerate(self.train_ids):
+                    self.plot_tokenid(token_index, suffix = f'token_{i}_{step}', output_folder = f'{config.output_dir}/token_opt')
+
+            # pick a random prompt template and inject the token string:
+            prompt_to_optimize = np.random.choice(prompt_template).format(token_string)
+            prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize)
+
+            # compute the loss:
+            embeds_l2_loss = F.mse_loss(prompt_embeds, target_prompt_embeds)
+            pooled_embeds_l2_loss = F.mse_loss(pooled_prompt_embeds, target_pooled_prompt_embeds)
+            loss = 2.0 * embeds_l2_loss + pooled_embeds_l2_loss
+
+            # Backward pass:
+            retain_graph = step < (config.token_warmup_steps - 1)  # Retain graph for all but the last step
+            loss.backward(retain_graph=retain_graph)
+            losses.append(loss.item())
+
+            # zero out the gradients of the non-trained text-encoder embeddings
+            for embedding_tensor in ti_parameters:
+                embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
+
+            optimizer_ti.step()
+            self.fix_embedding_std(config.off_ratio_power)
+            optimizer_ti.zero_grad()
+
+        if config.debug:
+            # Plot the losses:
+            plt.plot(losses)
+            plt.xlabel("Step")
+            plt.ylabel("Loss")
+            plt.ylim(0, np.max(losses) * 1.1)
+            plt.title("Token Embedding Warmup Loss")
+            plt.savefig(f'{config.output_dir}/token_warmup_loss.png')
+            plt.close()
+
 
     def save_embeddings(self, file_path: str, txt_encoder_keys = ["clip_l", "clip_g"]):
         assert (

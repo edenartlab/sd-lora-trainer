@@ -8,30 +8,9 @@ import re
 from diffusers import EulerDiscreteScheduler
 
 from trainer.utils.val_prompts import val_prompts
+from trainer.utils.utils import fix_prompt, replace_in_string
 from trainer.models import load_models
 from trainer.lora import patch_pipe_with_lora
-
-def replace_in_string(s, replacements):
-    while True:
-        replaced = False
-        for target, replacement in replacements.items():
-            new_s = re.sub(target, replacement, s, flags=re.IGNORECASE)
-            if new_s != s:
-                s = new_s
-                replaced = True
-        if not replaced:
-            break
-    return s
-
-def fix_prompt(prompt):
-    # Fix common mistakes
-    fix_replacements = {
-        r",,": ",",
-        r"\s\s+": " ",  # Replaces one or more whitespace characters with a single space
-        r"\s\.": ".",
-        r"\s,": ","
-    }
-    return replace_in_string(prompt, fix_replacements)
 
 def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
     """

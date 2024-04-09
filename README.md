@@ -40,6 +40,7 @@ Algo:
 - the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
 this random variance, eg CLIP_similarity pretraining.
 - improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
+- currently some sub-optimal stuff can happen in preprocess() when there's less than 3 or more than 45 imgs, try to improve this
 
 
 Bigger improvements:
@@ -49,12 +50,14 @@ Bigger improvements:
 - add stronger token regularization (eg CelebBasis spanning basis)
 - Add multi-token training
 - pre-optimize token embeddings using CLIP-similarity (cfr aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
+- pre-optimize token embeddings using a short chatgpt description of the concept --> train tokens to match that conditioning vector (via gradients)
 - implement perfusion: https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
 - make compatible with ziplora: https://ziplora.github.io/
 
 
 Tuning Experiments once code is fully ready:
+- gridsearch over LoRa target_modules=["to_k", "to_q", "to_v", "to_out.0"]
 - try-out conditioning noise injection during training to increase robustness
 - re-test / tweak the adaptive learning rates (also test Prodigy vs Adam)
 - right now it looks like the diffusion model gets partially "destroyed" in the beginning of training (outputs from steps 100-200 look terrible), 

@@ -37,6 +37,7 @@ from transformers import (
 )
 
 from trainer.utils.io import download_and_prep_training_data
+from trainer.utils.utils import fix_prompt
 
 import re
 import openai
@@ -54,17 +55,7 @@ except:
     print("WARNING: Could not find OPENAI_API_KEY in .env, disabling gpt prompt generation.")
 
 MODEL_PATH = "./cache"
-MAX_GPT_PROMPTS = 40
-
-import re
-def fix_prompt(prompt: str):
-    # Remove extra commas and spaces, and fix space before punctuation
-    prompt = re.sub(r"\s+", " ", prompt)  # Replace multiple spaces with a single space
-    prompt = re.sub(r",,", ",", prompt)  # Replace double commas with a single comma
-    prompt = re.sub(r"\s?,\s?", ", ", prompt)  # Fix spaces around commas
-    prompt = re.sub(r"\s?\.\s?", ". ", prompt)  # Fix spaces around periods
-    return prompt.strip()  # Remove leading and trailing whitespace
-
+MAX_GPT_PROMPTS = 50
 
 def _find_files(pattern, dir="."):
     """Return list of files matching pattern in a given directory, in absolute format.
@@ -259,44 +250,42 @@ def cleanup_prompts_with_chatgpt(
         chat_gpt_prompt_1 = textwrap.dedent("""
             Analyze a set of (poor) image descriptions each featuring the same concept, figure or thing.
             Tasks:
-            1. Deduce a concise, fitting name for the concept that is visually descriptive (Concept Name).
+            1. Deduce a concise (max 10 words) visual description of just the concept TOK (Concept Description).
             2. Substitute the concept in each description with the placeholder "TOK", rearranging or adjusting the text where needed. Hallucinate TOK into the description if necessary (but dont mention when doing so, simply provide the final description)!
             3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of the placeholder string "TOK".
-            The descriptions are:
-            """)
+            The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
-            Respond with the chosen "Concept Name:" followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
+            Respond with the "Concept Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
             """)
 
     elif concept_mode == "face":
         chat_gpt_prompt_1 = textwrap.dedent("""
             Analyze a set of (poor) image descriptions, each featuring a person named TOK.
             Tasks:
-            1. Rewrite each description, ensuring it naturally refers to "TOK", rearranging or adjusting where needed.
-            2. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
-            The descriptions are:
-            """)
+            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description) (eg asian woman with long black hair).
+            2. Rewrite each description, ensuring it naturally refers to "TOK", rearranging or adjusting where needed.
+            3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
+            The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
-            Respond with "Concept Name: TOK" followed by a list (using "-") of all the revised descriptions, each mentioning "a photo of TOK".
+            Respond with the "TOK Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
             """)
 
     elif concept_mode == "style":
         chat_gpt_prompt_1 = textwrap.dedent("""
-            Analyze a set of (poor) image descriptions, each featuring an example a common aesthetic style named TOK.
+            Analyze a set of (poor) image descriptions, each featuring an example of a common aesthetic style named TOK.
             Tasks:
-            1. Rewrite each description to focus solely on the non-stylistic contents of the images like characters, objects, colors, scene, context etc.
-            2. Integrate "in the style of TOK" naturally into each description, typically at the beginning.
-            3. Summarize each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
-            The descriptions are:
-            """)
+            1. Deduce a concise (max 7 words) visual description of the aesthetic style (Style Description).
+            2. Rewrite each description to focus solely on the non-stylistic contents of the image like characters, objects, colors, scene, context etc but not the stylistic elements captured by TOK.
+            3. Integrate "in the style of TOK" naturally into each description, typically at the beginning while summarizing each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
+            The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
-            Respond with "Style Name: TOK" followed by a list (using "-") of all the revised descriptions, each mentioning "in the style of TOK".
+            Respond with the "Style Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "in the style of TOK".
             """)
 
-    final_chatgpt_prompt = chat_gpt_prompt_1 + "\n- " + "\n- ".join(prompts) + "\n\n" + chat_gpt_prompt_2
+    final_chatgpt_prompt = chat_gpt_prompt_1 + "\n- " + "\n- ".join(prompts) + "\n" + chat_gpt_prompt_2
     print("Final chatgpt prompt:")
     print(final_chatgpt_prompt)
     print("--------------------------")
@@ -323,34 +312,29 @@ def cleanup_prompts_with_chatgpt(
         if line.startswith("-"):
             prompts.append(line[2:])
 
-    gpt_concept_name = extract_gpt_concept_name(gpt_completion, concept_mode)
-
-    trigger_text = "TOK, " + gpt_concept_name if concept_mode == 'object_injection' else "TOK"
-
+    gpt_concept_description = extract_gpt_concept_description(gpt_completion, concept_mode)
+    trigger_text = "TOK"
     if concept_mode == 'style':
-        trigger_text = ", in the style of TOK"
-        gpt_concept_name = ""  # Disables segmentation for style (use full img)
+        trigger_text = "in the style of TOK, "
 
-    return prompts, gpt_concept_name, trigger_text
+    return prompts, gpt_concept_description, trigger_text
 
-def extract_gpt_concept_name(gpt_completion, concept_mode):
+def extract_gpt_concept_description(gpt_completion, concept_mode):
     """
     Extracts the concept name from the GPT completion based on the concept mode.
     """
-    concept_name = ""
-    prefix = ""
-    if concept_mode in ['face', 'style']:
-        concept_name = concept_mode
-        prefix = "Style Name:" if concept_mode == 'style' else ""
-    elif concept_mode in ['object_injection', 'object']:
-        prefix = "Concept Name:"
-        concept_mode = 'object_injection'
 
-    if prefix:
-        for line in gpt_completion.split("\n"):
-            if line.startswith(prefix):
-                concept_name = line[len(prefix):].strip()
-                break
+    if concept_mode == 'face':
+        prefix = "TOK Description:"
+    elif concept_mode == 'style':
+        prefix = "Style Description:"
+    elif concept_mode == 'object':
+        prefix = "Concept Description:"
+
+    for line in gpt_completion.split("\n"):
+        if line.startswith(prefix):
+            concept_name = line[len(prefix):].strip()
+            break
 
     return concept_name
 
@@ -364,7 +348,7 @@ def post_process_captions(captions, text, concept_mode, job_seed):
         retry_count = 0
         while retry_count < 10:
             try:
-                gpt_captions, gpt_concept_name, trigger_text = cleanup_prompts_with_chatgpt(captions, concept_mode, job_seed + retry_count)
+                gpt_captions, gpt_concept_description, trigger_text = cleanup_prompts_with_chatgpt(captions, concept_mode, job_seed + retry_count)
                 n_toks = sum("TOK" in caption for caption in gpt_captions)
                 
                 if n_toks > int(0.8 * len(captions)) and (len(gpt_captions) == len(captions)):
@@ -373,13 +357,17 @@ def post_process_captions(captions, text, concept_mode, job_seed):
                     captions = gpt_captions
                     break
                 else:
+                    if len(gpt_captions) == len(captions):
+                        print(f'GPT-4 did not return enough {n_toks}/{len(captions)} prompts containing "TOK", retrying...')
+                    else:
+                        print(f'GPT-4 returned the wrong number of prompts {len(gpt_captions)} instead of {len(captions)}, retrying...')
                     retry_count += 1
             except Exception as e:
                 retry_count += 1
                 print(f"An error occurred after try {retry_count}: {e}")
                 time.sleep(1)
         else:
-            gpt_concept_name, trigger_text = None, "TOK"
+            gpt_concept_description, trigger_text = None, "TOK"
     else:
         # simple concat of trigger text with rest of prompt:
         if len(text) == 0:
@@ -389,16 +377,16 @@ def post_process_captions(captions, text, concept_mode, job_seed):
                 trigger_text = "in the style of TOK, "
                 captions = [trigger_text + caption for caption in captions]
             else:
-                trigger_text = "a photo of TOK, "
+                trigger_text = "TOK, "
                 captions = [trigger_text + caption for caption in captions]
         else:
             trigger_text = text
             captions = [trigger_text + ", " + caption for caption in captions]
 
-        gpt_concept_name = None
+        gpt_concept_description = None
 
     captions = [fix_prompt(caption) for caption in captions]
-    return captions, trigger_text, gpt_concept_name
+    return captions, trigger_text, gpt_concept_description
 
 
 def blip_caption_dataset(
@@ -716,7 +704,8 @@ def load_and_save_masks_and_captions(
     captions = caption_dataset(images, captions, caption_model = caption_model)
 
     # Cleanup prompts using chatgpt:
-    captions, trigger_text, gpt_concept_name = post_process_captions(captions, caption_text, concept_mode, seed)
+    captions = [fix_prompt(caption) for caption in captions]
+    captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
 
     aug_imgs, aug_caps = [],[]
     while len(images) + len(aug_imgs) < augment_imgs_up_to_n: # if we still have a very small amount of imgs, do some basic augmentation:
@@ -727,11 +716,11 @@ def load_and_save_masks_and_captions(
     images.extend(aug_imgs)
     captions.extend(aug_caps)
     
-    if (gpt_concept_name is not None) and ((mask_target_prompts is None) or (mask_target_prompts == "")):
-        print(f"Using GPT concept name as CLIP-segmentation prompt: {gpt_concept_name}")
-        mask_target_prompts = gpt_concept_name
+    if (gpt_concept_description is not None) and ((mask_target_prompts is None) or (mask_target_prompts == "")):
+        print(f"Using GPT concept name as CLIP-segmentation prompt: {gpt_concept_description}")
+        mask_target_prompts = gpt_concept_description
 
-    if mask_target_prompts is None:
+    if mask_target_prompts is None or config.concept_mode == "style":
         print("Disabling CLIP-segmentation")
         mask_target_prompts = ""
         temp = 999

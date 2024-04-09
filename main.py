@@ -50,7 +50,7 @@ def train(
 
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
-    
+
     weight_dtype = dtype_map[config.weight_type]
 
     (   
@@ -152,14 +152,21 @@ def train(
     else:
         # Do lora-training instead.
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
+
+        # target_blocks=["block"] for original IP-Adapter
+        # target_blocks=["up_blocks.0.attentions.1"] for style blocks only
+        # target_blocks = ["up_blocks.0.attentions.1", "down_blocks.2.attentions.1"] # for style+layout blocks
+
         unet_lora_config = LoraConfig(
             r=config.lora_rank,
             lora_alpha=config.lora_rank * config.lora_alpha_multiplier,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+            #target_modules=["to_v"],
             #use_rslora=True,
             use_dora=config.use_dora,
         )
+
         #unet.add_adapter(unet_lora_config)
         unet = get_peft_model(unet, unet_lora_config)
         pipe.unet = unet
@@ -218,15 +225,12 @@ def train(
         num_workers=config.dataloader_num_workers,
     )
 
-    num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / config.gradient_accumulation_steps
-    )
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / config.gradient_accumulation_steps)
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader))
+
     if config.max_train_steps is None:
         config.max_train_steps = config.num_train_epochs * num_update_steps_per_epoch
 
-    num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / config.gradient_accumulation_steps
-    )
     config.num_train_epochs = math.ceil(config.max_train_steps / num_update_steps_per_epoch)
     total_batch_size = config.train_batch_size * config.gradient_accumulation_steps
 
@@ -249,10 +253,7 @@ def train(
     os.makedirs(f"{checkpoint_dir}")
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
-    #embedding_handler.pre_optimize_token_embeddings(train_dataset)
-    if config.debug:
-        embedding_handler.visualize_random_token_embeddings(config.output_dir,
-            token_list = ['face', 'man', 'butterfly', 'chess', 'fly', 'the', ' ', '.'])
+    embedding_handler.pre_optimize_token_embeddings(config)
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0

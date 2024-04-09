@@ -17,6 +17,7 @@ class TrainingConfig(BaseModel):
     train_batch_size: int = 4
     num_train_epochs: int = 10000
     max_train_steps: int = 600
+    token_warmup_steps: int = 40
     checkpointing_steps: int = 10000
     token_embedding_lr_warmup_steps: int = 30
     gradient_accumulation_steps: int = 1
@@ -27,7 +28,7 @@ class TrainingConfig(BaseModel):
     ti_weight_decay: float = 3e-4
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.5e-5
-    tok_cond_reg_w: float = 0.5e-5
+    tok_cond_reg_w: float = 1.0e-5
     l1_penalty: float = 0.1
     noise_offset: float = 0.02
     snr_gamma: float = 5.0
@@ -78,7 +79,7 @@ class TrainingConfig(BaseModel):
         # add some metrics to the foldername:
         lora_str = "dora" if self.use_dora else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
-        self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}"
+        self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}"
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.seed is None:

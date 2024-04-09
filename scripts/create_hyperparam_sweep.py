@@ -35,7 +35,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_plantoid_ti_sd15"
+exp_name             = "gridsearch_grls"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
@@ -50,7 +50,10 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/xander/Downloads/datasets/grls/mira1"
+        "/home/xander/Downloads/datasets/grls/mira1",
+        "/home/xander/Downloads/datasets/grls/jana/jana_2/2",
+        "/home/xander/Downloads/datasets/grls/jana/jana_3/3",
+        "/home/xander/Downloads/datasets/grls/jana/jana_all/all"
     ],
     "concept_mode": ['face'],
     "seed": [5],
@@ -62,19 +65,19 @@ hyperparameters = {
     "checkpointing_steps": [80],
     "gradient_accumulation_steps": [1],
     "clip_grad_norm": [-1.0],
-    "prodigy_d_coef": [0.1, 0.5, 1.0],
+    "prodigy_d_coef": [0.1, 0.4, 1.0],
     "ti_lr": [0.001],
     "ti_weight_decay": [0.001],
     "lora_weight_decay": [0.0],
     "l1_penalty": [0.1],
     "off_ratio_power": [0.05],
-    "hard_pivot": ['true'],
+    "hard_pivot": ['false'],
     "token_embedding_lr_warmup_steps": [30],
     "snr_gamma": [5.0],
     "lora_rank": [12],
     "use_dora": ['true', 'false'],
     "aspect_ratio_bucketing": ['false'],
-    "caption_model": ["blip"],
+    "caption_model": ["blip", "gpt4-v"],
     "augment_imgs_up_to_n": [20],
     "verbose": ['true'],
     "debug": ['true'],
@@ -139,7 +142,7 @@ def generate_sh_script(folder_path, output_sh_path):
         
         # Write a command for each JSON file
         for json_file in json_files:
-            command = f"python trainer_pti.py -c {os.path.join(folder_path, json_file)}\n"
+            command = f"python main.py -c {os.path.join(folder_path, json_file)}\n"
             sh_file.write(command)
 
 generate_sh_script(config_output_dir, output_sh_path)

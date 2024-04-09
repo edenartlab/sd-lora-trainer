@@ -23,6 +23,27 @@ dtype_map = {
     "fp32": torch.float32
 }
 
+import re
+def replace_in_string(s, replacements):
+    while True:
+        replaced = False
+        for target, replacement in replacements.items():
+            new_s = re.sub(target, replacement, s, flags=re.IGNORECASE)
+            if new_s != s:
+                s = new_s
+                replaced = True
+        if not replaced:
+            break
+    return s
+
+def fix_prompt(prompt: str):
+    # Remove extra commas and spaces, and fix space before punctuation
+    prompt = re.sub(r"\s+", " ", prompt)  # Replace multiple spaces with a single space
+    prompt = re.sub(r",,", ",", prompt)  # Replace double commas with a single comma
+    prompt = re.sub(r"\s?,\s?", ", ", prompt)  # Fix spaces around commas
+    prompt = re.sub(r"\s?\.\s?", ". ", prompt)  # Fix spaces around periods
+    return prompt.strip()  # Remove leading and trailing whitespace
+
 def get_avg_lr(optimizer):
     try:
         # Calculate the weighted average effective learning rate
