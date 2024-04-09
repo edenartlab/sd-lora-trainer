@@ -16,5 +16,5 @@ rendered_images*
 !debug/*.py
 gridsearch*
 xander*
-
+aesthetic_score_best_model.pth
 training_args_x_*.json
