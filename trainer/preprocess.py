@@ -724,12 +724,12 @@ def calculate_new_dimensions(target_size, target_aspect_ratio):
     n_pixels = target_size ** 2
 
     # Calculate the new width and height based on the target aspect ratio
-    new_width = int((n_pixels * target_aspect_ratio) ** 0.5)
-    new_height = int(n_pixels / new_width)
+    new_width  = (n_pixels * target_aspect_ratio) ** 0.5
+    new_height = (n_pixels / new_width)
 
-    # make sure they are multiples of 64:
-    new_width = new_width - (new_width % 64)
-    new_height = new_height - (new_height % 64)
+    # round up/down to the nearest multiple of 64:
+    new_width = int(64 * round(new_width / 64))
+    new_height = int(64 * round(new_height / 64))
 
     return [new_width, new_height]
 
