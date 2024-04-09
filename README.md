@@ -41,6 +41,7 @@ Algo:
 - test if textual inversion training can also happen with prodigy_optimizer
 - add CLIP_similarity token warmup (txt = Done, img = TODO) or (aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
 - improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
+- figure out why the initial onset of learning in the LoRa / Dora causes a temporary drop in img quality
 - currently some sub-optimal stuff can happen in preprocess() when there's less than 3 or more than 45 imgs, try to improve this
 - make a separate gpt4-v call to query the concept-description using a random sample of the training imgs, assembled into a single img grid
 

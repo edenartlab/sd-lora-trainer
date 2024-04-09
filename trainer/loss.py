@@ -129,7 +129,7 @@ class ConditioningRegularizer:
     def _compute_tok_regularization_loss(self, pipe):
         reg_captions = [caption.replace("TOK", self.token_replacement) for caption in self.reg_captions]
         reg_prompt_embeds, reg_pooled_prompt_embeds, reg_add_time_ids = get_conditioning_signals(
-            self.config, pipe, reg_captions, self.embedding_handler.text_encoders
+            self.config, pipe, reg_captions
         )
 
         reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)

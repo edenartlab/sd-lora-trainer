@@ -303,7 +303,7 @@ def train(
             captions = list(captions)
                     
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
-                config, pipe, captions, text_encoders
+                config, pipe, captions
             )
             
             # Sample noise that we'll add to the latents:
