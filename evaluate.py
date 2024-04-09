@@ -142,13 +142,13 @@ image_filenames, prompts = render_images_eval(
 
 print(f"Eval prompts:")
 for p in prompts:
-        print(p)
+    print(p)
 print(f"\n\n\n")
 eval = Evaluation(image_filenames=image_filenames)
 clip_diversity = eval.clip_diversity(device=device)
 
 # TODO: replace checkpoint_path=None with the correct checkpoint path
-aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path=None)
+aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path="aesthetic_score_best_model.pth")
 image_text_alignment = eval.image_text_alignment(device=device, prompts=prompts)
 
 result = {
