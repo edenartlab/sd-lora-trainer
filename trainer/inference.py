@@ -97,6 +97,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
 
     return prompt
 
+
 def get_conditioning_signals(config, pipe, token_indices, text_encoders):
 
     if config.sd_model_version == 'sdxl':
@@ -160,6 +161,8 @@ def get_conditioning_signals(config, pipe, token_indices, text_encoders):
         pooled_prompt_embeds, add_time_ids = None, None
 
     return prompt_embeds, pooled_prompt_embeds, add_time_ids
+
+
 
 def blend_conditions(embeds1, embeds2, lora_scale,
         token_scale_power = 0.4,  # adjusts the curve of the interpolation

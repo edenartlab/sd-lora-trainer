@@ -34,14 +34,14 @@ Code / Cleanup:
 - Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
 
 Algo:
+- add txt-encoder LoRa + full finetuning options
 - Test if timesteps = torch.randint() can be improved: look at sdxl training code! (see https://github.com/huggingface/diffusers/blob/main/examples/advanced_diffusion_training/train_dreambooth_lora_sdxl_advanced.py#L1263, https://arxiv.org/pdf/2206.00364.pdf)
 - Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
 - test if textual inversion training can also happen with prodigy_optimizer
-- the random initialization of the token embeddings has a relatively large impact on the final outcome, there are prob ways to reduce
-this random variance, eg CLIP_similarity pretraining.
+- add CLIP_similarity token warmup (txt = Done, img = TODO) or (aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
 - improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
 - currently some sub-optimal stuff can happen in preprocess() when there's less than 3 or more than 45 imgs, try to improve this
-
+- make a separate gpt4-v call to query the concept-description using a random sample of the training imgs, assembled into a single img grid
 
 Bigger improvements:
 - create good model evaluation script:
@@ -49,8 +49,6 @@ Bigger improvements:
     - some kind of img-feature similarity (eg CLIP or FID or ...) between training imgs and generated imgs
 - add stronger token regularization (eg CelebBasis spanning basis)
 - Add multi-token training
-- pre-optimize token embeddings using CLIP-similarity (cfr aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
-- pre-optimize token embeddings using a short chatgpt description of the concept --> train tokens to match that conditioning vector (via gradients)
 - implement perfusion: https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
 - make compatible with ziplora: https://ziplora.github.io/

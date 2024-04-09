@@ -1,6 +1,6 @@
 {
     "output_dir": "lora_models/banny_test",
-    "sd_model_version": "sdxl",
+    "sd_model_version": "sd15",
     "lora_training_urls": "/home/xander/Downloads/datasets/banny_best_uncaptioned",
     "concept_mode": "object",
     "seed": 1,

@@ -222,6 +222,8 @@ class TokenEmbeddingsHandler:
         prompt_embeds_list = []
 
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
+            if text_encoder is None:
+                continue
             text_input_ids = tokenizer(
                 text,
                 padding="max_length",
@@ -255,11 +257,12 @@ class TokenEmbeddingsHandler:
         --> This requires loading the img-encoder part for each of the txt-encoders and figuring out the correct projection layer
         """
 
-        if config.token_warmup_steps <= 0:
+        target_prompt = config.training_attributes["gpt_description"]
+
+        if config.token_warmup_steps <= 0 or not target_prompt:
             return
 
         # This is the concept description from chatgpt:
-        target_prompt = config.training_attributes["segmentation_prompt"]
         target_prompt_embeds, target_pooled_prompt_embeds = self.encode_text(target_prompt)
         print(f'Warming up token embeddings with prompt: {target_prompt}...')
 
