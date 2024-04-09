@@ -181,6 +181,7 @@ def train(
         ]
 
     optimizer_type = "prodigy" # hardcode for now
+    #optimizer_type = "adam" # hardcode for now
 
     if optimizer_type != "prodigy":
         optimizer_lora_unet = torch.optim.AdamW(unet_lora_params_to_optimize, lr = 1e-4)
@@ -204,7 +205,7 @@ def train(
         input_dir,
         pipe,
         vae.float(),
-        size = config.resolution,
+        size = config.train_img_size,
         do_cache=config.do_cache,
         substitute_caption_map=config.token_dict,
         aspect_ratio_bucketing=config.aspect_ratio_bucketing,
@@ -301,7 +302,7 @@ def train(
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
             captions = list(captions)
-                    
+            
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
                 config, pipe, captions
             )

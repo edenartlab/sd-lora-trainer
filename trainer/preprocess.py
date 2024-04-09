@@ -550,11 +550,56 @@ def caption_dataset(
 
     return captions
 
+def _crop_to_aspect_ratio(
+    image: Image.Image,
+    com: List[Tuple[int, int]],
+    target_aspect_ratio: float = 1.0,  # width / height
+    resize_to: Optional[int] = None
+):
+    """
+    Crops the image to the specified aspect ratio around the center of mass of the mask.
+    """
+    cx, cy = com
+    width, height = image.size
 
+    if target_aspect_ratio > 1:  # Wider than tall
+        new_width = min(width, height * target_aspect_ratio)
+        new_height = new_width / target_aspect_ratio
+    else:  # Taller than wide or square
+        new_height = min(height, width / target_aspect_ratio)
+        new_width = new_height * target_aspect_ratio
+
+    left = max(cx - new_width / 2, 0)
+    right = min(left + new_width, width)
+    top = max(cy - new_height / 2, 0)
+    bottom = min(top + new_height, height)
+
+    # Adjust if the crop goes beyond the image boundaries
+    if right > width:
+        right = width
+        left = right - new_width
+    if bottom > height:
+        bottom = height
+        top = bottom - new_height
+
+    image = image.crop((left, top, right, bottom))
+
+    if resize_to:
+        if target_aspect_ratio > 1:
+            resize_height = int(resize_to / target_aspect_ratio)
+            image = image.resize((resize_to, resize_height), Image.Resampling.LANCZOS)
+        else:
+            resize_width = int(resize_to * target_aspect_ratio)
+            image = image.resize((resize_width, resize_to), Image.Resampling.LANCZOS)
+
+    return image
 
 def _crop_to_square(
     image: Image.Image, com: List[Tuple[int, int]], resize_to: Optional[int] = None
 ):
+    """
+    Crops the image to a square around the center of mass of the mask.
+    """
     cx, cy = com
     width, height = image.size
     if width > height:
@@ -671,6 +716,22 @@ def augment_image(image):
         image = gaussian_blur(image)
     return image
 
+def calculate_new_dimensions(target_size, target_aspect_ratio):
+    """
+    Calculate the new width and height given a target size and aspect ratio.
+    """
+    # Calculate the total number of pixels
+    n_pixels = target_size ** 2
+
+    # Calculate the new width and height based on the target aspect ratio
+    new_width = int((n_pixels * target_aspect_ratio) ** 0.5)
+    new_height = int(n_pixels / new_width)
+
+    # make sure they are multiples of 64:
+    new_width = new_width - (new_width % 64)
+    new_height = new_height - (new_height % 64)
+
+    return new_width, new_height
 
 
 def load_and_save_masks_and_captions(
@@ -725,6 +786,14 @@ def load_and_save_masks_and_captions(
         else:
             captions.append(None)
 
+    # Compute average aspect ratio of images:
+    aspect_ratios = [image.size[0] / image.size[1] for image in images]
+    avg_aspect_ratio = sum(aspect_ratios) / len(aspect_ratios)
+    print(f"Average aspect ratio of images: {avg_aspect_ratio}")
+    config.train_img_size = calculate_new_dimensions(target_size, avg_aspect_ratio)
+    target_size = max(config.train_img_size)
+    print(f"New train_img_size: {config.train_img_size}")
+
     n_training_imgs = len(images)
     n_captions      = len([c for c in captions if c is not None])
     print(f"Loaded {n_training_imgs} images, {n_captions} of which have captions.")
@@ -732,7 +801,7 @@ def load_and_save_masks_and_captions(
     if len(images) < 50: # upscale images that are smaller than target_size:
         print("upscaling imgs..")
         upscale_margin = 0.75
-        images = swin_ir_sr(images, target_size=(int(target_size*upscale_margin), int(target_size*upscale_margin)))
+        images = swin_ir_sr(images, target_size=(int(config.train_img_size[0]*upscale_margin), int(config.train_img_size[0]*upscale_margin)))
 
     if add_lr_flips and len(images) < 40:
         print(f"Adding LR flips... (doubling the number of images from {n_training_imgs} to {n_training_imgs*2})")
@@ -789,22 +858,29 @@ def load_and_save_masks_and_captions(
         coms = [(image.size[0] / 2, image.size[1] / 2) for image in images]
         
     # based on the center of mass, crop the image to a square
-    print("Cropping squares...")
-    images = [
-        _crop_to_square(image, com, resize_to=None) 
-        for image, com in zip(images, coms)
-    ]
+    print("Cropping and resizing images...")
+    if 0:
+        images = [
+            _crop_to_square(image, com, resize_to=None) 
+            for image, com in zip(images, coms)
+        ]
 
-    seg_masks = [
-        _crop_to_square(mask, com, resize_to=target_size) 
-        for mask, com in zip(seg_masks, coms)
-    ]
+        seg_masks = [
+            _crop_to_square(mask, com, resize_to=target_size) 
+            for mask, com in zip(seg_masks, coms)
+        ]
+    else:
+        images = [
+            _crop_to_aspect_ratio(image, com, target_aspect_ratio = avg_aspect_ratio,  # width / height
+                resize_to = target_size)
+            for image, com in zip(images, coms)
+        ]
 
-    print("Resizing images to training size...")
-    images = [
-        image.resize((target_size, target_size), Image.Resampling.LANCZOS)
-        for image in images
-    ]
+        seg_masks = [
+            _crop_to_aspect_ratio(mask, com, target_aspect_ratio = avg_aspect_ratio,  # width / height
+                resize_to = target_size)
+            for mask, com in zip(seg_masks, coms)
+        ]
 
     data = []
     # clean TEMP_OUT_DIR first

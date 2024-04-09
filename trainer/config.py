@@ -14,6 +14,7 @@ class TrainingConfig(BaseModel):
     seed: Union[int, None] = None
     resolution: int = 512
     validation_img_size: List[int] = [1024, 1024]
+    train_img_size: List[int] = None
     train_batch_size: int = 4
     num_train_epochs: int = 10000
     max_train_steps: int = 600

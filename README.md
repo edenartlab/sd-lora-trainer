@@ -33,6 +33,7 @@ Code / Cleanup:
 - Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
 - Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
 - properly measure regularization target_values for conditioning and add pooled_prompt_embeds into regularizer for SDXL
+- compute mean aspect ratio of training imgs and find the closest resolution bucket --> train at that aspect
 
 Algo:
 - add txt-encoder LoRa + full finetuning options

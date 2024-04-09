@@ -5,7 +5,7 @@ import pandas as pd
 import PIL
 from PIL import Image
 from torch.utils.data import Dataset
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 def prepare_image(
     pil_image: PIL.Image.Image, w: int = 512, h: int = 512, pipe=None,
@@ -35,7 +35,7 @@ class PreprocessedDataset(Dataset):
         text_encoder_1=None,
         text_encoder_2=None,
         do_cache: bool = False,
-        size: int = 512,
+        size: List[int] = [512, 512],
         text_dropout: float = 0.0,
         aspect_ratio_bucketing: bool = False,
         train_batch_size: int = None, # required for aspect_ratio_bucketing
@@ -147,7 +147,7 @@ class PreprocessedDataset(Dataset):
         image_path = os.path.join(self.data_dir, image_path)
         image = PIL.Image.open(image_path).convert("RGB")
         if bucketing_resolution is None:
-            image = prepare_image(image, w = self.size, h = self.size, pipe = self.pipe).to(
+            image = prepare_image(image, w = self.size[0], h = self.size[1], pipe = self.pipe).to(
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
         else:
@@ -167,7 +167,7 @@ class PreprocessedDataset(Dataset):
             mask_path = self.mask_path[idx]
             mask_path = os.path.join(self.data_dir, mask_path)
             mask = PIL.Image.open(mask_path)
-            mask = prepare_mask(mask, self.size, self.size).to(
+            mask = prepare_mask(mask, self.size[0], self.size[1]).to(
                 dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
             )
             
