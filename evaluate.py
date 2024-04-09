@@ -1,7 +1,6 @@
 import argparse
-from trainer.utils.inference import render_images_eval
+from trainer.inference import render_images_eval
 from trainer.utils.json_stuff import save_as_json
-from trainer.utils.config_modification import modify_args_based_on_concept_mode
 from trainer.config import TrainingConfig
 from trainer.models import pretrained_models
 import clip
@@ -128,8 +127,6 @@ args = parse_arguments()
 os.system(f"mkdir -p {args.output_folder}")
 
 config = TrainingConfig.from_json(args.config_filename)
-config = modify_args_based_on_concept_mode(config)
-
 
 image_filenames, prompts = render_images_eval(
     output_folder=args.output_folder,
@@ -142,40 +139,10 @@ image_filenames, prompts = render_images_eval(
     trigger_text='TOK' if config.concept_mode != "style" else ", in the style of TOK"
 )
 
-if config.concept_mode == "style":
-    prompts = [
-        filter_prompt(
-            x, 
-            remove_this="in the style of <s0><s1>,", 
-            replace_with=""
-        ) 
-        for x in prompts
-    ]
-elif config.concept_mode == "face":
-    prompts = [
-        filter_prompt(
-            x, 
-            remove_this="<s0><s1>", 
-            replace_with="face"
-        ) 
-        for x in prompts
-    ]
-elif config.concept_mode == "object":
-    prompts = [
-        filter_prompt(
-            x, 
-            remove_this="<s0><s1>", 
-            replace_with="object"
-        ) 
-        for x in prompts
-    ]
-else:
-    print(prompts)
-    raise NotImplementedError("prompt filtering for other concept modes is not implemented")
 
 print(f"Eval prompts:")
 for p in prompts:
-    print(p)
+        print(p)
 print(f"\n\n\n")
 eval = Evaluation(image_filenames=image_filenames)
 clip_diversity = eval.clip_diversity(device=device)
@@ -204,9 +171,9 @@ save_as_json(
 """
 Example commands:
 
-python3 evaluate.py  --output_folder eval_images --lora_path lora_models/without_cog_gene--05_00-11-23-sdxl_face_dora/checkpoints/checkpoint-600  --output_json eval_results.json --config_filename training_args_gene.json
-
-python3 evaluate.py  --output_folder eval_images --lora_path lora_models/banny--04_23-53-12-sdxl_object_dora/checkpoints/checkpoint-600  --output_json eval_results_banny.json --config_filename training_args_banny.json
-
-python3 evaluate.py  --output_folder eval_images --lora_path lora_models/clipx_tiny_dora_only---sdxl_style_dora/checkpoints/checkpoint-600  --output_json eval_results_style.json --config_filename training_args.json
+python3 evaluate.py  \
+--output_folder eval_images \
+--lora_path lora_models/clipx--09_03-12-14-sdxl_style_dora_512_0.0_blip/checkpoints/checkpoint-200  \
+--output_json eval_results_style.json \
+--config_filename training_args_style.json
 """

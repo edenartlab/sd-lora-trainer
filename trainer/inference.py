@@ -11,6 +11,21 @@ from trainer.utils.val_prompts import val_prompts
 from trainer.utils.utils import fix_prompt, replace_in_string
 from trainer.models import load_models
 from trainer.lora import patch_pipe_with_lora
+from diffusers import DDPMScheduler, EulerDiscreteScheduler, StableDiffusionPipeline, StableDiffusionXLPipeline
+from peft import PeftModel
+
+def load_model(pretrained_model: dict):
+    if pretrained_model['version'] == "sd15":
+        pipe = StableDiffusionPipeline.from_single_file(
+            pretrained_model['path'], torch_dtype=torch.float16, use_safetensors=True)
+    else:
+        pipe = StableDiffusionXLPipeline.from_single_file(
+            pretrained_model['path'], torch_dtype=torch.float16, use_safetensors=True)
+
+    pipe = pipe.to('cuda', dtype=torch.float16)
+    pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config) #, timestep_spacing="trailing")
+
+    return pipe
 
 def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True):
     """
@@ -343,52 +358,45 @@ def render_images_eval(
     gc.collect()
     torch.cuda.empty_cache()
 
-    (
-        pipe,
-        tokenizer_one,
-        tokenizer_two,
-        noise_scheduler,
-        text_encoder_one,
-        text_encoder_two,
-        vae,
-        unet,
-    ) = load_models(pretrained_model, device, torch.float16)
+    # (
+    #     pipe,
+    #     tokenizer_one,
+    #     tokenizer_two,
+    #     noise_scheduler,
+    #     text_encoder_one,
+    #     text_encoder_two,
+    #     vae,
+    #     unet,
+    # ) = load_models(pretrained_model, device, torch.float16)
+
+    pipe = load_model(pretrained_model)
+    pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
 
     pipe = pipe.to(device)
     pipe = patch_pipe_with_lora(pipe, lora_path)
     
-    pipe.scheduler = EulerDiscreteScheduler.from_config(
-        pipe.scheduler.config, timestep_spacing="trailing"
-    )
-    validation_prompts = [
-        prepare_prompt_for_lora(
-            prompt, lora_path, verbose=verbose, trigger_text=trigger_text
-        )
-        for prompt in validation_prompts_raw
-    ]
-    generator = torch.Generator(device=device).manual_seed(0)
+    pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
+    generator = torch.Generator(device=device).manual_seed(seed)
+    negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
     pipeline_args = {
-        "negative_prompt": "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft",
-        "num_inference_steps": n_steps,
-        "guidance_scale": 8,
-        "height": render_size[0],
-        "width": render_size[1],
-    }
+                "num_inference_steps": n_steps,
+                "guidance_scale": 8,
+                "height": render_size[0],
+                "width": render_size[1],
+                }
 
-    if is_lora > 0:
-        cross_attention_kwargs = {"scale": lora_scale}
-    else:
-        cross_attention_kwargs = None
-    
     filenames = []
     for i in range(n_imgs):
-        pipeline_args["prompt"] = validation_prompts[i]
-        print(f"Rendering validation img with prompt: {validation_prompts[i]}")
-        image = pipe(
-            **pipeline_args,
-            generator=generator,
-            cross_attention_kwargs=cross_attention_kwargs,
-        ).images[0]
+        print(f"Rendering validation img with prompt: {validation_prompts_raw[i]}")
+        c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale = 8, concept_mode = concept_mode)
+
+        pipeline_args['prompt_embeds'] = c
+        pipeline_args['negative_prompt_embeds'] = uc
+        if pretrained_model['version'] == 'sdxl':
+            pipeline_args['pooled_prompt_embeds'] = pc
+            pipeline_args['negative_pooled_prompt_embeds'] = puc
+
+        image = pipe(**pipeline_args, generator=generator).images[0]
         filename = os.path.join(output_folder, f"{i}.jpg")
         image.save(
             filename,
@@ -397,4 +405,4 @@ def render_images_eval(
         )
         filenames.append(filename)
 
-    return filenames, validation_prompts
+    return filenames, validation_prompts_raw
