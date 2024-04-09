@@ -46,7 +46,7 @@ class TrainingConfig(BaseModel):
     clipseg_temperature: float = 0.6
     n_sample_imgs: int = 4
     verbose: bool = False
-    name: str = "unnamed"
+    name: str = None
     output_dir: str = "lora_models/unnamed"
     debug: bool = False
     hard_pivot: bool = False
@@ -80,6 +80,10 @@ class TrainingConfig(BaseModel):
         # add some metrics to the foldername:
         lora_str = "dora" if self.use_dora else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
+        
+        if not self.name:
+            self.name = f"{os.path.basename(self.output_dir)}_{self.concept_mode}_{lora_str}_{self.sd_model_version}_{timestamp_short}"
+
         self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}"
         os.makedirs(self.output_dir, exist_ok=True)
 

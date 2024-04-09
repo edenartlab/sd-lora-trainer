@@ -5,13 +5,14 @@ import torch
 from huggingface_hub import hf_hub_download
 import os, json, random, time, sys
 
+sys.path.append('.')
 sys.path.append('..')
 from trainer.models import load_models, pretrained_models
 from trainer.lora import patch_pipe_with_lora
 from trainer.utils.val_prompts import val_prompts
 from trainer.utils.io import make_validation_img_grid
 from trainer.utils.utils import seed_everything, pick_best_gpu_id
-from trainer.utils.inference import encode_prompt_advanced
+from trainer.inference import encode_prompt_advanced
 
 def load_model(pretrained_model):
     if pretrained_model['version'] == "sd15":
@@ -29,16 +30,16 @@ def load_model(pretrained_model):
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/xander--07_19-19-35-sdxl_face_dora/checkpoints/checkpoint-360'
-    lora_scales    = np.linspace(0.4, 0.6, 3)
-    render_size    = (1024, 256+1024)  # H,W
+    lora_path      = 'lora_models/lizzo--09_02-04-26-sdxl_object_lora_640_0.1_blip/checkpoints/checkpoint-500'
+    lora_scales    = np.linspace(0.5, 0.7, 3)
+    render_size    = (768, 768)  # H,W
     n_imgs         = 10
     n_loops        = 4
 
     n_steps        = 35
     guidance_scale = 7.5
-    seed           = 3
-    use_lightning  = 1
+    seed           = 2
+    use_lightning  = 0
 
     #####################################################################################
 
@@ -70,27 +71,11 @@ if __name__ == "__main__":
         validation_prompts_raw = random.choices(val_prompts['object'], k=n_imgs)
 
     validation_prompts_raw = [
-        'an elderly <concept>, old man',
-        'a photo of <concept> as a young boy',
-        'a painting of elderly <concept>, impressionism, stunning composition',
-        'a painting of <concept> as a young kid, playing in the garden',
-        'A digital illustration of <concept> as a child, exploring a mystical forest, vibrant colors',
-        'An old-fashioned portrait of elderly <concept>, sitting in a cozy armchair, reading a book',
-        'A watercolor painting of young <concept>, running through a meadow with a kite, bright and joyful',
-        'A sketch of <concept> as a teenager, gazing at the stars, dreamy and contemplative',
-        'A vintage photograph of elderly <concept>, wearing a classic hat, exuding wisdom and elegance',
-        'A cartoon drawing of young <concept>, having a playful snowball fight, full of energy and laughter',
-        'A surrealist painting of <concept> as a child, riding a fantastical creature, imaginative and whimsical',
-        'A black and white photo of elderly <concept>, sitting on a park bench, reflecting on lifes journey',
-        'A futuristic hologram of elderly <concept>, floating in a space station, surrounded by stars and galaxies'
-        'A clay animation of baby <concept>, crawling in a magical garden with talking flowers and dancing insects',
-        'An abstract painting of ancient <concept>, merging with the roots of an ancient tree, symbolizing wisdom and eternity',
-        'A neon-lit digital art piece of toddler <concept>, playing with holographic toys in a cyberpunk playground',
-        'A mosaic of centenarian <concept>, composed of thousands of tiny images from their life, telling a story of a century',
-        'A pop art portrait of young <concept>, riding a colorful unicorn, surrounded by rainbows and candy clouds',
-        'A steampunk illustration of elderly <concept>, inventing a time machine, surrounded by gears and steam',
-        'A fantasy drawing of newborn <concept>, cradled in the arms of a gentle giant, in a land of giants and mythical creatures'
-
+            "actress in TOK at a gala",
+            "TOK, facy dinner party",
+            "woman in TOK and jacket",
+            "smiling woman in TOK at a party",
+            "jennifer jones on TOK at music awards"
     ]
 
     negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
@@ -103,8 +88,9 @@ if __name__ == "__main__":
     for jj in range(n_loops):
         for i in range(len(validation_prompts_raw)):
             for lora_scale in lora_scales:
-                pipe = load_model(pretrained_model)
-                pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
+                seed += 1
+                #pipe = load_model(pretrained_model)
+                #pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
                 pipe = patch_pipe_with_lora(pipe, lora_path, lora_scale=lora_scale)
                 generator = torch.Generator(device='cuda').manual_seed(seed)
 

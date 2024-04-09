@@ -32,8 +32,6 @@ class PreprocessedDataset(Dataset):
         data_dir: str,
         pipe,
         vae_encoder,
-        text_encoder_1=None,
-        text_encoder_2=None,
         do_cache: bool = False,
         size: List[int] = [512, 512],
         text_dropout: float = 0.0,
@@ -59,10 +57,6 @@ class PreprocessedDataset(Dataset):
             self.mask_path = self.data["mask_path"]
 
         self.pipe = pipe
-
-        self.text_encoder_1 = text_encoder_1
-        self.text_encoder_2 = text_encoder_2
-
         self.vae_encoder = vae_encoder
         self.vae_scaling_factor = self.vae_encoder.config.scaling_factor
         self.text_dropout = text_dropout
@@ -93,7 +87,6 @@ class PreprocessedDataset(Dataset):
             for idx in range(len(self.data)):
                 aspect_ratios[idx] = Image.open(os.path.join(self.data_dir, self.image_path[idx])).size
 
-            print(aspect_ratios)
             self.bucket_manager = BucketManager(
                 aspect_ratios = aspect_ratios,
                 bsz = train_batch_size,
@@ -108,7 +101,6 @@ class PreprocessedDataset(Dataset):
         indices, resolution = self.bucket_manager.get_batch()
 
         print(f"Got bucket batch: {indices}, resolution: {resolution}")
-
         tok1, tok2, vae_latents, masks = [], [], [], []
         
         for idx in indices:

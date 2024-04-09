@@ -731,7 +731,7 @@ def calculate_new_dimensions(target_size, target_aspect_ratio):
     new_width = new_width - (new_width % 64)
     new_height = new_height - (new_height % 64)
 
-    return new_width, new_height
+    return [new_width, new_height]
 
 
 def load_and_save_masks_and_captions(

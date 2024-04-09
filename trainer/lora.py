@@ -1,10 +1,9 @@
 import os, json
 import torch
-from safetensors.torch import load_file
+from safetensors.torch import load_file, save_file
 from typing import Dict
 from peft import PeftModel
 from trainer.embedding_handler import TokenEmbeddingsHandler
-from safetensors.torch import save_file
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
 
 def patch_pipe_with_lora(pipe, lora_path, lora_scale = 1.0):
@@ -74,12 +73,18 @@ def save_lora(
         name: str = None
     ):
     """
-    Save the LORA model to output_dir
+    Save the model + embeddings to output_dir
     """
     print(f"Saving checkpoint at step.. {global_step}")
-
     # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
     name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
+
+    embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")
+
+    print("A")
+    with open(f"{output_dir}/special_params.json", "w") as f:
+        json.dump(token_dict, f)
+    print("A")
 
     if not is_lora:
         lora_tensors = {
@@ -89,11 +94,9 @@ def save_lora(
         }
         save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
     elif len(unet_lora_parameters) > 0:
-        unet.save_pretrained(save_directory = output_dir)
+        #unet.save_pretrained(save_directory = output_dir)
 
-    lora_tensors = get_peft_model_state_dict(unet)
-
-    if 1:
+        lora_tensors = get_peft_model_state_dict(unet)
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
         StableDiffusionXLPipeline.save_lora_weights(
                 output_dir,
@@ -102,14 +105,13 @@ def save_lora(
                 #text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
             )
 
-    if 1:
-        #lora_tensors = unet_attn_processors_state_dict(unet)
-        save_file(lora_tensors, f"{output_dir}/{name}_lora_orig.safetensors")
-        
-    embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")
-
-    with open(f"{output_dir}/special_params.json", "w") as f:
-        json.dump(token_dict, f)
+        # Convert to WebUI format
+        lora_state_dict = load_file(f"{output_dir}/pytorch_lora_weights.safetensors")
+        peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
+        kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
+        save_file(kohya_state_dict, f"{output_dir}/{name}.safetensors")
+    else:
+        print("No lora parameters to save.")
 
 
 ######################################################

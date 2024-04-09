@@ -16,7 +16,7 @@
     "ti_lr": 0.001,
     "ti_weight_decay": 0.0002,
     "off_ratio_power": 0.05,
-    "prodigy_d_coef": 0.0,
+    "prodigy_d_coef": 1.0,
     "lora_weight_decay": 0.0001,
     "l1_penalty": 0.1,
     "noise_offset": 0.05,
@@ -32,6 +32,5 @@
     "debug": true,
     "hard_pivot": false,
     "weight_type": "bf16",
-    "dataloader_num_workers": 0,
-    "name": "unnamed"
+    "dataloader_num_workers": 0
 }
