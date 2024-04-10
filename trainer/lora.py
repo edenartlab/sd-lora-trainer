@@ -103,7 +103,7 @@ def save_lora(
         }
         save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
     elif len(unet_lora_parameters) > 0:
-        #unet.save_pretrained(save_directory = output_dir)
+        unet.save_pretrained(save_directory = output_dir)
 
         lora_tensors = get_peft_model_state_dict(unet)
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
