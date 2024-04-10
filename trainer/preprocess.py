@@ -728,8 +728,8 @@ def calculate_new_dimensions(target_size, target_aspect_ratio):
     new_height = (n_pixels / new_width)
 
     # round up/down to the nearest multiple of 64:
-    new_width = int(64 * round(new_width / 64))
-    new_height = int(64 * round(new_height / 64))
+    new_width = int(64 * round(new_width / 64.0))
+    new_height = int(64 * round(new_height / 64.0))
 
     return [new_width, new_height]
 
@@ -791,6 +791,7 @@ def load_and_save_masks_and_captions(
     avg_aspect_ratio = sum(aspect_ratios) / len(aspect_ratios)
     print(f"Average aspect ratio of images: {avg_aspect_ratio}")
     config.train_img_size = calculate_new_dimensions(target_size, avg_aspect_ratio)
+    config.train_aspect_ratio = config.train_img_size[0] / config.train_img_size[1]
     target_size = max(config.train_img_size)
     print(f"New train_img_size: {config.train_img_size}")
 
@@ -859,28 +860,17 @@ def load_and_save_masks_and_captions(
         
     # based on the center of mass, crop the image to a square
     print("Cropping and resizing images...")
-    if 0:
-        images = [
-            _crop_to_square(image, com, resize_to=None) 
-            for image, com in zip(images, coms)
-        ]
+    images = [
+        _crop_to_aspect_ratio(image, com, target_aspect_ratio = config.train_aspect_ratio,  # width / height
+            resize_to = target_size)
+        for image, com in zip(images, coms)
+    ]
 
-        seg_masks = [
-            _crop_to_square(mask, com, resize_to=target_size) 
-            for mask, com in zip(seg_masks, coms)
-        ]
-    else:
-        images = [
-            _crop_to_aspect_ratio(image, com, target_aspect_ratio = avg_aspect_ratio,  # width / height
-                resize_to = target_size)
-            for image, com in zip(images, coms)
-        ]
-
-        seg_masks = [
-            _crop_to_aspect_ratio(mask, com, target_aspect_ratio = avg_aspect_ratio,  # width / height
-                resize_to = target_size)
-            for mask, com in zip(seg_masks, coms)
-        ]
+    seg_masks = [
+        _crop_to_aspect_ratio(mask, com, target_aspect_ratio = config.train_aspect_ratio,  # width / height
+            resize_to = target_size)
+        for mask, com in zip(seg_masks, coms)
+    ]
 
     data = []
     # clean TEMP_OUT_DIR first

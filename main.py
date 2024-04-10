@@ -302,8 +302,8 @@ def train(
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
             captions = list(captions)
-            vae_latent = vae_latent.to(pipe.device).to(weight_dtype)
-            mask = mask.to(pipe.device).to(weight_dtype)
+            #vae_latent = vae_latent.to(pipe.device).to(weight_dtype)
+            #mask = mask.to(pipe.device).to(weight_dtype)
 
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
                 config, pipe, captions
@@ -488,6 +488,7 @@ def train(
 
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)
+        config.save_as_json(os.path.join(output_save_dir, "training_args.json"))
         save_lora(
             output_dir=output_save_dir, 
             global_step=global_step, 
@@ -528,7 +529,7 @@ def train(
     del pipe
     gc.collect()
     torch.cuda.empty_cache()
-    
+
     if config.debug:
         parent_dir = os.path.dirname(os.path.abspath(__file__))
         # Create a zipfile of all the *.py files in the directory
