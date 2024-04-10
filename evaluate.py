@@ -18,6 +18,24 @@ todos:
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+def get_filenames_in_a_folder(folder: str):
+    """
+    returns the list of paths to all the files in a given folder
+    """
+    
+    if folder[-1] == '/':
+        folder = folder[:-1]
+        
+    files =  os.listdir(folder)
+    files = [f'{folder}/' + x for x in files]
+    return files
+
+def get_all_jpg_filenames(folder):
+    all_filenames = get_filenames_in_a_folder(folder=folder)
+    jpg_filenames = [filename for filename in all_filenames if filename.lower().endswith('.jpg')]
+    assert len(jpg_filenames)>0, f"Expected to find at least 1 jpg file but got 0"
+    return jpg_filenames
+
 def filter_prompt(prompt, remove_this = "in the style of <s0><s1>,", replace_with = ""):
     assert  remove_this in prompt, f"Expected '{remove_this}' to be present in the prompt: '{prompt}'"
     return prompt.replace(
@@ -68,6 +86,22 @@ class Evaluation:
             text_features = model.encode_text(text)
         return text_features
 
+    def training_image_alignment(self, device, training_image_filenames: list):
+        generated_image_features = self.obtain_image_features()
+
+        training_image_features  = []
+        model, preprocess = clip.load("ViT-B/32", device=device)
+
+        for f in training_image_filenames:
+            image = preprocess(Image.open(f)).unsqueeze(0).to(device)
+            with torch.no_grad():
+                image_features = model.encode_image(image)
+                training_image_features.append(image_features.float())
+
+        training_image_features = torch.cat(training_image_features, dim = 0)
+        return get_similarity_matrix(a=generated_image_features, b=training_image_features).mean().item()
+
+
     def image_text_alignment(self, device, prompts: list):
 
         image_features = self.obtain_image_features().to(device)
@@ -79,7 +113,9 @@ class Evaluation:
         return  cossim
 
     def clip_diversity(self, device: str):
-
+        """
+        higher = more diverse
+        """
         all_image_features = self.obtain_image_features().to(device)
 
         distances = 1 - get_similarity_matrix(all_image_features, all_image_features)
@@ -90,8 +126,6 @@ class Evaluation:
         distances = distances.detach().cpu().numpy()
         # Get the upper triangle:
         upper_triangle = np.triu(distances, k=1).flatten()
-        # Drop distances from imgs that are super super similar:
-        upper_triangle = upper_triangle[upper_triangle >= 0.2]
         return upper_triangle.mean().item()
 
     def aesthetic_score(self, device: str, checkpoint_path: str):
@@ -119,7 +153,14 @@ def parse_arguments():
                         help="Path to json where we save result values")
     parser.add_argument("--output_folder", type=str, required=True,
                         help="style or face")
+    parser.add_argument("--training_images_folder", type=str, required=True,
+                        help="path to folder containing training image jpg files. Usually the `images_in` folder")
     args = parser.parse_args()
+
+    ## validate args
+    assert os.path.exists(args.lora_path), f"Invalid lora_path: {args.lora_path}"
+    assert os.path.exists(args.config_filename), f"Invalid lora_path: {args.config_filename}"
+    assert os.path.exists(args.training_images_folder), f"Invalid training_images_folder: {args.training_images_folder}"
     return args
 
 args = parse_arguments()
@@ -141,25 +182,30 @@ image_filenames, prompts = render_images_eval(
 
 
 print(f"Eval prompts:")
-for p in prompts:
-    print(p)
-print(f"\n\n\n")
+for i, p in enumerate(prompts):
+    print(f"{i}:{p}")
+
 eval = Evaluation(image_filenames=image_filenames)
 clip_diversity = eval.clip_diversity(device=device)
 
-# TODO: replace checkpoint_path=None with the correct checkpoint path
 aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path="aesthetic_score_best_model.pth")
 image_text_alignment = eval.image_text_alignment(device=device, prompts=prompts)
+training_image_alignment = eval.training_image_alignment(
+    device=device,
+    training_image_filenames=get_all_jpg_filenames(folder=args.training_images_folder)
+)
 
 result = {
     "sd_model_version": config.sd_model_version,
     "lora_path": os.path.abspath(args.lora_path),
     "concept_mode": config.concept_mode,
     "output_folder": args.output_folder,
+    "training_images_folder":args.training_images_folder,
     "scores": {
         "clip_diversity": clip_diversity,
         "aesthetic_score": aesthetic_score,
-        "image_text_alignment": image_text_alignment
+        "image_text_alignment": image_text_alignment,
+        "training_image_alignment": training_image_alignment
     }
 }
 
@@ -167,6 +213,7 @@ save_as_json(
     dictionary_or_list=result,
     filename=args.output_json
 )
+print(f"Eval complete. Saved results here: {args.output_json}")
 
 """
 Example commands:
@@ -175,5 +222,6 @@ python3 evaluate.py  \
 --output_folder eval_images \
 --lora_path lora_models/clipx--09_03-12-14-sdxl_style_dora_512_0.0_blip/checkpoints/checkpoint-200  \
 --output_json eval_results_style.json \
---config_filename training_args_style.json
+--config_filename training_args_style.json \
+--training_images_folder lora_models/clipx--09_13-11-37-sdxl_style_dora_512_0.0_blip/images_in
 """
