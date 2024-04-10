@@ -73,6 +73,17 @@ class TrainingConfig(BaseModel):
     aspect_ratio_bucketing: bool = False
     start_time: float = 0.0
     job_time: float = 0.0
+    """
+    For text encoder lora training, the trigger variable is: text_encoder_lora_optimizer
+    if text_encoder_lora_optimizer is not None then everything else is used. 
+    Else the other variables are ignored.
+    """
+    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = "adamw"
+    text_encoder_lora_lr: float = 1e-4
+    text_encoder_lora_weight_decay: float = 1e-3
+    text_encoder_lora_alpha_multiplier: float = 1.0
+    text_encoder_lora_rank: int = 12
+    text_encoder_lora_use_dora: bool = False
 
     def __init__(self, **data):
         super().__init__(**data)

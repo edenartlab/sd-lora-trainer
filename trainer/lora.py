@@ -70,7 +70,8 @@ def save_lora(
         is_lora, 
         unet_lora_parameters, 
         unet_param_to_optimize,
-        name: str = None
+        name: str = None,
+        text_encoder_peft_models: list = None
     ):
     """
     Save the model + embeddings to output_dir
@@ -85,6 +86,14 @@ def save_lora(
     with open(f"{output_dir}/special_params.json", "w") as f:
         json.dump(token_dict, f)
     print("A")
+
+    if text_encoder_peft_models is not None:
+        for idx, model in enumerate(text_encoder_peft_models):
+            save_directory = os.path.join(output_dir, f"text_encoder_lora_{idx}")
+            model.save_pretrained(
+                save_directory = save_directory
+            )
+            print(f"Saved text encoder {idx} in: {save_directory}")
 
     if not is_lora:
         lora_tensors = {
