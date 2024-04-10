@@ -370,6 +370,27 @@ def render_images_eval(
     # ) = load_models(pretrained_model, device, torch.float16)
 
     pipe = load_model(pretrained_model)
+
+    text_encoder_0_path =  os.path.join(
+            lora_path, "text_encoder_lora_0"
+        )
+    text_encoder_1_path =  os.path.join(
+            lora_path, "text_encoder_lora_1"
+        )
+    if os.path.exists(
+        text_encoder_0_path
+    ):
+        
+        pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, text_encoder_0_path)
+        print(f"loaded text_encoder LoRA from: {text_encoder_0_path}")
+    
+    if os.path.exists(
+        text_encoder_1_path
+    ):
+        
+        pipe.text_encoder_2 = PeftModel.from_pretrained(pipe.text_encoder_2, text_encoder_1_path)
+        print(f"loaded text_encoder LoRA from: {text_encoder_1_path}")
+
     pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
 
     pipe = pipe.to(device)
