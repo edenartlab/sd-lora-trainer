@@ -147,8 +147,8 @@ def parse_arguments():
     
 
     parser.add_argument("--config_filename", type=str, required=True, default = "sdxl", help="path to config json file")
-    parser.add_argument("--lora_path", type=str, required=True,
-                        help="Path to LoRa.")
+    parser.add_argument("--checkpoint_folder", type=str, required=True,
+                        help="Path to folder containing the checkpoint. Usually a folder which is named like: .../checkpoint-500")
     parser.add_argument("--output_json", type=str, required=True,
                         help="Path to json where we save result values")
     parser.add_argument("--output_folder", type=str, required=True,
@@ -158,7 +158,7 @@ def parse_arguments():
     args = parser.parse_args()
 
     ## validate args
-    assert os.path.exists(args.lora_path), f"Invalid lora_path: {args.lora_path}"
+    assert os.path.exists(args.checkpoint_folder), f"Invalid lora_path: {args.checkpoint_folder}"
     assert os.path.exists(args.config_filename), f"Invalid lora_path: {args.config_filename}"
     assert os.path.exists(args.training_images_folder), f"Invalid training_images_folder: {args.training_images_folder}"
     return args
@@ -173,10 +173,10 @@ image_filenames, prompts = render_images_eval(
     output_folder=args.output_folder,
     concept_mode=config.concept_mode,
     render_size=(1024,1024),
-    lora_path=args.lora_path,
+    checkpoint_folder=args.checkpoint_folder,
     pretrained_model=pretrained_models[config.sd_model_version],
     seed=0,
-    is_lora = True,
+    is_lora = config.is_lora,
     trigger_text='TOK' if config.concept_mode != "style" else ", in the style of TOK"
 )
 
@@ -197,7 +197,7 @@ training_image_alignment = eval.training_image_alignment(
 
 result = {
     "sd_model_version": config.sd_model_version,
-    "lora_path": os.path.abspath(args.lora_path),
+    "checkpoint_folder": os.path.abspath(args.checkpoint_folder),
     "concept_mode": config.concept_mode,
     "output_folder": args.output_folder,
     "training_images_folder":args.training_images_folder,
@@ -220,8 +220,8 @@ Example commands:
 
 python3 evaluate.py  \
 --output_folder eval_images \
---lora_path lora_models/clipx--09_03-12-14-sdxl_style_dora_512_0.0_blip/checkpoints/checkpoint-200  \
+--checkpoint_folder lora_models/clipx--11_06-16-37-sdxl_style_dora_512_1.0_blip/checkpoints/checkpoint-500  \
 --output_json eval_results_style.json \
 --config_filename training_args_style.json \
---training_images_folder lora_models/clipx--09_13-11-37-sdxl_style_dora_512_0.0_blip/images_in
+--training_images_folder lora_models/clipx--11_06-16-37-sdxl_style_dora_512_1.0_blip/images_in
 """

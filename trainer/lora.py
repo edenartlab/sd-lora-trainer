@@ -66,10 +66,8 @@ def save_lora(
         unet, 
         embedding_handler, 
         token_dict, 
-        seed, 
         is_lora, 
         unet_lora_parameters, 
-        unet_param_to_optimize,
         name: str = None,
         text_encoder_peft_models: list = None
     ):
@@ -95,14 +93,8 @@ def save_lora(
             )
             print(f"Saved text encoder {idx} in: {save_directory}")
 
-    if not is_lora:
-        lora_tensors = {
-            name: param
-            for name, param in unet.named_parameters()
-            if name in unet_param_to_optimize
-        }
-        save_file(lora_tensors, f"{output_dir}/unet.safetensors",)
-    elif len(unet_lora_parameters) > 0:
+    if is_lora:
+        assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero"
         unet.save_pretrained(save_directory = output_dir)
 
         lora_tensors = get_peft_model_state_dict(unet)
@@ -120,7 +112,7 @@ def save_lora(
         kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
         save_file(kohya_state_dict, f"{output_dir}/{name}.safetensors")
     else:
-        print("No lora parameters to save.")
+        unet.save_pretrained(save_directory = output_dir)
 
 
 ######################################################

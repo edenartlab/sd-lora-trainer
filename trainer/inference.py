@@ -330,7 +330,7 @@ def render_images_eval(
     concept_mode: str,
     output_folder: str,
     render_size: tuple,
-    lora_path: str,
+    checkpoint_folder: str,
     seed: int,
     is_lora: bool,
     pretrained_model: str,
@@ -372,10 +372,10 @@ def render_images_eval(
     pipe = load_model(pretrained_model)
 
     text_encoder_0_path =  os.path.join(
-            lora_path, "text_encoder_lora_0"
+            checkpoint_folder, "text_encoder_lora_0"
         )
     text_encoder_1_path =  os.path.join(
-            lora_path, "text_encoder_lora_1"
+            checkpoint_folder, "text_encoder_lora_1"
         )
     if os.path.exists(
         text_encoder_0_path
@@ -391,10 +391,15 @@ def render_images_eval(
         pipe.text_encoder_2 = PeftModel.from_pretrained(pipe.text_encoder_2, text_encoder_1_path)
         print(f"loaded text_encoder LoRA from: {text_encoder_1_path}")
 
-    pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
+    if is_lora:
+        pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = checkpoint_folder, adapter_name = 'eden_lora')
 
-    pipe = pipe.to(device)
-    pipe = patch_pipe_with_lora(pipe, lora_path)
+        pipe = pipe.to(device)
+        pipe = patch_pipe_with_lora(pipe, checkpoint_folder)
+    else:
+        pipe.unet = pipe.unet.from_pretrained(checkpoint_folder)
+        pipe = pipe.to(device, dtype=torch.float16)
+        print(f"Successfully loaded full checkpoint for inference!")
     
     pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
     generator = torch.Generator(device=device).manual_seed(seed)
@@ -409,7 +414,7 @@ def render_images_eval(
     filenames = []
     for i in range(n_imgs):
         print(f"Rendering validation img with prompt: {validation_prompts_raw[i]}")
-        c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale = 8, concept_mode = concept_mode)
+        c, uc, pc, puc = encode_prompt_advanced(pipe, checkpoint_folder, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale = 8, concept_mode = concept_mode)
 
         pipeline_args['prompt_embeds'] = c
         pipeline_args['negative_prompt_embeds'] = uc
