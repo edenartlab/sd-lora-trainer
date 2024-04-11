@@ -163,6 +163,7 @@ def train(
 
     if not config.is_lora: # This code pathway has not been tested in a long while
         print(f"Doing full fine-tuning on the U-Net")
+        unet.requires_grad_(True)
         unet_lora_parameters = None
     else:
         # Do lora-training instead.
@@ -379,13 +380,14 @@ def train(
                     for embedding_tensor in text_encoder_parameters:
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
-                    # if config.debug:
-                    #     # Track the average gradient norms:
-                    #     grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
-                    #     for i, text_encoder in enumerate(text_encoders):
-                    #         if text_encoder is not None:
-                    #             text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
-                    #             grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
+                    if config.debug:
+                        # Track the average gradient norms:
+                        grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
+
+                        for i, text_encoder in enumerate(text_encoders):
+                            if text_encoder is not None:
+                                text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
+                                grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
                     
                     # Clip the gradients to stabilize training:
                     if config.clip_grad_norm > 0.0:
