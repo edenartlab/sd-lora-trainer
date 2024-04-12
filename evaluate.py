@@ -3,6 +3,7 @@ from trainer.inference import render_images_eval
 from trainer.utils.json_stuff import save_as_json
 from trainer.config import TrainingConfig
 from trainer.models import pretrained_models
+from trainer.utils.io import download
 import clip
 from PIL import Image
 import torch
@@ -12,9 +13,10 @@ from creator_lora.models.resnet50 import ResNet50MLP
 
 """
 todos:
-    - aesthetic scoring (need aesthetic scoring model checkpoint!!)
     - run eval on user-defined captions
 """
+
+aesthetic_model_checkpoint_filename = "aesthetic_score_best_model.pth"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -166,6 +168,12 @@ def parse_arguments():
 args = parse_arguments()
 
 os.system(f"mkdir -p {args.output_folder}")
+if not os.path.exists(aesthetic_model_checkpoint_filename):
+    download(
+        url="https://edenartlab-lfs.s3.amazonaws.com/models/aesthetic_score_best_model.pth",
+        folder="./",
+        filepath=None
+    )
 
 config = TrainingConfig.from_json(args.config_filename)
 
@@ -188,7 +196,8 @@ for i, p in enumerate(prompts):
 eval = Evaluation(image_filenames=image_filenames)
 clip_diversity = eval.clip_diversity(device=device)
 
-aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path="aesthetic_score_best_model.pth")
+
+aesthetic_score = eval.aesthetic_score(device=device, checkpoint_path=aesthetic_model_checkpoint_filename)
 image_text_alignment = eval.image_text_alignment(device=device, prompts=prompts)
 training_image_alignment = eval.training_image_alignment(
     device=device,
@@ -216,12 +225,12 @@ save_as_json(
 print(f"Eval complete. Saved results here: {args.output_json}")
 
 """
-Example commands:
+Example command:
 
 python3 evaluate.py  \
 --output_folder eval_images \
---checkpoint_folder lora_models/clipx--11_06-16-37-sdxl_style_dora_512_1.0_blip/checkpoints/checkpoint-500  \
+--checkpoint_folder lora_models/clipx--11_22-46-20-sd15_style_dora_512_1.0_blip/checkpoints/checkpoint-500  \
 --output_json eval_results_style.json \
 --config_filename training_args_style.json \
---training_images_folder lora_models/clipx--11_06-16-37-sdxl_style_dora_512_1.0_blip/images_in
+--training_images_folder lora_models/clipx--11_22-46-20-sd15_style_dora_512_1.0_blip/images_in
 """
