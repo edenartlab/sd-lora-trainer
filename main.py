@@ -83,29 +83,7 @@ def train(
     unet.requires_grad_(False)
     vae.requires_grad_(False)
     text_encoders = embedding_handler.text_encoders
-    text_encoder_parameters = []
-    for text_encoder in text_encoders:
-        if text_encoder is not  None:
-            text_encoder.train()
-            text_encoder.requires_grad_(False)
-            for name, param in text_encoder.named_parameters():
-                if "token_embedding" in name:
-                    param.requires_grad = True
-                    text_encoder_parameters.append(param)
-                    print(f"Added {name} with shape {param.shape} to the trainable parameters")
-                else:
-                    param.requires_grad = False
-
-    # Optimizer creation
-    ti_prod_opt = False
-
-    params_to_optimize_ti = [
-        {
-            "params": text_encoder_parameters,
-            "lr": config.ti_lr if (not ti_prod_opt) else 1.0,
-            "weight_decay": config.ti_weight_decay,
-        },
-    ]
+    
 
     if config.text_encoder_lora_optimizer is not None:
         text_encoder_lora_parameters = []
@@ -136,6 +114,30 @@ def train(
         optimizer_text_encoder_lora = None
         text_encoder_peft_models = None
 
+    text_encoder_parameters = []
+    for text_encoder in text_encoders:
+        if text_encoder is not  None:
+            text_encoder.train()
+            text_encoder.requires_grad_(False)
+            for name, param in text_encoder.named_parameters():
+                if "token_embedding" in name:
+                    param.requires_grad = True
+                    text_encoder_parameters.append(param)
+                    print(f"Added {name} with shape {param.shape} to the trainable parameters")
+                else:
+                    param.requires_grad = False
+
+    # Optimizer creation
+    ti_prod_opt = False
+
+    params_to_optimize_ti = [
+        {
+            "params": text_encoder_parameters,
+            "lr": config.ti_lr if (not ti_prod_opt) else 1.0,
+            "weight_decay": config.ti_weight_decay,
+        },
+    ]
+
     if ti_prod_opt:
         optimizer_ti = prodigyopt.Prodigy(
                             params_to_optimize_ti,
@@ -153,7 +155,6 @@ def train(
             params_to_optimize_ti,
             weight_decay=config.ti_weight_decay,
         )
-
     if not config.is_lora: # This code pathway has not been tested in a long while
         print(f"Doing full fine-tuning on the U-Net")
         unet.requires_grad_(True)
@@ -372,7 +373,6 @@ def train(
                     # zero out the gradients of the non-trained text-encoder embeddings
                     for i, embedding_tensor in enumerate(text_encoder_parameters):
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
-
                     if config.debug:
                         # Track the average gradient norms:
                         grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
