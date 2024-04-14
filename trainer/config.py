@@ -78,7 +78,7 @@ class TrainingConfig(BaseModel):
     if text_encoder_lora_optimizer is not None then everything else is used. 
     Else the other variables are ignored.
     """
-    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = 'adamw'
+    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = None
     text_encoder_lora_lr: float = 1e-5
     text_encoder_lora_weight_decay: float = 1e-4
     text_encoder_lora_rank: int = 12
