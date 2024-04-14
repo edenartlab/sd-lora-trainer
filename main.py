@@ -118,15 +118,14 @@ def train(
             if text_encoder is not None:
                 text_encoder_lora_config = LoraConfig(
                     r=config.text_encoder_lora_rank,
-                    lora_alpha=config.text_encoder_lora_rank * config.text_encoder_lora_alpha_multiplier,
+                    lora_alpha=config.text_encoder_lora_rank * config.lora_alpha_multiplier,
                     init_lora_weights="gaussian",
                     target_modules=["k_proj", "q_proj", "v_proj", "out_proj"],
-                    #use_rslora=True,
-                    use_dora=config.text_encoder_lora_use_dora,
+                    use_dora=config.use_dora,
                 )
                 text_encoder_peft_model = get_peft_model(text_encoder, text_encoder_lora_config)
-                text_encoder_parameters = list(filter(lambda p: p.requires_grad, text_encoder_peft_model.parameters()))
-                all_text_encoder_parameters.extend(text_encoder_parameters)
+                text_encoder_lora_params = list(filter(lambda p: p.requires_grad, text_encoder_peft_model.parameters()))
+                all_text_encoder_parameters.extend(text_encoder_lora_params)
                 text_encoder_peft_models.append(text_encoder_peft_model)
 
             ## maybe add prodigy optimizer later on?
@@ -134,7 +133,7 @@ def train(
                 optimizer_text_encoder_lora = torch.optim.AdamW(
                         all_text_encoder_parameters, 
                         lr =  config.text_encoder_lora_lr,
-                        weight_decay=config.text_encoder_lora_weight_decay if not config.text_encoder_lora_use_dora else 0.0
+                        weight_decay=config.text_encoder_lora_weight_decay if not config.use_dora else 0.0
                     )
             else:
                 raise NotImplementedError(f"Text encoder LoRA finetuning is not yet implemented for optimizer: {config.text_encoder_lora_optimizer}")
@@ -187,8 +186,10 @@ def train(
         unet = get_peft_model(unet, unet_lora_config)
         pipe.unet = unet
         print_trainable_parameters(unet, name = 'unet')
+        for i, text_encoder in enumerate(text_encoders):
+            if text_encoder is not  None:
+                print_trainable_parameters(text_encoder, name = f'text_encoder_{i}')
         unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
-
         unet_trainable_params = [
             {
                 "params": unet_lora_parameters,

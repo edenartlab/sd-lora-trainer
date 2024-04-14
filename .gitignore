@@ -1,5 +1,6 @@
 models
 lora_models*
+datasets/
 remove
 cache
 __pycache__

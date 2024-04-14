@@ -78,12 +78,10 @@ class TrainingConfig(BaseModel):
     if text_encoder_lora_optimizer is not None then everything else is used. 
     Else the other variables are ignored.
     """
-    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = "adamw"
-    text_encoder_lora_lr: float = 1e-4
-    text_encoder_lora_weight_decay: float = 1e-3
-    text_encoder_lora_alpha_multiplier: float = 1.0
+    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = 'adamw'
+    text_encoder_lora_lr: float = 1e-5
+    text_encoder_lora_weight_decay: float = 1e-4
     text_encoder_lora_rank: int = 12
-    text_encoder_lora_use_dora: bool = False
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -112,6 +110,7 @@ class TrainingConfig(BaseModel):
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")
             self.l1_penalty = 0.0
             self.lora_weight_decay = 0.0
+            self.text_encoder_lora_weight_decay = 0.0
 
         # build the inserting_list_tokens and token dict using n_tokens:
         inserting_list_tokens = [f"<s{i}>" for i in range(self.n_tokens)]
