@@ -69,7 +69,8 @@ class PreprocessedDataset(Dataset):
             self.do_cache = True
 
             for idx in range(len(self.data)):
-                print(self.captions[idx])
+                if len(self.data) < 25:
+                    print(self.captions[idx])
                 vae_latent, mask = self._process(idx)
                 self.vae_latents.append(vae_latent)
                 self.masks.append(mask)

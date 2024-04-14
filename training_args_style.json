@@ -32,7 +32,5 @@
     "debug": true,
     "hard_pivot": false,
     "weight_type": "bf16",
-    "dataloader_num_workers": 0,
-    "is_lora": true,
-    "text_encoder_lora_optimizer": "adamw"
+    "dataloader_num_workers": 0
 }

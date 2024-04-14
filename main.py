@@ -12,6 +12,7 @@ import torch
 import torch.utils.checkpoint
 from tqdm import tqdm
 
+import prodigyopt
 from peft import LoraConfig, get_peft_model
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 
@@ -74,8 +75,7 @@ def train(
     initialize 2 new tokens in the embeddings with random initialization
     '''
     embedding_handler.initialize_new_tokens(
-        inserting_toks=config.inserting_list_tokens, 
-        #starting_toks = ["style", "object"],
+        inserting_toks=config.inserting_list_tokens,
         starting_toks=None, 
         seed=config.seed
     )
@@ -108,11 +108,7 @@ def train(
     ]
 
     if config.text_encoder_lora_optimizer is not None:
-        config.text_encoder_lora_optimizer
-        config.text_encoder_lora_lr
-        config.text_encoder_lora_weight_decay
-        
-        all_text_encoder_parameters = []
+        text_encoder_lora_parameters = []
         text_encoder_peft_models = []
         for text_encoder in text_encoders:
             if text_encoder is not None:
@@ -125,13 +121,12 @@ def train(
                 )
                 text_encoder_peft_model = get_peft_model(text_encoder, text_encoder_lora_config)
                 text_encoder_lora_params = list(filter(lambda p: p.requires_grad, text_encoder_peft_model.parameters()))
-                all_text_encoder_parameters.extend(text_encoder_lora_params)
+                text_encoder_lora_parameters.extend(text_encoder_lora_params)
                 text_encoder_peft_models.append(text_encoder_peft_model)
 
-            ## maybe add prodigy optimizer later on?
             if config.text_encoder_lora_optimizer == "adamw":
                 optimizer_text_encoder_lora = torch.optim.AdamW(
-                        all_text_encoder_parameters, 
+                        text_encoder_lora_parameters, 
                         lr =  config.text_encoder_lora_lr,
                         weight_decay=config.text_encoder_lora_weight_decay if not config.use_dora else 0.0
                     )
@@ -142,7 +137,6 @@ def train(
         text_encoder_peft_models = None
 
     if ti_prod_opt:
-        import prodigyopt
         optimizer_ti = prodigyopt.Prodigy(
                             params_to_optimize_ti,
                             d_coef = 1.0,
@@ -178,7 +172,6 @@ def train(
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
             #target_modules=["to_v"],
-            #use_rslora=True,
             use_dora=config.use_dora,
         )
 
@@ -206,7 +199,6 @@ def train(
         else:
             optimizer_unet = torch.optim.AdamW(unet.parameters(), lr = 1e-4)
     else:
-        import prodigyopt
         # Note: the specific settings of Prodigy seem to matter A LOT
         optimizer_unet = prodigyopt.Prodigy(
                         unet_trainable_params if config.is_lora else unet.parameters(),
@@ -272,7 +264,7 @@ def train(
     os.makedirs(f"{checkpoint_dir}")
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
-    embedding_handler.pre_optimize_token_embeddings(config)
+    #embedding_handler.pre_optimize_token_embeddings(config)
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0
@@ -378,7 +370,7 @@ def train(
 
                 if optimizer_ti is not None:
                     # zero out the gradients of the non-trained text-encoder embeddings
-                    for embedding_tensor in text_encoder_parameters:
+                    for i, embedding_tensor in enumerate(text_encoder_parameters):
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
                     if config.debug:
@@ -434,7 +426,7 @@ def train(
                 ti_lrs.append(0.0)
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0): # and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
