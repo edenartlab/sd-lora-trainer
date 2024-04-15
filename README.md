@@ -49,37 +49,27 @@ python3 evaluate.py \
 ## TODO's
 
 Code / Cleanup:
-- ~~turn all/most of the args of the main() function in trainer_pti.py and the preprocess() function into a clean args_dict that makes it easy to add and distribute new parameters over the code and save these args to a .json file at the end.~~
-- Modularize the logic in train.py as much as possible, trying to minimize dev work that needs to happen when SD3 drops (in progress)
-- ~~make a clean train.py entrypoint that can be run as a normal python command (instead of having to use cog)~~
-- ~~make it so the textual_inversion optimizer only optimizes the actual trained token embeddings instead of all of them + resetting later~~
-- Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
+- cleanup optimizers / optimizeable params code into optimizer.py
 - Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
+- Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
 - properly measure regularization target_values for conditioning and add pooled_prompt_embeds into regularizer for SDXL
-- compute mean aspect ratio of training imgs and find the closest resolution bucket --> train at that aspect
 
 Algo:
-- add txt-encoder LoRa + full finetuning options
+- Improve some of the chatgpt functionality:
+    - separate the "gpt_description" / "gpt_segmentation" prompt calls and make them run on a subset of prompts in case there's a lot of imgs / prompts (possibly use img_grids for some gpt4-v calls)
+    - currently some sub-optimal stuff can happen in preprocess() when there's less than 3 or more than 45 imgs, try to improve this
 - Test if timesteps = torch.randint() can be improved: look at sdxl training code! (see https://github.com/huggingface/diffusers/blob/main/examples/advanced_diffusion_training/train_dreambooth_lora_sdxl_advanced.py#L1263, https://arxiv.org/pdf/2206.00364.pdf)
 - Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
 - test if textual inversion training can also happen with prodigy_optimizer
 - add CLIP_similarity token warmup (txt = Done, img = TODO) or (aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
 - improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
 - figure out why the initial onset of learning in the LoRa / Dora causes a temporary drop in img quality
-- currently some sub-optimal stuff can happen in preprocess() when there's less than 3 or more than 45 imgs, try to improve this
-- make a separate gpt4-v call to query the concept-description using a random sample of the training imgs, assembled into a single img grid
 
 Bigger improvements:
-- create good model evaluation script:
-    - ~~img/txt clip similarity (prompt following)~~
-    - ~~aesthetic score~~
-    - some kind of img-feature similarity (eg CLIP or FID or ...) between training imgs and generated imgs
 - add stronger token regularization (eg CelebBasis spanning basis)
 - Add multi-token training
 - implement perfusion: https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
-- make compatible with ziplora: https://ziplora.github.io/
-
 
 Tuning Experiments once code is fully ready:
 - gridsearch over LoRa target_modules=["to_k", "to_q", "to_v", "to_out.0"]
