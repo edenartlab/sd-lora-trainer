@@ -795,6 +795,10 @@ def load_and_save_masks_and_captions(
     target_size = max(config.train_img_size)
     print(f"New train_img_size: {config.train_img_size}")
 
+    if config.validation_img_size is None:
+        print(f"Validation_img_size was not specified in config, so also setting this to {config.train_img_size}")
+        config.validation_img_size = config.train_img_size
+
     n_training_imgs = len(images)
     n_captions      = len([c for c in captions if c is not None])
     print(f"Loaded {n_training_imgs} images, {n_captions} of which have captions.")

@@ -13,7 +13,7 @@ class TrainingConfig(BaseModel):
     pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 512
-    validation_img_size: List[int] = [1024, 1024]
+    validation_img_size: List[int] = None
     train_img_size: List[int] = None
     train_aspect_ratio: float = 1.0
     train_batch_size: int = 4
@@ -67,7 +67,7 @@ class TrainingConfig(BaseModel):
     lr_warmup_steps: int = 50
     lr_num_cycles: int = 1
     lr_power: float = 1.0
-    sample_imgs_lora_scale: float = 0.7    # Default lora scale for sampling the validation images
+    sample_imgs_lora_scale: float = 0.8    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False
