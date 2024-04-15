@@ -87,6 +87,7 @@ def train(
     
 
     if config.text_encoder_lora_optimizer is not None:
+        print("Creating LoRA for text encoder...")
         text_encoder_lora_parameters = []
         text_encoder_peft_models = []
         for text_encoder in text_encoders:
@@ -266,7 +267,7 @@ def train(
     os.makedirs(f"{checkpoint_dir}")
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
-    #embedding_handler.pre_optimize_token_embeddings(config)
+    embedding_handler.pre_optimize_token_embeddings(config)
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0
