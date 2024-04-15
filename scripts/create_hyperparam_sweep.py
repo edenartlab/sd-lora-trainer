@@ -35,7 +35,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_grls"
+exp_name             = "gridsearch_sd15"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
@@ -48,41 +48,34 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sdxl"],
+    "sd_model_version": ["sd15"],
     "lora_training_urls": [
-        "/home/xander/Downloads/datasets/grls/mira1",
-        "/home/xander/Downloads/datasets/grls/jana/jana_2/2",
-        "/home/xander/Downloads/datasets/grls/jana/jana_3/3",
-        "/home/xander/Downloads/datasets/grls/jana/jana_all/all"
+        "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/xander/datasets/people/jana_3"
     ],
     "concept_mode": ['face'],
-    "seed": [5],
-    "resolution": [512,640],
-    "validation_img_size": [[1024, 1024]],
-    "train_batch_size": [4],
+    "seed": [0],
+    "resolution": [512,768],
+    "train_batch_size": [3],
     "n_sample_imgs": [6],
-    "max_train_steps": [400],
-    "checkpointing_steps": [80],
+    "max_train_steps": [400,800],
+    "checkpointing_steps": [100],
     "gradient_accumulation_steps": [1],
-    "clip_grad_norm": [-1.0],
     "prodigy_d_coef": [0.1, 0.4, 1.0],
-    "ti_lr": [0.001],
+    "n_tokens": [1,3],
+    "ti_lr": [0.001, 0.0001],
     "ti_weight_decay": [0.001],
     "lora_weight_decay": [0.0],
     "l1_penalty": [0.1],
     "off_ratio_power": [0.05],
-    "hard_pivot": ['false'],
-    "token_embedding_lr_warmup_steps": [30],
+    "hard_pivot": ['true', 'false'],
+    "token_embedding_lr_warmup_steps": [0,30,150],
     "snr_gamma": [5.0],
     "lora_rank": [12],
     "use_dora": ['true', 'false'],
-    "aspect_ratio_bucketing": ['false'],
-    "caption_model": ["blip", "gpt4-v"],
+    "caption_model": ["blip"],
     "augment_imgs_up_to_n": [20],
     "verbose": ['true'],
-    "debug": ['true'],
-    "weight_type": ["bf16"],
-    "name": ["unnamed"],
+    "debug": ['true']
 }
 
 #######################################################################################

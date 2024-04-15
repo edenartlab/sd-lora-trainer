@@ -11,21 +11,20 @@ build:
     - "libsm6"
     - "libxext6"
   python_packages:
-    - "scipy"
+    - "scipy==1.11.1"
     - "diffusers==0.27.2"
     - "peft==0.10.0"
-    - "torch==2.0.1"
-    - "transformers==4.31.0"
+    - "torch==2.2.1"
+    - "transformers==4.39.3"
     - "invisible-watermark==0.2.0"
     - "accelerate==0.21.0"
     - "pandas==2.0.3"
-    - "torchvision==0.15.2"
+    - "torchvision==0.17.1"
     - "numpy==1.25.1"
-    - "pandas==2.0.3"
     - "fire==0.5.0"
     - "opencv-python>=4.1.0.25"
     - "mediapipe==0.10.2"
-    - "openai==1.2.4"
+    - "openai==1.6.1"
     - python-dotenv
     - prodigyopt
     - omegaconf
