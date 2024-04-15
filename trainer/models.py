@@ -111,9 +111,9 @@ def download_weights(url, dest):
 def print_trainable_parameters(model, name = ''):
     trainable_params = 0
     all_param = 0
-    for _, param in model.named_parameters():
+    for name, param in model.named_parameters():
         all_param += param.numel()
-        if param.requires_grad:
+        if param.requires_grad and "token_embedding" not in name:
             trainable_params += param.numel()
     line_delimiter = "#" * 80
     print(line_delimiter)
