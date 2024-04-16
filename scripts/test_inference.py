@@ -30,7 +30,7 @@ def load_model(pretrained_model):
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/xander_ti--16_21-22-18-sdxl_face_lora_512_0.8_gpt4-v/checkpoints/checkpoint-500'
+    lora_path      = 'lora_models/xander_ti--16_21-53-50-sdxl_face_lora_512_0.8_gpt4-v/checkpoints/checkpoint-0'
     lora_scales    = np.linspace(0.5, 0.7, 3)
     render_size    = (768, 768)  # H,W
     n_imgs         = 4

@@ -128,7 +128,7 @@ def train(
         # target_blocks=["up_blocks.0.attentions.1"] for style blocks only
         # target_blocks = ["up_blocks.0.attentions.1", "down_blocks.2.attentions.1"] # for style+layout blocks
 
-        unet_trainable_params, unet_lora_parameters = get_unet_lora_parameters(
+        unet, unet_trainable_params, unet_lora_parameters = get_unet_lora_parameters(
             lora_rank = config.lora_rank,
             lora_alpha_multiplier = config.lora_alpha_multiplier,
             lora_weight_decay=config.lora_weight_decay,

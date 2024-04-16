@@ -62,7 +62,7 @@ def get_unet_lora_parameters(
             "weight_decay": lora_weight_decay if not use_dora else 0.0,
         },
     ]
-    return unet_trainable_params, unet_lora_parameters
+    return unet, unet_trainable_params, unet_lora_parameters
 
 def get_textual_inversion_optimizer(
     text_encoders: list,
