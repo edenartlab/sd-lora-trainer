@@ -30,7 +30,8 @@ from trainer.optimizer import (
     OptimizerCollection, 
     get_optimizer_and_peft_models_text_encoder_lora, 
     get_textual_inversion_optimizer,
-    get_unet_lora_parameters
+    get_unet_lora_parameters,
+    get_unet_optimizer
 )
 
 def train(
@@ -118,6 +119,7 @@ def train(
         print(f"Doing full fine-tuning on the U-Net")
         unet.requires_grad_(True)
         unet_lora_parameters = None
+        unet_trainable_params = unet.parameters()
     else:
         # Do lora-training instead.
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
@@ -135,28 +137,13 @@ def train(
             pipe=pipe
         )
 
-    optimizer_type = "prodigy" # hardcode for now
-    #optimizer_type = "adam" # hardcode for now
-
-    if optimizer_type != "prodigy":
-        if config.is_lora:
-            optimizer_unet = torch.optim.AdamW(unet_trainable_params, lr = 1e-4)
-        else:
-            optimizer_unet = torch.optim.AdamW(unet.parameters(), lr = 1e-4)
-    else:
-        # Note: the specific settings of Prodigy seem to matter A LOT
-        optimizer_unet = prodigyopt.Prodigy(
-                        unet_trainable_params if config.is_lora else unet.parameters(),
-                        d_coef = config.prodigy_d_coef,
-                        lr=1.0,
-                        decouple=True,
-                        use_bias_correction=True,
-                        safeguard_warmup=True,
-                        weight_decay=config.lora_weight_decay if not config.use_dora else 0.0,
-                        betas=(0.9, 0.99),
-                        #growth_rate=1.025,  # this slows down the lr_rampup
-                        growth_rate=1.04,  # this slows down the lr_rampup
-                    )
+    optimizer_unet = get_unet_optimizer(
+        prodigy_d_coef=config.prodigy_d_coef,
+        lora_weight_decay=config.lora_weight_decay,
+        use_dora=config.use_dora,
+        unet_trainable_params=unet_trainable_params,
+        optimizer_name="prodigy" # hardcode for now
+    )
         
     print_trainable_parameters(unet, name = 'unet')
     for i, text_encoder in enumerate(text_encoders):

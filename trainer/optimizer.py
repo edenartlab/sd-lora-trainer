@@ -1,6 +1,38 @@
 from peft import LoraConfig, get_peft_model
 import torch
 import prodigyopt
+from typing import Iterable
+
+def get_unet_optimizer(
+    prodigy_d_coef: float,
+    lora_weight_decay: float,
+    use_dora: bool,
+    unet_trainable_params: Iterable,
+    optimizer_name="prodigy"
+):
+    ## unet_trainable_params can be unet.parameters() or a list of lora params
+
+    if optimizer_name == "adamw":
+        optimizer_unet = torch.optim.AdamW(unet_trainable_params, lr = 1e-4)
+    
+    elif optimizer_name == "prodigy":
+        # Note: the specific settings of Prodigy seem to matter A LOT
+        optimizer_unet = prodigyopt.Prodigy(
+            unet_trainable_params,
+            d_coef = prodigy_d_coef,
+            lr=1.0,
+            decouple=True,
+            use_bias_correction=True,
+            safeguard_warmup=True,
+            weight_decay=lora_weight_decay if not use_dora else 0.0,
+            betas=(0.9, 0.99),
+            #growth_rate=1.025,  # this slows down the lr_rampup
+            growth_rate=1.04,  # this slows down the lr_rampup
+        )
+    else:
+        raise NotImplementedError(f"Invalid optimizer_name for unet: {optimizer_name}")
+
+    return optimizer_unet
 
 def get_unet_lora_parameters(
     lora_rank,
