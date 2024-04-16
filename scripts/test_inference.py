@@ -30,20 +30,20 @@ def load_model(pretrained_model):
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/lizzo--09_02-04-26-sdxl_object_lora_640_0.1_blip/checkpoints/checkpoint-500'
+    lora_path      = 'lora_models/xander_ti--16_21-22-18-sdxl_face_lora_512_0.8_gpt4-v/checkpoints/checkpoint-500'
     lora_scales    = np.linspace(0.5, 0.7, 3)
     render_size    = (768, 768)  # H,W
-    n_imgs         = 10
-    n_loops        = 4
+    n_imgs         = 4
+    n_loops        = 1
 
     n_steps        = 35
     guidance_scale = 7.5
-    seed           = 2
+    seed           = 0
     use_lightning  = 0
 
     #####################################################################################
 
-    output_dir = f'rendered_images4_lightning/{lora_path.split("/")[-1]}'
+    output_dir = f'rendered_images/{lora_path.split("/")[-1]}'
     os.makedirs(output_dir, exist_ok=True)
 
     seed_everything(seed)

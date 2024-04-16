@@ -77,14 +77,11 @@ def save_lora(
     print(f"Saving checkpoint at step.. {global_step}")
     # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
     name = name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
-
     embedding_handler.save_embeddings(f"{output_dir}/{name}_embeddings.safetensors")
 
-    print("A")
     with open(f"{output_dir}/special_params.json", "w") as f:
         json.dump(token_dict, f)
-    print("A")
-
+        
     if text_encoder_peft_models is not None:
         for idx, model in enumerate(text_encoder_peft_models):
             save_directory = os.path.join(output_dir, f"text_encoder_lora_{idx}")
