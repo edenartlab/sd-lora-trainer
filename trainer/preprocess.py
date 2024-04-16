@@ -263,8 +263,8 @@ def cleanup_prompts_with_chatgpt(
         chat_gpt_prompt_1 = textwrap.dedent("""
             Analyze a set of (poor) image descriptions, each featuring a person named TOK.
             Tasks:
-            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description) (eg asian woman with long black hair).
-            2. Rewrite each description, ensuring it naturally refers to "TOK", rearranging or adjusting where needed.
+            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description), hallucinate a basic description if necessary (eg black man with long beard).
+            2. Rewrite each description, injecting "TOK" naturally into each description, adjusting where needed.
             3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
             The descriptions are:""")
         

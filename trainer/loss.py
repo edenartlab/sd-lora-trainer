@@ -46,7 +46,7 @@ def compute_grad_norm(parameters, norm_type = 2.0, foreach = None, error_if_nonf
 
     return total_norm
 
-def compute_diffusion_loss(config, model_pred, noise, mask, noise_scheduler, timesteps):
+def compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps):
     # Get the unet prediction target depending on the prediction type:
     if noise_scheduler.config.prediction_type == "epsilon":
         target = noise
@@ -96,9 +96,8 @@ class ConditioningRegularizer:
     Regularizes the norms of the prompt_conditioning vectors.
     """
 
-    def __init__(self, config, embedding_handler):
+    def __init__(self, config):
         self.config = config
-        self.embedding_handler = embedding_handler
         self.target_norm = 34.5 if config.sd_model_version == 'sdxl' else 27.8
         self.reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
         self.token_replacement = config.token_dict.get("TOK", "TOK")  # Fallback to "TOK" if not in dict
