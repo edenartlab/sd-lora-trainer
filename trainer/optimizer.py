@@ -1,5 +1,54 @@
 from peft import LoraConfig, get_peft_model
 import torch
+import prodigyopt
+
+def get_textual_inversion_optimizer(
+    text_encoders: list,
+    textual_inversion_lr: float,
+    textual_inversion_weight_decay,
+    optimizer_name = "prodigy"
+):
+    text_encoder_parameters = []
+    for text_encoder in text_encoders:
+        if text_encoder is not  None:
+            text_encoder.train()
+            text_encoder.requires_grad_(False)
+            for name, param in text_encoder.named_parameters():
+                if "token_embedding" in name:
+                    param.requires_grad = True
+                    text_encoder_parameters.append(param)
+                    print(f"Added {name} with shape {param.shape} to the trainable parameters")
+                else:
+                    param.requires_grad = False
+
+    params_to_optimize_ti = [
+        {
+            "params": text_encoder_parameters,
+            "lr": textual_inversion_lr if (optimizer_name != "prodigy") else 1.0,
+            "weight_decay":textual_inversion_weight_decay,
+        },
+    ]
+
+    if optimizer_name == "prodigy":
+        optimizer_ti = prodigyopt.Prodigy(
+                            params_to_optimize_ti,
+                            d_coef = 1.0,
+                            lr=1.0,
+                            decouple=True,
+                            use_bias_correction=True,
+                            safeguard_warmup=True,
+                            weight_decay=textual_inversion_weight_decay,
+                            betas=(0.9, 0.99),
+                            #growth_rate=5.0,  # this slows down the lr_rampup
+                        )
+    elif  optimizer_name == "adamw":
+        optimizer_ti = torch.optim.AdamW(
+            params_to_optimize_ti,
+            weight_decay=textual_inversion_weight_decay,
+        )
+    else:
+        raise NotImplementedError(f"Invalid optimizer_name: '{optimizer_name}'") 
+    return optimizer_ti, text_encoder_parameters
 
 def get_text_encoder_lora_parameters(text_encoder, lora_rank, lora_alpha_multiplier, use_dora: bool):
     text_encoder_lora_config = LoraConfig(

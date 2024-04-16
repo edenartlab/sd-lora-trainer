@@ -27,6 +27,7 @@ class TrainingConfig(BaseModel):
     prodigy_d_coef: float = 0.5
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
+    ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.5e-5
     tok_cond_reg_w: float = 1.0e-5

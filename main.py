@@ -26,7 +26,7 @@ from trainer.loss import *
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
-from trainer.optimizer import OptimizerCollection, get_optimizer_and_peft_models_text_encoder_lora
+from trainer.optimizer import OptimizerCollection, get_optimizer_and_peft_models_text_encoder_lora, get_textual_inversion_optimizer
 
 def train(
     config: TrainingConfig,
@@ -102,47 +102,13 @@ def train(
         optimizer_text_encoder_lora = None
         text_encoder_peft_models = None
 
-    text_encoder_parameters = []
-    for text_encoder in text_encoders:
-        if text_encoder is not  None:
-            text_encoder.train()
-            text_encoder.requires_grad_(False)
-            for name, param in text_encoder.named_parameters():
-                if "token_embedding" in name:
-                    param.requires_grad = True
-                    text_encoder_parameters.append(param)
-                    print(f"Added {name} with shape {param.shape} to the trainable parameters")
-                else:
-                    param.requires_grad = False
+    optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
+        text_encoders=text_encoders,
+        textual_inversion_lr=config.ti_lr,
+        textual_inversion_weight_decay=config.ti_weight_decay,
+        optimizer_name=config.ti_optimizer ## hardcoded
+    )
 
-    # Optimizer creation
-    ti_prod_opt = False
-
-    params_to_optimize_ti = [
-        {
-            "params": text_encoder_parameters,
-            "lr": config.ti_lr if (not ti_prod_opt) else 1.0,
-            "weight_decay": config.ti_weight_decay,
-        },
-    ]
-
-    if ti_prod_opt:
-        optimizer_ti = prodigyopt.Prodigy(
-                            params_to_optimize_ti,
-                            d_coef = 1.0,
-                            lr=1.0,
-                            decouple=True,
-                            use_bias_correction=True,
-                            safeguard_warmup=True,
-                            weight_decay=config.ti_weight_decay,
-                            betas=(0.9, 0.99),
-                            #growth_rate=5.0,  # this slows down the lr_rampup
-                        )
-    else:
-        optimizer_ti = torch.optim.AdamW(
-            params_to_optimize_ti,
-            weight_decay=config.ti_weight_decay,
-        )
     if not config.is_lora: # This code pathway has not been tested in a long while
         print(f"Doing full fine-tuning on the U-Net")
         unet.requires_grad_(True)
@@ -291,7 +257,7 @@ def train(
                         optimizer.optimizer_textual_inversion.param_groups[0]['lr'] = 0.0
                         optimizer.optimizer_textual_inversion = None
 
-            elif not ti_prod_opt: # Update ti_learning rate gradually:
+            elif config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
                 finegrained_epoch = epoch + step / len(train_dataloader)
                 completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
@@ -364,7 +330,7 @@ def train(
 
                 if optimizer.optimizer_textual_inversion is not None:
                     # zero out the gradients of the non-trained text-encoder embeddings
-                    for i, embedding_tensor in enumerate(text_encoder_parameters):
+                    for i, embedding_tensor in enumerate(textual_inversion_params):
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
                     if config.debug:
