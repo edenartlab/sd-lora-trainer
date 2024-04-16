@@ -26,7 +26,7 @@ from trainer.loss import *
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
-from trainer.optimizer import OptimizerCollection
+from trainer.optimizer import OptimizerCollection, get_optimizer_and_peft_models_text_encoder_lora
 
 def train(
     config: TrainingConfig,
@@ -88,30 +88,16 @@ def train(
 
     if config.text_encoder_lora_optimizer is not None:
         print("Creating LoRA for text encoder...")
-        text_encoder_lora_parameters = []
-        text_encoder_peft_models = []
-        for text_encoder in text_encoders:
-            if text_encoder is not None:
-                text_encoder_lora_config = LoraConfig(
-                    r=config.text_encoder_lora_rank,
-                    lora_alpha=config.text_encoder_lora_rank * config.lora_alpha_multiplier,
-                    init_lora_weights="gaussian",
-                    target_modules=["k_proj", "q_proj", "v_proj", "out_proj"],
-                    use_dora=config.use_dora,
-                )
-                text_encoder_peft_model = get_peft_model(text_encoder, text_encoder_lora_config)
-                text_encoder_lora_params = list(filter(lambda p: p.requires_grad, text_encoder_peft_model.parameters()))
-                text_encoder_lora_parameters.extend(text_encoder_lora_params)
-                text_encoder_peft_models.append(text_encoder_peft_model)
-
-        if config.text_encoder_lora_optimizer == "adamw":
-            optimizer_text_encoder_lora = torch.optim.AdamW(
-                    text_encoder_lora_parameters, 
-                    lr =  config.text_encoder_lora_lr,
-                    weight_decay=config.text_encoder_lora_weight_decay if not config.use_dora else 0.0
-                )
-        else:
-            raise NotImplementedError(f"Text encoder LoRA finetuning is not yet implemented for optimizer: {config.text_encoder_lora_optimizer}")
+        optimizer_text_encoder_lora , text_encoder_peft_models = get_optimizer_and_peft_models_text_encoder_lora(
+            text_encoders=text_encoders,
+            lora_rank = config.text_encoder_lora_rank,
+            lora_alpha_multiplier = config.lora_alpha_multiplier,
+            use_dora = config.use_dora,
+            optimizer_name = config.text_encoder_lora_optimizer,
+            lora_lr = config.text_encoder_lora_lr,
+            weight_decay = config.text_encoder_lora_weight_decay
+        )
+        
     else:
         optimizer_text_encoder_lora = None
         text_encoder_peft_models = None
