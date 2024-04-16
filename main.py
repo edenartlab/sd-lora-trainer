@@ -26,7 +26,12 @@ from trainer.loss import *
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
-from trainer.optimizer import OptimizerCollection, get_optimizer_and_peft_models_text_encoder_lora, get_textual_inversion_optimizer
+from trainer.optimizer import (
+    OptimizerCollection, 
+    get_optimizer_and_peft_models_text_encoder_lora, 
+    get_textual_inversion_optimizer,
+    get_unet_lora_parameters
+)
 
 def train(
     config: TrainingConfig,
@@ -121,29 +126,14 @@ def train(
         # target_blocks=["up_blocks.0.attentions.1"] for style blocks only
         # target_blocks = ["up_blocks.0.attentions.1", "down_blocks.2.attentions.1"] # for style+layout blocks
 
-        unet_lora_config = LoraConfig(
-            r=config.lora_rank,
-            lora_alpha=config.lora_rank * config.lora_alpha_multiplier,
-            init_lora_weights="gaussian",
-            target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-            #target_modules=["to_v"],
-            use_dora=config.use_dora,
+        unet_trainable_params, unet_lora_parameters = get_unet_lora_parameters(
+            lora_rank = config.lora_rank,
+            lora_alpha_multiplier = config.lora_alpha_multiplier,
+            lora_weight_decay=config.lora_weight_decay,
+            use_dora = config.use_dora,
+            unet=unet,
+            pipe=pipe
         )
-
-        #unet.add_adapter(unet_lora_config)
-        unet = get_peft_model(unet, unet_lora_config)
-        pipe.unet = unet
-        print_trainable_parameters(unet, name = 'unet')
-        for i, text_encoder in enumerate(text_encoders):
-            if text_encoder is not  None:
-                print_trainable_parameters(text_encoder, name = f'text_encoder_{i}')
-        unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
-        unet_trainable_params = [
-            {
-                "params": unet_lora_parameters,
-                "weight_decay": config.lora_weight_decay if not config.use_dora else 0.0,
-            },
-        ]
 
     optimizer_type = "prodigy" # hardcode for now
     #optimizer_type = "adam" # hardcode for now
@@ -168,6 +158,11 @@ def train(
                         growth_rate=1.04,  # this slows down the lr_rampup
                     )
         
+    print_trainable_parameters(unet, name = 'unet')
+    for i, text_encoder in enumerate(text_encoders):
+        if text_encoder is not  None:
+            print_trainable_parameters(text_encoder, name = f'text_encoder_{i}')
+
     train_dataset = PreprocessedDataset(
         input_dir,
         pipe,

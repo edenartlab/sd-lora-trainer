@@ -2,6 +2,36 @@ from peft import LoraConfig, get_peft_model
 import torch
 import prodigyopt
 
+def get_unet_lora_parameters(
+    lora_rank,
+    lora_alpha_multiplier: float,
+    lora_weight_decay: float,
+    use_dora: bool,
+    unet,
+    pipe,
+):
+    unet_lora_config = LoraConfig(
+        r=lora_rank,
+        lora_alpha=lora_rank * lora_alpha_multiplier,
+        init_lora_weights="gaussian",
+        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+        #target_modules=["to_v"],
+        use_dora=use_dora,
+    )
+
+    #unet.add_adapter(unet_lora_config)
+    unet = get_peft_model(unet, unet_lora_config)
+    pipe.unet = unet
+    
+    unet_lora_parameters = list(filter(lambda p: p.requires_grad, unet.parameters()))
+    unet_trainable_params = [
+        {
+            "params": unet_lora_parameters,
+            "weight_decay": lora_weight_decay if not use_dora else 0.0,
+        },
+    ]
+    return unet_trainable_params, unet_lora_parameters
+
 def get_textual_inversion_optimizer(
     text_encoders: list,
     textual_inversion_lr: float,
