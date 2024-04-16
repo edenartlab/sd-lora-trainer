@@ -104,14 +104,14 @@ def train(
                 text_encoder_lora_parameters.extend(text_encoder_lora_params)
                 text_encoder_peft_models.append(text_encoder_peft_model)
 
-            if config.text_encoder_lora_optimizer == "adamw":
-                optimizer_text_encoder_lora = torch.optim.AdamW(
-                        text_encoder_lora_parameters, 
-                        lr =  config.text_encoder_lora_lr,
-                        weight_decay=config.text_encoder_lora_weight_decay if not config.use_dora else 0.0
-                    )
-            else:
-                raise NotImplementedError(f"Text encoder LoRA finetuning is not yet implemented for optimizer: {config.text_encoder_lora_optimizer}")
+        if config.text_encoder_lora_optimizer == "adamw":
+            optimizer_text_encoder_lora = torch.optim.AdamW(
+                    text_encoder_lora_parameters, 
+                    lr =  config.text_encoder_lora_lr,
+                    weight_decay=config.text_encoder_lora_weight_decay if not config.use_dora else 0.0
+                )
+        else:
+            raise NotImplementedError(f"Text encoder LoRA finetuning is not yet implemented for optimizer: {config.text_encoder_lora_optimizer}")
     else:
         optimizer_text_encoder_lora = None
         text_encoder_peft_models = None
