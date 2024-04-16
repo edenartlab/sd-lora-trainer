@@ -94,7 +94,7 @@ def save_lora(
             print(f"Saved text encoder {idx} in: {save_directory}")
 
     if is_lora:
-        assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero"
+        assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero if is_lora is True"
         unet.save_pretrained(save_directory = output_dir)
 
         lora_tensors = get_peft_model_state_dict(unet)
