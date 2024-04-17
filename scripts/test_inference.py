@@ -13,19 +13,7 @@ from trainer.utils.val_prompts import val_prompts
 from trainer.utils.io import make_validation_img_grid
 from trainer.utils.utils import seed_everything, pick_best_gpu_id
 from trainer.inference import encode_prompt_advanced
-
-def load_model(pretrained_model):
-    if pretrained_model['version'] == "sd15":
-        pipe = StableDiffusionPipeline.from_single_file(
-            pretrained_model['path'], torch_dtype=torch.float16, use_safetensors=True)
-    else:
-        pipe = StableDiffusionXLPipeline.from_single_file(
-            pretrained_model['path'], torch_dtype=torch.float16, use_safetensors=True)
-
-    pipe = pipe.to('cuda', dtype=torch.float16)
-    pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config) #, timestep_spacing="trailing")
-
-    return pipe
+from trainer.checkpoint import load_checkpoint
 
 if __name__ == "__main__":
 
@@ -49,8 +37,13 @@ if __name__ == "__main__":
     seed_everything(seed)
     pick_best_gpu_id()
 
-    pipe = load_model(pretrained_model)
-    pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
+    pipe = load_checkpoint(
+        pretrained_model_version="sdxl",
+        pretrained_model_path=pretrained_models["sdxl"]["path"],
+        checkpoint_folder=lora_path,
+        is_lora=True,
+        device="cuda:0"
+    )
 
     if use_lightning:
         repo = "ByteDance/SDXL-Lightning"
