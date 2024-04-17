@@ -301,8 +301,8 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
     pipeline_args = {
                 "num_inference_steps": n_steps,
                 "guidance_scale": 8,
-                "height": render_size[0],
-                "width": render_size[1],
+                "width": render_size[0],
+                "height": render_size[1]
                 }
 
     for i in range(n_imgs):

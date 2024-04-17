@@ -11,7 +11,7 @@ from sklearn.metrics import r2_score
 
 
 # Define paths
-exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/jana_sdxl_grid"
+exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/jana_sdxl_grid_2"
 config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/gridsearch_sdxl"
 
 # Initialize a dictionary to hold parameter values and associated scores
@@ -61,8 +61,8 @@ def plot_parameters(parameters):
         else:
             # Encode string values to integers for plotting
             encoder = LabelEncoder()
-            values_encoded = encoder.fit_transform(values)
-            jittered_values = values_encoded + np.random.normal(0, 0.1, values_encoded.shape)
+            values = encoder.fit_transform(values)
+            jittered_values = values + np.random.normal(0, 0.1, values.shape)
 
         # Skip plotting if there is only one unique value for the parameter
         if len(np.unique(values)) <= 1:
@@ -70,22 +70,21 @@ def plot_parameters(parameters):
         
         # Fit a linear regression model to the encoded values if categorical
         model = LinearRegression()
-        values_reshaped = jittered_values.reshape(-1, 1)  # Reshape for sklearn
+        values_reshaped = values.reshape(-1, 1)  # Reshape for sklearn
         model.fit(values_reshaped, scores)
+        predicted_scores = model.predict(values_reshaped)
 
         # add some jitter to the scores:
-        scores = scores + np.random.normal(0, 0.1 * np.max(scores), scores.shape)
+        jittered_scores = scores + np.random.normal(0, 0.02 * np.max(scores), scores.shape)
 
-        predicted_scores = model.predict(values_reshaped)
-        
         # Calculate R² value
         r_squared = r2_score(scores, predicted_scores)
         
         # Plot data points
-        sns.scatterplot(x=jittered_values, y=scores, alpha=0.6)
+        sns.scatterplot(x=jittered_values, y=jittered_scores, alpha=0.6)
         
         # Plot trendline
-        sns.lineplot(x=np.sort(jittered_values), y=predicted_scores[np.argsort(jittered_values)], color='red', label=f'Fit: y={model.coef_[0]:.2f}x+{model.intercept_:.2f}, R²={r_squared:.2f}')
+        sns.lineplot(x=np.sort(values), y=predicted_scores[np.argsort(values)], color='red', label=f'Fit: y={model.coef_[0]:.2f}x+{model.intercept_:.2f}, R²={r_squared:.2f}')
 
         # Set plot title and labels
         plt.title(f'Influence of {param} on the score')

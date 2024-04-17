@@ -80,7 +80,7 @@ class TrainingConfig(BaseModel):
     """
     text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = None
     text_encoder_lora_lr: float = 1e-5
-    text_encoder_lora_weight_decay: float = 1e-4
+    text_encoder_lora_weight_decay: float = 1e-5
     text_encoder_lora_rank: int = 12
 
     def __init__(self, **data):
