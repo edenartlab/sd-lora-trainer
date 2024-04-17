@@ -10,9 +10,10 @@ from diffusers import EulerDiscreteScheduler
 from trainer.utils.val_prompts import val_prompts
 from trainer.utils.utils import fix_prompt, replace_in_string
 from trainer.models import load_models
-from trainer.lora import patch_pipe_with_lora
+from .checkpoint import load_checkpoint
+from .lora import patch_pipe_with_lora
+
 from diffusers import DDPMScheduler, EulerDiscreteScheduler, StableDiffusionPipeline, StableDiffusionXLPipeline
-from peft import PeftModel
 
 def load_model(pretrained_model: dict):
     if pretrained_model['version'] == "sd15":
@@ -333,7 +334,7 @@ def render_images_eval(
     checkpoint_folder: str,
     seed: int,
     is_lora: bool,
-    pretrained_model: str,
+    pretrained_model: dict,
     trigger_text: str,
     lora_scale=0.7,
     n_steps=25,
@@ -358,48 +359,13 @@ def render_images_eval(
     gc.collect()
     torch.cuda.empty_cache()
 
-    # (
-    #     pipe,
-    #     tokenizer_one,
-    #     tokenizer_two,
-    #     noise_scheduler,
-    #     text_encoder_one,
-    #     text_encoder_two,
-    #     vae,
-    #     unet,
-    # ) = load_models(pretrained_model, device, torch.float16)
-
-    pipe = load_model(pretrained_model)
-
-    text_encoder_0_path =  os.path.join(
-            checkpoint_folder, "text_encoder_lora_0"
-        )
-    text_encoder_1_path =  os.path.join(
-            checkpoint_folder, "text_encoder_lora_1"
-        )
-    if os.path.exists(
-        text_encoder_0_path
-    ):
-        
-        pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, text_encoder_0_path)
-        print(f"loaded text_encoder LoRA from: {text_encoder_0_path}")
-    
-    if os.path.exists(
-        text_encoder_1_path
-    ):
-        
-        pipe.text_encoder_2 = PeftModel.from_pretrained(pipe.text_encoder_2, text_encoder_1_path)
-        print(f"loaded text_encoder LoRA from: {text_encoder_1_path}")
-
-    if is_lora:
-        pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = checkpoint_folder, adapter_name = 'eden_lora')
-
-        pipe = pipe.to(device)
-        pipe = patch_pipe_with_lora(pipe, checkpoint_folder)
-    else:
-        pipe.unet = pipe.unet.from_pretrained(checkpoint_folder)
-        pipe = pipe.to(device, dtype=torch.float16)
-        print(f"Successfully loaded full checkpoint for inference!")
+    pipe = load_checkpoint(
+        pretrained_model_version=pretrained_model["version"],
+        pretrained_model_path=pretrained_model["path"],
+        checkpoint_folder=checkpoint_folder,
+        is_lora=is_lora,
+        device=device
+    )
     
     pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
     generator = torch.Generator(device=device).manual_seed(seed)

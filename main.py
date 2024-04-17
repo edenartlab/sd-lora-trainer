@@ -17,7 +17,7 @@ from peft import LoraConfig, get_peft_model
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 
 from trainer.utils.utils import *
-from trainer.lora import save_checkpoint
+from trainer.checkpoint import save_checkpoint
 from trainer.embedding_handler import TokenEmbeddingsHandler
 from trainer.dataset import PreprocessedDataset
 from trainer.config import TrainingConfig
