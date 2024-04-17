@@ -63,14 +63,6 @@ if __name__ == "__main__":
     else:
         validation_prompts_raw = random.choices(val_prompts['object'], k=n_imgs)
 
-    validation_prompts_raw = [
-            "actress in TOK at a gala",
-            "TOK, facy dinner party",
-            "woman in TOK and jacket",
-            "smiling woman in TOK at a party",
-            "jennifer jones on TOK at music awards"
-    ]
-
     negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
     pipeline_args = {
                 "num_inference_steps": n_steps,
