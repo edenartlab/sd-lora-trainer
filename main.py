@@ -382,7 +382,8 @@ def train(
                 embedding_handler.print_token_info()
                 plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
                 plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
-                plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
+                target_std_dict = {f"txt_encoder_{idx}": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
+                plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
                 plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                 plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
@@ -420,7 +421,8 @@ def train(
 
     if config.debug:
         plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
-        plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png')
+        target_std_dict = {f"txt_encoder_{idx}": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
+        plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
         plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
         plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
 

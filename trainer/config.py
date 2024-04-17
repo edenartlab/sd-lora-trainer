@@ -29,8 +29,8 @@ class TrainingConfig(BaseModel):
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     lora_weight_decay: float = 0.002
-    cond_reg_w: float = 0.5e-5
-    tok_cond_reg_w: float = 1.0e-5
+    cond_reg_w: float = 0.0e-5
+    tok_cond_reg_w: float = 0.0e-5
     l1_penalty: float = 0.1
     noise_offset: float = 0.02
     snr_gamma: float = 5.0
@@ -51,7 +51,7 @@ class TrainingConfig(BaseModel):
     output_dir: str = "lora_models/unnamed"
     debug: bool = False
     hard_pivot: bool = False
-    off_ratio_power: float = False
+    off_ratio_power: float = 0.01
     allow_tf32: bool = True
     remove_ti_token_from_prompts: bool = False
     weight_type: Literal["fp16", "bf16", "fp32"] = "bf16"

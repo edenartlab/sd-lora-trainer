@@ -11,8 +11,8 @@ from sklearn.metrics import r2_score
 
 
 # Define paths
-exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models"
-config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/gridsearch_sd15"
+exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/jana_sdxl_grid"
+config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/gridsearch_sdxl"
 
 # Initialize a dictionary to hold parameter values and associated scores
 parameters = defaultdict(lambda: defaultdict(list))

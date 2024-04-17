@@ -182,17 +182,10 @@ class TokenEmbeddingsHandler:
                 # copy the embeddings of the starting tokens to the new tokens
                 text_encoder.text_model.embeddings.token_embedding.weight.data[
                     self.train_ids] = text_encoder.text_model.embeddings.token_embedding.weight.data[self.starting_ids].clone()
-
             else:
                 std_multiplier = 1.0
                 init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding)
                 init_embeddings *= std_multiplier
-                
-                # clamp the maximum value of the new embeddings to 2*std_token_embedding
-                #init_embeddings = torch.clamp(init_embeddings, -2*std_token_embedding, 2*std_token_embedding)
-                # renormalize the embeddings to have std = std_token_embedding
-                #init_embeddings = init_embeddings / init_embeddings.std(dim=1, keepdim=True) * std_token_embedding
-
                 text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids] = init_embeddings.clone()
 
             self.embeddings_settings[
@@ -202,7 +195,6 @@ class TokenEmbeddingsHandler:
 
             inu = torch.ones((len(tokenizer),), dtype=torch.bool)
             inu[self.train_ids] = False
-
             self.embeddings_settings[f"index_no_updates_{idx}"] = inu
 
             idx += 1

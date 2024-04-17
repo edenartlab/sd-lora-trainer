@@ -186,7 +186,7 @@ def plot_grad_norms(grad_norms, save_path='grad_norms.png'):
     plt.savefig(save_path)
     plt.close()
 
-def plot_token_stds(token_std_dict, save_path='token_stds.png'):
+def plot_token_stds(token_std_dict, save_path='token_stds.png', target_value_dict = {}):
     plt.figure()
     anchor_values = []
     for key in token_std_dict.keys():
@@ -201,12 +201,18 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png'):
 
     plt.xlabel('Step')
     plt.ylabel('Token Embedding Std')
-    centre_value = np.mean(anchor_values)
-    up_f, down_f = 1.5, 1.25
+    centre_value = 0.014
+    up_f, down_f = 1.5, 1.2
     try:
         plt.ylim(centre_value/down_f, centre_value*up_f)
     except:
         pass
+    
+    # Plotting target values as horizontal lines
+    for label, value in target_value_dict.items():
+        plt.axhline(y=value, color='r', linestyle='-' if '0' in label else '--', label=label)
+        plt.text(0, value, label, ha='left', va='center')
+
     plt.title('Token Embedding Std')
     plt.legend()
     plt.savefig(save_path)

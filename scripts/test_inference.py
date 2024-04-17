@@ -18,7 +18,7 @@ from trainer.checkpoint import load_checkpoint
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/xander_ti--16_21-53-50-sdxl_face_lora_512_0.8_gpt4-v/checkpoints/checkpoint-500'
+    lora_path      = 'lora_models/gridsearch_sdxl__019--17_06-45-58-sdxl_face_lora_512_0.4_blip/checkpoints/checkpoint-300'
     lora_scales    = np.linspace(0.6, 0.7, 2)
     token_scale    = None # None means it well get automatically set using lora_scale
     render_size    = (1024, 1024)  # H,W
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         validation_prompts_raw = random.choices(val_prompts['face'], k=n_imgs)
     else:
         validation_prompts_raw = random.choices(val_prompts['object'], k=n_imgs)
-        
+
     negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
     pipeline_args = {
                 "num_inference_steps": n_steps,
