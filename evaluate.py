@@ -229,8 +229,8 @@ Example command:
 
 python3 evaluate.py  \
 --output_folder eval_images \
---checkpoint_folder lora_models/clipx--11_22-46-20-sd15_style_dora_512_1.0_blip/checkpoints/checkpoint-500  \
+--checkpoint_folder lora_models/clipx--17_05-20-54-sdxl_style_dora_512_1.0_blip/checkpoints/checkpoint-0  \
 --output_json eval_results_style.json \
---config_filename training_args_style.json \
---training_images_folder lora_models/clipx--11_22-46-20-sd15_style_dora_512_1.0_blip/images_in
+--config_filename lora_models/clipx--17_05-20-54-sdxl_style_dora_512_1.0_blip/checkpoints/checkpoint-0/training_args.json \
+--training_images_folder lora_models/clipx--17_05-20-54-sdxl_style_dora_512_1.0_blip/images_in
 """
