@@ -35,10 +35,10 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_sd15"
+exp_name             = "gridsearch_sdxl"
 caption_prefix       = ""
 mask_target_prompts  = ""
-n_exp                = 100  # how many random experiment settings to generate
+n_exp                = 200  # how many random experiment settings to generate
 min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
 
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
@@ -48,29 +48,32 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sd15"],
+    "sd_model_version": ["sdxl"],
     "lora_training_urls": [
         "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/xander/datasets/people/jana_3"
     ],
     "concept_mode": ['face'],
     "seed": [0],
-    "resolution": [768],
-    "train_batch_size": [3],
+    "resolution": [512],
+    "validation_img_size": [[1024, 1024]],
+    "train_batch_size": [4],
     "n_sample_imgs": [6],
     "max_train_steps": [400],
     "checkpointing_steps": [100],
     "gradient_accumulation_steps": [1],
-    "prodigy_d_coef": [0.1, 0.4, 1.0],
-    "n_tokens": [1,3],
-    "ti_lr": [0.001, 0.0001, 0.00001],
-    "ti_weight_decay": [0.0001],
+    "prodigy_d_coef": [0.4, 0.8],
+    "cond_reg_w": [0.0, 0.5e-5],
+    "tok_cond_reg_w": [0.0, 1.0e-5],
+    "n_tokens": [1,2,3],
+    "ti_lr": [0.001, 0.0001],
+    "ti_weight_decay": [0.0002],
     "lora_weight_decay": [0.001],
     "l1_penalty": [0.1],
-    "off_ratio_power": [0.05],
-    "hard_pivot": ['true', 'false'],
-    "token_embedding_lr_warmup_steps": [0,40],
-    "snr_gamma": [5.0],
-    "lora_rank": [12,24],
+    "off_ratio_power": [0.05, 0.0],
+    "hard_pivot": ['false', 'true'],
+    "token_embedding_lr_warmup_steps": [0,50],
+    "snr_gamma": [5.0, 0.0],
+    "lora_rank": [12],
     "use_dora": ['true', 'false'],
     "caption_model": ["blip"],
     "augment_imgs_up_to_n": [20],

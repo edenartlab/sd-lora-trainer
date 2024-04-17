@@ -67,7 +67,7 @@ class TrainingConfig(BaseModel):
     lr_warmup_steps: int = 50
     lr_num_cycles: int = 1
     lr_power: float = 1.0
-    sample_imgs_lora_scale: float = 0.8    # Default lora scale for sampling the validation images
+    sample_imgs_lora_scale: float = 0.7    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False

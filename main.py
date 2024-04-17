@@ -235,6 +235,7 @@ def train(
             if config.hard_pivot:
                 if epoch >= config.num_train_epochs // 3:
                     if optimizer.optimizer_textual_inversion is not None:
+                        print("Disabling textual_inversion!")
                         # The next line is 100% necessary, otherwise the optimizer will keep updating the embeddings for some reason (even though the optimizer is None)
                         optimizer.optimizer_textual_inversion.param_groups[0]['lr'] = 0.0
                         optimizer.optimizer_textual_inversion = None

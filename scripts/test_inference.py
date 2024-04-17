@@ -30,20 +30,21 @@ def load_model(pretrained_model):
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/xander_ti--16_21-53-50-sdxl_face_lora_512_0.8_gpt4-v/checkpoints/checkpoint-0'
-    lora_scales    = np.linspace(0.5, 0.7, 3)
-    render_size    = (768, 768)  # H,W
-    n_imgs         = 4
-    n_loops        = 1
+    lora_path      = 'lora_models/xander_ti--16_21-53-50-sdxl_face_lora_512_0.8_gpt4-v/checkpoints/checkpoint-500'
+    lora_scales    = np.linspace(0.6, 0.7, 2)
+    token_scale    = None # None means it well get automatically set using lora_scale
+    render_size    = (1024, 1024)  # H,W
+    n_imgs         = 14
+    n_loops        = 2
 
     n_steps        = 35
     guidance_scale = 7.5
-    seed           = 0
+    seed           = 10
     use_lightning  = 0
 
     #####################################################################################
 
-    output_dir = f'rendered_images/{lora_path.split("/")[-1]}'
+    output_dir = f'rendered_images_tok_0.0/{lora_path.split("/")[-1]}'
     os.makedirs(output_dir, exist_ok=True)
 
     seed_everything(seed)
@@ -71,11 +72,20 @@ if __name__ == "__main__":
         validation_prompts_raw = random.choices(val_prompts['object'], k=n_imgs)
 
     validation_prompts_raw = [
-            "actress in TOK at a gala",
-            "TOK, facy dinner party",
-            "woman in TOK and jacket",
-            "smiling woman in TOK at a party",
-            "jennifer jones on TOK at music awards"
+        "TOK, an adventurous woman, hiking through a majestic mountain range, equipped with professional gear and a look of determination.",
+        "TOK as a world-renowned female chef, presenting a masterclass on gourmet cooking, her expression focused and passionate.",
+        "A mystical image of TOK as a female shaman, surrounded by a forest at twilight, performing a ritual with ancient artifacts.",
+        "TOK as a pioneering astronaut, floating gracefully in a space station module, Earth glowing in the background.",
+        "TOK, a celebrated female poet, reading her powerful verses in a cozy, book-lined study, her face illuminated by soft lamplight.",
+        "An elegant scene of TOK as a female diplomat, negotiating at a high-stakes international summit, her demeanor calm and authoritative.",
+        "TOK, a vibrant female jazz singer, performing on stage at a vintage club, microphone in hand and band in the background.",
+        "TOK as an avant-garde fashion designer, working in her studio surrounded by sketches and fabrics, her expression one of creative fire.",
+        "A serene depiction of TOK as a female yoga instructor, leading a sunset class on a peaceful beach, her posture perfect and inspiring.",
+        "TOK, an intrepid female journalist, in the midst of an intense interview, her recorder in hand, capturing a momentous story.",
+        "a photo of TOK as a beautiful woman at the oscars",
+        "a photo of TOK as a beautiful woman of old age, sitting in her garden",
+        "TOK enjoying a sunny day at the beach in a stylish summer dress, her smile is radiant.",
+        "A portrait of TOK as a young woman with an intriguing smile, reminiscent of a classic painting."
     ]
 
     negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
@@ -94,7 +104,7 @@ if __name__ == "__main__":
                 pipe = patch_pipe_with_lora(pipe, lora_path, lora_scale=lora_scale)
                 generator = torch.Generator(device='cuda').manual_seed(seed)
 
-                c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale, concept_mode = training_args["concept_mode"])
+                c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale, concept_mode = training_args["concept_mode"], token_scale = token_scale)
 
                 pipeline_args['prompt_embeds'] = c
                 pipeline_args['negative_prompt_embeds'] = uc
