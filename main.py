@@ -17,7 +17,7 @@ from peft import LoraConfig, get_peft_model
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 
 from trainer.utils.utils import *
-from trainer.lora import save_lora
+from trainer.lora import save_checkpoint
 from trainer.embedding_handler import TokenEmbeddingsHandler
 from trainer.dataset import PreprocessedDataset
 from trainer.config import TrainingConfig
@@ -353,7 +353,7 @@ def train(
                 config.save_as_json(
                     os.path.join(output_save_dir, "training_args.json")
                 )
-                save_lora(
+                save_checkpoint(
                     output_dir=output_save_dir, 
                     global_step=global_step, 
                     unet=unet, 
@@ -426,7 +426,7 @@ def train(
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)
         config.save_as_json(os.path.join(output_save_dir, "training_args.json"))
-        save_lora(
+        save_checkpoint(
             output_dir=output_save_dir, 
             global_step=global_step, 
             unet=unet, 
