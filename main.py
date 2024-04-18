@@ -145,10 +145,10 @@ def train(
         optimizer_name="prodigy" # hardcode for now
     )
         
-    print_trainable_parameters(unet, name = 'unet')
+    print_trainable_parameters(unet, model_name = 'unet')
     for i, text_encoder in enumerate(text_encoders):
         if text_encoder is not  None:
-            print_trainable_parameters(text_encoder, name = f'text_encoder_{i}')
+            print_trainable_parameters(text_encoder, model_name = f'text_encoder_{i}')
 
     train_dataset = PreprocessedDataset(
         input_dir,
