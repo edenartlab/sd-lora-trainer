@@ -77,15 +77,15 @@ def train(
         text_encoders = [text_encoder_one, text_encoder_two], 
         tokenizers = [tokenizer_one, tokenizer_two]
     )
-
-    '''
-    initialize 2 new tokens in the embeddings with random initialization
-    '''
+    
     embedding_handler.initialize_new_tokens(
         inserting_toks=config.inserting_list_tokens,
         starting_toks=None, 
         seed=config.seed
     )
+
+    # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
+    embedding_handler.pre_optimize_token_embeddings(config)
 
     unet.requires_grad_(False)
     vae.requires_grad_(False)
@@ -201,9 +201,6 @@ def train(
     if os.path.exists(checkpoint_dir):
         shutil.rmtree(checkpoint_dir)
     os.makedirs(f"{checkpoint_dir}")
-
-    # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
-    embedding_handler.pre_optimize_token_embeddings(config)
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0
