@@ -74,14 +74,13 @@ def get_textual_inversion_optimizer(
     for text_encoder in text_encoders:
         if text_encoder is not  None:
             text_encoder.train()
-            text_encoder.requires_grad_(False)
             for name, param in text_encoder.named_parameters():
                 if "token_embedding" in name:
                     param.requires_grad = True
                     text_encoder_parameters.append(param)
                     print(f"Added {name} with shape {param.shape} to the trainable parameters")
                 else:
-                    param.requires_grad = False
+                    pass
 
     params_to_optimize_ti = [
         {
@@ -122,7 +121,6 @@ def get_text_encoder_lora_parameters(text_encoder, lora_rank, lora_alpha_multipl
     )
     text_encoder_peft_model = get_peft_model(text_encoder, text_encoder_lora_config)
     text_encoder_lora_params = list(filter(lambda p: p.requires_grad, text_encoder_peft_model.parameters()))
-
     return text_encoder_peft_model, text_encoder_lora_params
 
 def get_optimizer_and_peft_models_text_encoder_lora(
