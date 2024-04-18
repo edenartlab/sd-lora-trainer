@@ -108,7 +108,7 @@ def download_weights(url, dest):
     print(f"Downloading {url} took {time.time() - start} seconds")
 
 
-def print_trainable_parameters(model, name = ''):
+def print_trainable_parameters(model, model_name = ''):
     trainable_params = 0
     all_param = 0
     for name, param in model.named_parameters():
@@ -118,6 +118,6 @@ def print_trainable_parameters(model, name = ''):
     line_delimiter = "#" * 80
     print(line_delimiter)
     print(
-        f"Trainable {name} params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
+        f"Trainable {model_name} params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
     )
     print(line_delimiter)

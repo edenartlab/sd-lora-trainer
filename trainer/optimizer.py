@@ -209,6 +209,11 @@ class OptimizerCollection:
 
         self.learning_rate_tracker = {'textual_inversion':[], 'text_encoders':[], 'unet':[]}
 
+        print("--> Initialized optimizers for:")
+        for key in self.optimizers.keys():
+            if self.optimizers[key] is not None:
+                print(key)
+
     def zero_grad(self):
         for key in self.optimizers.keys():
             if self.optimizers[key] is not None:
