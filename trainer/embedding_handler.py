@@ -305,7 +305,7 @@ class TokenEmbeddingsHandler:
             # compute the loss:
             embeds_l2_loss = F.mse_loss(prompt_embeds, target_prompt_embeds)
             pooled_embeds_l2_loss = F.mse_loss(pooled_prompt_embeds, target_pooled_prompt_embeds)
-            loss = 2.0 * embeds_l2_loss + pooled_embeds_l2_loss
+            loss = 4.0 * embeds_l2_loss + pooled_embeds_l2_loss
 
             # Backward pass:
             retain_graph = step < (config.token_warmup_steps - 1)  # Retain graph for all but the last step
