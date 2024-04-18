@@ -44,33 +44,6 @@ def fix_prompt(prompt: str):
     prompt = re.sub(r"\s?\.\s?", ". ", prompt)  # Fix spaces around periods
     return prompt.strip()  # Remove leading and trailing whitespace
 
-def get_avg_lr(optimizer):
-    try:
-        # Calculate the weighted average effective learning rate
-        total_lr = 0
-        total_params = 0
-        for group in optimizer.param_groups:
-            d = group['d']
-            lr = group['lr']
-            bias_correction = 1  # Default value
-            if group['use_bias_correction']:
-                beta1, beta2 = group['betas']
-                k = group['k']
-                bias_correction = ((1 - beta2**(k+1))**0.5) / (1 - beta1**(k+1))
-
-            effective_lr = d * lr * bias_correction
-
-            # Count the number of parameters in this group
-            num_params = sum(p.numel() for p in group['params'] if p.requires_grad)
-            total_lr += effective_lr * num_params
-            total_params += num_params
-
-        if total_params == 0:
-            return 0.0
-        else: return total_lr / total_params
-    except:
-        return optimizer.param_groups[0]['lr']
-
 def seed_everything(seed: int):
     random.seed(seed)
     np.random.seed(seed)
@@ -153,10 +126,13 @@ def plot_curve(value_dict, xlabel, ylabel, title, save_path, log_scale = False, 
     plt.close()
 
 # plot the learning rates:
-def plot_lrs(lora_lrs, ti_lrs, save_path='learning_rates.png'):
+def plot_lrs(learning_rate_dict, save_path='learning_rates.png'):
     plt.figure()
-    plt.plot(range(len(lora_lrs)), lora_lrs, label='LoRA LR')
-    plt.plot(range(len(lora_lrs)), ti_lrs, label='TI LR')
+    for key in learning_rate_dict.keys():
+        lrs = learning_rate_dict[key]
+        if len(lrs) == 0:
+            continue
+        plt.plot(range(len(lrs)), lrs, label=key)
     plt.yscale('log')  # Set y-axis to log scale
     plt.ylim(1e-6, 3e-3)
     plt.xlabel('Step')

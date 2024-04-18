@@ -1,4 +1,5 @@
 scipy
+ujson
 diffusers==0.25.1
 peft==0.9.0
 torch==2.0.1

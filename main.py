@@ -205,7 +205,7 @@ def train(
 
     # Data tracking inits:
     start_time, images_done = time.time(), 0
-    ti_lrs, lora_lrs, prompt_embeds_norms = [], [], {'main':[], 'reg':[]}
+    prompt_embeds_norms = {'main':[], 'reg':[]}
     losses = {'img_loss': [], 'tot_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
@@ -219,11 +219,12 @@ def train(
     """
     Storing all optimizers in a single container
     """
-    optimizer = OptimizerCollection(
-        optimizer_unet=optimizer_unet,
+    optimizer_collection = OptimizerCollection(
         optimizer_textual_inversion=optimizer_ti,
-        optimizer_text_encoder_lora=optimizer_text_encoder_lora
+        optimizer_text_encoders=optimizer_text_encoder_lora,
+        optimizer_unet=optimizer_unet
     )
+    optimizers = optimizer_collection.optimizers
 
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
@@ -234,24 +235,24 @@ def train(
             progress_bar.update(1)
             if config.hard_pivot:
                 if epoch >= config.num_train_epochs // 3:
-                    if optimizer.optimizer_textual_inversion is not None:
+                    if optimizers['textual_inversion'] is not None:
                         print("Disabling textual_inversion!")
                         # The next line is 100% necessary, otherwise the optimizer will keep updating the embeddings for some reason (even though the optimizer is None)
-                        optimizer.optimizer_textual_inversion.param_groups[0]['lr'] = 0.0
-                        optimizer.optimizer_textual_inversion = None
+                        optimizers['textual_inversion'].param_groups[0]['lr'] = 0.0
+                        optimizers['textual_inversion'] = None
 
             elif config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
                 finegrained_epoch = epoch + step / len(train_dataloader)
                 completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
-                if optimizer.optimizer_textual_inversion is not None:
-                    optimizer.optimizer_textual_inversion.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                if optimizers['textual_inversion'] is not None:
+                    optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
                 # warmup the token embedding lr:
                 if config.token_embedding_lr_warmup_steps > 0:
                     warmup_f = min(global_step / config.token_embedding_lr_warmup_steps, 1.0)
-                    if optimizer.optimizer_textual_inversion is not None:
-                        optimizer.optimizer_textual_inversion.param_groups[0]['lr'] *= warmup_f
+                    if optimizers['textual_inversion'] is not None:
+                        optimizers['textual_inversion'].param_groups[0]['lr'] *= warmup_f
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
@@ -302,7 +303,7 @@ def train(
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss += config.l1_penalty * l1_norm
 
-            if optimizer.optimizer_textual_inversion is not None and optimizer.optimizer_textual_inversion.param_groups[0]['lr'] > 0.0:
+            if optimizers['textual_inversion'] is not None and optimizers['textual_inversion'].param_groups[0]['lr'] > 0.0:
                 # Some custom regularization: # TODO test how much these actually help!!
                 loss, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, prompt_embeds_norms, prompt_embeds, pipe)
 
@@ -313,7 +314,7 @@ def train(
             last_batch = (step + 1 == len(train_dataloader))
             if (step + 1) % config.gradient_accumulation_steps == 0 or last_batch:
 
-                if optimizer.optimizer_textual_inversion is not None:
+                if optimizers['textual_inversion'] is not None:
                     # zero out the gradients of the non-trained text-encoder embeddings
                     for i, embedding_tensor in enumerate(textual_inversion_params):
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
@@ -329,8 +330,8 @@ def train(
                     # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
                     embedding_handler.fix_embedding_std(config.off_ratio_power)
 
-                optimizer.step()
-                optimizer.zero_grad()
+                optimizer_collection.step()
+                optimizer_collection.zero_grad()
 
             #############################################################################################################
 
@@ -341,13 +342,6 @@ def train(
                     embedding_stds = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).detach().float().std(dim=1)
                     for std_i, std in enumerate(embedding_stds):
                         token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
-
-            # Track the learning rates for final plotting:
-            lora_lrs.append(get_avg_lr(optimizer_unet))
-            try:
-                ti_lrs.append(optimizer.optimizer_textual_inversion.param_groups[0]['lr'])
-            except:
-                ti_lrs.append(0.0)
 
             # Print some statistics:
             if config.debug and (global_step % config.checkpointing_steps == 0): #and global_step > 0:
@@ -387,7 +381,7 @@ def train(
                 target_std_dict = {f"txt_encoder_{idx}": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
                 plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
                 plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
-                plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
+                plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
                 validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, 
                     config.seed, 
@@ -425,9 +419,9 @@ def train(
         plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
         target_std_dict = {f"txt_encoder_{idx}": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
         plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
-        plot_lrs(lora_lrs, ti_lrs, save_path=f'{config.output_dir}/learning_rates.png')
+        plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
         plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
-
+        
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)
         config.save_as_json(os.path.join(output_save_dir, "training_args.json"))

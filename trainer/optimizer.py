@@ -157,32 +157,64 @@ def get_optimizer_and_peft_models_text_encoder_lora(
     return optimizer_text_encoder_lora, text_encoder_peft_models
 
 
+
+def get_current_lr(optimizer):
+    """
+    Helper class to get the current lr for various types of optimizers
+    """
+    try:
+        # Calculate the weighted average effective learning rate
+        total_lr = 0
+        total_params = 0
+        for group in optimizer.param_groups:
+            d = group['d']
+            lr = group['lr']
+            bias_correction = 1  # Default value
+            if group['use_bias_correction']:
+                beta1, beta2 = group['betas']
+                k = group['k']
+                bias_correction = ((1 - beta2**(k+1))**0.5) / (1 - beta1**(k+1))
+
+            effective_lr = d * lr * bias_correction
+
+            # Count the number of parameters in this group
+            num_params = sum(p.numel() for p in group['params'] if p.requires_grad)
+            total_lr += effective_lr * num_params
+            total_params += num_params
+
+        if total_params == 0:
+            return 0.0
+        else: return total_lr / total_params
+    except:
+        return optimizer.param_groups[0]['lr']
+
+
 class OptimizerCollection:
     def __init__(
         self,
-        optimizer_unet = None,
         optimizer_textual_inversion = None,
-        optimizer_text_encoder_lora = None
+        optimizer_text_encoders = None,
+        optimizer_unet = None
     ):
         """
         run operations on all the relevant optimizers with a single function call
         """
-        self.optimizer_unet=optimizer_unet
-        self.optimizer_textual_inversion=optimizer_textual_inversion
-        self.optimizer_text_encoder_lora=optimizer_text_encoder_lora
-        
-        self.optimizers = [
-            self.optimizer_unet,
-            self.optimizer_textual_inversion,
-            self.optimizer_text_encoder_lora
-        ]
+        self.optimizers = {
+            'textual_inversion': optimizer_textual_inversion,
+            'text_encoders': optimizer_text_encoders,
+            'unet':  optimizer_unet
+        }
+
+        self.learning_rate_tracker = {'textual_inversion':[], 'text_encoders':[], 'unet':[]}
 
     def zero_grad(self):
-        for optimizer in self.optimizers:
-            if optimizer is not None:
-                optimizer.zero_grad()
+        for key in self.optimizers.keys():
+            if self.optimizers[key] is not None:
+                self.optimizers[key].zero_grad()
     
     def step(self):
-        for optimizer in self.optimizers:
-            if optimizer is not None:
-                optimizer.step()
+        for key in self.optimizers.keys():
+            if self.optimizers[key] is not None:
+                self.optimizers[key].step()
+                self.learning_rate_tracker[key].append(get_current_lr(self.optimizers[key]))
+                

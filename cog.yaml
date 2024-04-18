@@ -11,6 +11,7 @@ build:
     - "libsm6"
     - "libxext6"
   python_packages:
+    - ujson
     - "scipy==1.11.1"
     - "diffusers==0.27.2"
     - "peft==0.10.0"
