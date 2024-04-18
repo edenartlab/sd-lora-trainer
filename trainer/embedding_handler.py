@@ -267,8 +267,6 @@ class TokenEmbeddingsHandler:
                     if "token_embedding" in name:
                         param.requires_grad = True
                         ti_parameters.append(param)
-                    else:
-                        param.requires_grad = False
         
         params_to_optimize_ti = [{
                 "params": ti_parameters,
