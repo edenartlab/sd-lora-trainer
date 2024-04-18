@@ -194,11 +194,13 @@ class OptimizerCollection:
         self,
         optimizer_textual_inversion = None,
         optimizer_text_encoders = None,
-        optimizer_unet = None
+        optimizer_unet = None,
+        debug = False,
     ):
         """
         run operations on all the relevant optimizers with a single function call
         """
+        self.debug = debug
         self.optimizers = {
             'textual_inversion': optimizer_textual_inversion,
             'text_encoders': optimizer_text_encoders,
@@ -216,5 +218,6 @@ class OptimizerCollection:
         for key in self.optimizers.keys():
             if self.optimizers[key] is not None:
                 self.optimizers[key].step()
-                self.learning_rate_tracker[key].append(get_current_lr(self.optimizers[key]))
+                if self.debug:
+                    self.learning_rate_tracker[key].append(get_current_lr(self.optimizers[key]))
                 

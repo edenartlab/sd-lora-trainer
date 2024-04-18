@@ -222,7 +222,8 @@ def train(
     optimizer_collection = OptimizerCollection(
         optimizer_textual_inversion=optimizer_ti,
         optimizer_text_encoders=optimizer_text_encoder_lora,
-        optimizer_unet=optimizer_unet
+        optimizer_unet=optimizer_unet,
+        debug = config.debug
     )
     optimizers = optimizer_collection.optimizers
 
@@ -421,7 +422,7 @@ def train(
         plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
         plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
         plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
-        
+
     if not os.path.exists(output_save_dir):
         os.makedirs(output_save_dir, exist_ok=True)
         config.save_as_json(os.path.join(output_save_dir, "training_args.json"))
