@@ -90,7 +90,9 @@ def train(
     unet.requires_grad_(False)
     vae.requires_grad_(False)
     text_encoders = embedding_handler.text_encoders
-    
+    for txt_encoder in text_encoders:
+        if txt_encoder is not None:
+            txt_encoder.requires_grad_(False)
 
     if config.text_encoder_lora_optimizer is not None:
         print("Creating LoRA for text encoder...")

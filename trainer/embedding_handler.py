@@ -263,7 +263,6 @@ class TokenEmbeddingsHandler:
         for text_encoder in self.text_encoders:
             if text_encoder is not None:
                 text_encoder.train()
-                text_encoder.requires_grad_(False)
                 for name, param in text_encoder.named_parameters():
                     if "token_embedding" in name:
                         param.requires_grad = True
