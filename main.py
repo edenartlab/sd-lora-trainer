@@ -244,12 +244,14 @@ def train(
                 finegrained_epoch = epoch + step / len(train_dataloader)
                 completion_f = finegrained_epoch / config.num_train_epochs
                 # param_groups[1] goes from ti_lr to 0.0 over the course of training
-                optimizer.optimizer_textual_inversion.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                if optimizer.optimizer_textual_inversion is not None:
+                    optimizer.optimizer_textual_inversion.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
 
                 # warmup the token embedding lr:
                 if config.token_embedding_lr_warmup_steps > 0:
                     warmup_f = min(global_step / config.token_embedding_lr_warmup_steps, 1.0)
-                    optimizer.optimizer_textual_inversion.param_groups[0]['lr'] *= warmup_f
+                    if optimizer.optimizer_textual_inversion is not None:
+                        optimizer.optimizer_textual_inversion.param_groups[0]['lr'] *= warmup_f
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
@@ -316,13 +318,13 @@ def train(
                     for i, embedding_tensor in enumerate(textual_inversion_params):
                         embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
-                    if config.debug:
-                        # Track the average gradient norms:
-                        grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
-                        for i, text_encoder in enumerate(text_encoders):
-                            if text_encoder is not None:
-                                text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
-                                grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
+                if config.debug:
+                    # Track the average gradient norms:
+                    grad_norms['unet'].append(compute_grad_norm(itertools.chain(unet.parameters())).item())
+                    for i, text_encoder in enumerate(text_encoders):
+                        if text_encoder is not None:
+                            text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
+                            grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
 
                     # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
                     embedding_handler.fix_embedding_std(config.off_ratio_power)
