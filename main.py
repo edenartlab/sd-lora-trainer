@@ -77,7 +77,7 @@ def train(
         text_encoders = [text_encoder_one, text_encoder_two], 
         tokenizers = [tokenizer_one, tokenizer_two]
     )
-    
+
     embedding_handler.initialize_new_tokens(
         inserting_toks=config.inserting_list_tokens,
         starting_toks=None, 
@@ -87,6 +87,7 @@ def train(
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     embedding_handler.pre_optimize_token_embeddings(config)
 
+    # Turn off all gradients for now:
     unet.requires_grad_(False)
     vae.requires_grad_(False)
     text_encoders = embedding_handler.text_encoders
@@ -105,7 +106,6 @@ def train(
             lora_lr = config.text_encoder_lora_lr,
             weight_decay = config.text_encoder_lora_weight_decay
         )
-        
     else:
         optimizer_text_encoder_lora = None
         text_encoder_peft_models = None

@@ -14,7 +14,7 @@
     "gradient_accumulation_steps": 1,
     "n_tokens": 2,
     "remove_ti_token_from_prompts": true,
-    "ti_lr": 0.00,
+    "ti_lr": 0.001,
     "ti_weight_decay": 0.0002,
     "text_encoder_lora_optimizer": "adamw",
     "text_encoder_lora_lr": 1e-4,
