@@ -15,6 +15,7 @@ from tqdm import tqdm
 import prodigyopt
 from peft import LoraConfig, get_peft_model
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
+#from diffusers.training_utils import cast_training_params
 
 from trainer.utils.utils import *
 from trainer.checkpoint import save_checkpoint
@@ -108,7 +109,7 @@ def train(
         )
     else:
         optimizer_text_encoder_lora = None
-        text_encoder_peft_models = None
+        text_encoder_peft_models = [None] * len(text_encoders)
 
     optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
         text_encoders=text_encoders,
@@ -240,6 +241,9 @@ def train(
             if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
                 if optimizers['textual_inversion'] is not None:
                     optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                    if config.freeze_ti_after_completion_f <= completion_f:
+                        optimizers['textual_inversion'].param_groups[0]['lr'] *= 0
+
             if optimizers['text_encoders'] is not None:
                 optimizers['text_encoders'].param_groups[0]['lr'] = config.text_encoder_lora_lr * (1 - completion_f) ** 2.0
 

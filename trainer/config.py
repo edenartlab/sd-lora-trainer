@@ -28,6 +28,7 @@ class TrainingConfig(BaseModel):
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
+    freeze_ti_after_completion_f: float = 0.5
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
@@ -76,7 +77,7 @@ class TrainingConfig(BaseModel):
     Else the other variables are ignored.
     """
     text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = None
-    text_encoder_lora_lr: float = 1e-5
+    text_encoder_lora_lr: float = 0.5e-5
     text_encoder_lora_weight_decay: float = 1e-5
     text_encoder_lora_rank: int = 12
 

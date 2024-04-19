@@ -39,7 +39,7 @@ def save_checkpoint(
     is_lora: bool, 
     unet_lora_parameters, 
     name: str = None,
-    text_encoder_peft_models: list = None
+    text_encoder_peft_models: list = [None]
 ):
     """
     Save the model's embeddings and special parameters to the specified directory.
@@ -94,9 +94,10 @@ def save_checkpoint(
             output_dir, "special_params.json"
         )
     )
-        
-    if text_encoder_peft_models is not None:
-        for idx, model in enumerate(text_encoder_peft_models):
+    
+    # TODO this can prob be removed:
+    for idx, model in enumerate(text_encoder_peft_models):
+        if model is not None:
             save_directory = os.path.join(output_dir, f"text_encoder_lora_{idx}")
             model.save_pretrained(
                 save_directory = save_directory
@@ -105,15 +106,22 @@ def save_checkpoint(
 
     if is_lora:
         assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero if is_lora is True"
+        # TODO: I think we only need this to get the adapter_config.json?
         unet.save_pretrained(save_directory = output_dir)
 
+        text_encoder_lora_layers = [None, None]
+        for idx, model in enumerate(text_encoder_peft_models):
+            if model is not None:
+                lora_tensors = get_peft_model_state_dict(model)
+                text_encoder_lora_layers[idx] = convert_state_dict_to_diffusers(lora_tensors)
+                
         lora_tensors = get_peft_model_state_dict(unet)
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
         StableDiffusionXLPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
-                #text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
-                #text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
+                text_encoder_lora_layers=text_encoder_lora_layers[0],
+                text_encoder_2_lora_layers=text_encoder_lora_layers[1],
             )
 
         convert_pytorch_lora_safetensors_to_webui(

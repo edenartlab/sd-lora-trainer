@@ -76,6 +76,7 @@ def get_textual_inversion_optimizer(
             text_encoder.train()
             for name, param in text_encoder.named_parameters():
                 if "token_embedding" in name:
+                    #param.data = param.to(dtype=torch.float32)
                     param.requires_grad = True
                     text_encoder_parameters.append(param)
                     print(f"Added {name} with shape {param.shape} to the trainable parameters")
@@ -144,6 +145,8 @@ def get_optimizer_and_peft_models_text_encoder_lora(
             )
             text_encoder_lora_parameters.extend(text_encoder_lora_params)
             text_encoder_peft_models.append(text_encoder_peft_model)
+        else:
+            text_encoder_peft_models.append(None)
 
     if optimizer_name == "adamw":
         optimizer_text_encoder_lora = torch.optim.AdamW(
