@@ -292,7 +292,7 @@ def cleanup_prompts_with_chatgpt(
     print(f"Calling chatgpt with seed {seed}...")
 
     response = client.chat.completions.create(
-            model="gpt-4-1106-preview",
+            model="gpt-4-turbo",
             seed=seed,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
