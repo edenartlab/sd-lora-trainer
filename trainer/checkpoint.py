@@ -95,19 +95,21 @@ def save_checkpoint(
         )
     )
     
-    # TODO this can prob be removed:
-    for idx, model in enumerate(text_encoder_peft_models):
-        if model is not None:
-            save_directory = os.path.join(output_dir, f"text_encoder_lora_{idx}")
-            model.save_pretrained(
-                save_directory = save_directory
-            )
-            print(f"Saved text encoder {idx} in: {save_directory}")
+    # Separate txt_lora saves:
+    #for idx, model in enumerate(text_encoder_peft_models):
+    #    if model is not None:
+    #        save_directory = os.path.join(output_dir, f"text_encoder_lora_{idx}")
+    #        model.save_pretrained(
+    #            save_directory = save_directory
+    #        )
+    #        print(f"Saved text encoder {idx} in: {save_directory}")
 
     if is_lora:
         assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero if is_lora is True"
-        # TODO: I think we only need this to get the adapter_config.json?
-        unet.save_pretrained(save_directory = output_dir)
+        
+        # This saves adapter_config.json:
+        # TODO: adjust inference.py so it can load everything without needing this file
+        # unet.save_pretrained(save_directory = output_dir)
 
         text_encoder_lora_layers = [None, None]
         for idx, model in enumerate(text_encoder_peft_models):
@@ -117,6 +119,8 @@ def save_checkpoint(
                 
         lora_tensors = get_peft_model_state_dict(unet)
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
+
+        # TODO have a separate save for non SDXL model:
         StableDiffusionXLPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
