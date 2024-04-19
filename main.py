@@ -144,8 +144,8 @@ def train(
         lora_weight_decay=config.lora_weight_decay,
         use_dora=config.use_dora,
         unet_trainable_params=unet_trainable_params,
-        #optimizer_name="prodigy" # hardcode for now
-        optimizer_name="adamW" # hardcode for now
+        optimizer_name="prodigy" # hardcode for now
+        #optimizer_name="adamW" # hardcode for now
     )
         
     print_trainable_parameters(unet, model_name = 'unet')
