@@ -290,7 +290,6 @@ def encode_prompt_advanced(
 
 @torch.no_grad()
 def render_images(
-    pipe,
     render_size,
     lora_path,
     train_step,
@@ -298,13 +297,18 @@ def render_images(
     is_lora,
     pretrained_model,
     lora_scale,
-    trigger_text: str,
     n_steps=25,
     n_imgs=4,
     device="cuda:0",
-    verbose: bool = True,
+    pipe = None,
+    checkpoint_folder: str = None,
 ):
-    training_scheduler = pipe.scheduler
+    if checkpoint_folder is not None:
+        assert pipe is None, f"Expected either one of checkpoint_folder or pipe to be None. But got: checkpoint_folder: {checkpoint_folder} and pipe is not None"
+    
+    if pipe is not None:
+        assert checkpoint_folder is None, f"Expected either one of checkpoint_folder or pipe to be None. But got pipe is NOT None checkpoint_folder is: {checkpoint_folder}"
+    
     random.seed(seed)
 
     with open(os.path.join(lora_path, "training_args.json"), "r") as f:
@@ -322,28 +326,25 @@ def render_images(
         validation_prompts_raw = random.sample(val_prompts["object"], n_imgs)
         validation_prompts_raw[0] = "<concept>"
 
-    reload_entire_pipeline = False
     if (
-        reload_entire_pipeline
+        checkpoint_folder is not None
     ):  # reload the entire pipeline from disk and load in the lora module
-        print(f"Reloading entire pipeline from disk..")
+        print(f"Reloading checkpoint from disk: {checkpoint_folder}")
         gc.collect()
         torch.cuda.empty_cache()
 
-        (
-            pipe,
-            tokenizer_one,
-            tokenizer_two,
-            noise_scheduler,
-            text_encoder_one,
-            text_encoder_two,
-            vae,
-            unet,
-        ) = load_models(pretrained_model, device, torch.float16)
+        pipe = load_checkpoint(
+            pretrained_model_version=pretrained_model["version"],
+            pretrained_model_path=pretrained_model["path"],
+            checkpoint_folder=checkpoint_folder,
+            is_lora=is_lora,
+            device=device,
+        )
 
-        pipe = pipe.to(device)
-        pipe = patch_pipe_with_lora(pipe, lora_path, lora_scale=lora_scale)
     else:
+        assert pipe is not None
+        training_scheduler = pipe.scheduler
+        print(f"Using existing model for inference")
         print(
             f"Re-using training pipeline for inference, just swapping the scheduler.."
         )
@@ -386,9 +387,10 @@ def render_images(
             quality=95,
         )
 
-    pipe.scheduler = training_scheduler
+    if checkpoint_folder is None:
+        pipe.scheduler = training_scheduler
+        pipe.vae = pipe.vae.to("cpu")
 
-    pipe.vae = pipe.vae.to("cpu")
     gc.collect()
     torch.cuda.empty_cache()
 

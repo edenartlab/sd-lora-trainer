@@ -377,16 +377,30 @@ def train(
                 plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                 plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-                validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, 
-                    config.seed, 
-                    config.is_lora, 
-                    config.pretrained_model, 
-                    config.sample_imgs_lora_scale,
+
+
+                if global_step != config.max_train_steps:
+                    # checkpoint_folder = None because we dont want to reload from disk during trainings
+                    render_images_pipe = pipe
+                    render_images_checkpoint_folder=None
+
+                else:
+                    render_images_pipe = None
+                    render_images_checkpoint_folder=output_save_dir
+                
+                validation_prompts = render_images(
+                    pipe=render_images_pipe, 
+                    render_size=config.validation_img_size, 
+                    lora_path= output_save_dir, 
+                    train_step= global_step, 
+                    seed= config.seed, 
+                    is_lora= config.is_lora, 
+                    pretrained_model= config.pretrained_model, 
+                    lora_scale= config.sample_imgs_lora_scale,
                     n_imgs = config.n_sample_imgs, 
-                    verbose = config.verbose, 
-                    trigger_text = config.training_attributes["trigger_text"],
-                    device = config.device
-                    )
+                    device = config.device,
+                    checkpoint_folder=render_images_checkpoint_folder
+                )
                 img_grid_path = make_validation_img_grid(output_save_dir)
                 shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
                         
@@ -429,18 +443,21 @@ def train(
             unet_lora_parameters=unet_lora_parameters,
             name=config.name
         )
-        validation_prompts = render_images(pipe, config.validation_img_size, output_save_dir, global_step, 
-            config.seed, 
-            config.is_lora, 
-            config.pretrained_model, 
-            config.sample_imgs_lora_scale,
+        # pipe is None because we want to load from disk
+        validation_prompts = render_images(
+            pipe = None, 
+            render_size=config.validation_img_size, 
+            lora_path=output_save_dir, 
+            train_step=global_step, 
+            seed=config.seed, 
+            is_lora=config.is_lora, 
+            pretrained_model=config.pretrained_model, 
+            lora_scale=config.sample_imgs_lora_scale,
             n_imgs = config.n_sample_imgs, 
             n_steps = 30, 
-            verbose=config.verbose, 
-            trigger_text=config.training_attributes["trigger_text"],
-            device = config.device
-            )
-        
+            device = config.device,
+            checkpoint_folder=output_save_dir
+        )
         img_grid_path = make_validation_img_grid(output_save_dir)
         shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
 
