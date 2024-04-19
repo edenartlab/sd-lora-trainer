@@ -9,7 +9,7 @@
     "train_batch_size": 4,
     "n_sample_imgs": 6,
     "max_train_steps": 320,
-    "token_warmup_steps": 60,
+    "txt_encoders_lr_warmup_steps": 60,
     "checkpointing_steps": 80,
     "gradient_accumulation_steps": 1,
     "n_tokens": 2,
@@ -34,7 +34,6 @@
     "augment_imgs_up_to_n": 20,
     "verbose": true,
     "debug": true,
-    "hard_pivot": false,
     "weight_type": "bf16",
     "dataloader_num_workers": 0
 }

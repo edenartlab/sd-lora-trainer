@@ -290,7 +290,7 @@ def render_images(pipe, render_size, lora_path, train_step, seed, is_lora, pretr
             unet) = load_models(pretrained_model, device, torch.float16)
 
         pipe = pipe.to(device)
-        pipe = patch_pipe_with_lora(pipe, lora_path)
+        pipe = patch_pipe_with_lora(pipe, lora_path, lora_scale = lora_scale)
     else:
         print(f"Re-using training pipeline for inference, just swapping the scheduler..")
         pipe.vae = pipe.vae.to(device).to(pipe.unet.dtype)

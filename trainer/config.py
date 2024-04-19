@@ -21,7 +21,7 @@ class TrainingConfig(BaseModel):
     max_train_steps: int = 600
     token_warmup_steps: int = 40
     checkpointing_steps: int = 10000
-    token_embedding_lr_warmup_steps: int = 30
+    txt_encoders_lr_warmup_steps: int = 30
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     prodigy_d_coef: float = 0.5
@@ -50,7 +50,6 @@ class TrainingConfig(BaseModel):
     name: str = None
     output_dir: str = "lora_models/unnamed"
     debug: bool = False
-    hard_pivot: bool = False
     off_ratio_power: float = 0.01
     allow_tf32: bool = True
     remove_ti_token_from_prompts: bool = False
@@ -63,8 +62,6 @@ class TrainingConfig(BaseModel):
     crops_coords_top_left_w: int = 0
     do_cache: bool = True
     unet_learning_rate: float = 1.0
-    lr_scheduler: str = "constant"
-    lr_warmup_steps: int = 50
     lr_num_cycles: int = 1
     lr_power: float = 1.0
     sample_imgs_lora_scale: float = 0.7    # Default lora scale for sampling the validation images

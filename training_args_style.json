@@ -30,7 +30,6 @@
     "augment_imgs_up_to_n": 20,
     "verbose": true,
     "debug": true,
-    "hard_pivot": false,
     "weight_type": "bf16",
     "dataloader_num_workers": 0
 }

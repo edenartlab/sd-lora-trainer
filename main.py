@@ -144,7 +144,8 @@ def train(
         lora_weight_decay=config.lora_weight_decay,
         use_dora=config.use_dora,
         unet_trainable_params=unet_trainable_params,
-        optimizer_name="prodigy" # hardcode for now
+        #optimizer_name="prodigy" # hardcode for now
+        optimizer_name="adamW" # hardcode for now
     )
         
     print_trainable_parameters(unet, model_name = 'unet')
@@ -233,26 +234,19 @@ def train(
 
         for step, batch in enumerate(train_dataloader):
             progress_bar.update(1)
-            if config.hard_pivot:
-                if epoch >= config.num_train_epochs // 3:
-                    if optimizers['textual_inversion'] is not None:
-                        print("Disabling textual_inversion!")
-                        # The next line is 100% necessary, otherwise the optimizer will keep updating the embeddings for some reason (even though the optimizer is None)
-                        optimizers['textual_inversion'].param_groups[0]['lr'] = 0.0
-                        optimizers['textual_inversion'] = None
-
-            elif config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
-                finegrained_epoch = epoch + step / len(train_dataloader)
-                completion_f = finegrained_epoch / config.num_train_epochs
-                # param_groups[1] goes from ti_lr to 0.0 over the course of training
+            finegrained_epoch = epoch + step / len(train_dataloader)
+            completion_f = finegrained_epoch / config.num_train_epochs
+            # param_groups[1] goes from ti_lr to 0.0 over the course of training
+            if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
                 if optimizers['textual_inversion'] is not None:
                     optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+            if optimizers['text_encoders'] is not None:
+                optimizers['text_encoders'].param_groups[0]['lr'] = config.text_encoder_lora_lr * (1 - completion_f) ** 2.0
 
-                # warmup the token embedding lr:
-                if config.token_embedding_lr_warmup_steps > 0:
-                    warmup_f = min(global_step / config.token_embedding_lr_warmup_steps, 1.0)
-                    if optimizers['textual_inversion'] is not None:
-                        optimizers['textual_inversion'].param_groups[0]['lr'] *= warmup_f
+                # warmup the txt-encoder lr:
+                if config.txt_encoders_lr_warmup_steps > 0 and optimizers['text_encoders'] is not None:
+                    warmup_f = min(global_step / config.txt_encoders_lr_warmup_steps, 1.0)
+                    optimizers['text_encoders'].param_groups[0]['lr'] *= warmup_f
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch

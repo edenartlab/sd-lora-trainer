@@ -32,6 +32,5 @@
     "use_dora": false,
     "caption_model": "gpt4-v",
     "verbose": true,
-    "debug": true,
-    "hard_pivot": false
+    "debug": true
 }
