@@ -1,6 +1,6 @@
 {
     "output_dir": "lora_models/xander_ti",
-    "sd_model_version": "sdxl",
+    "sd_model_version": "sd15",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip",
     "concept_mode": "face",
     "seed": 0,
@@ -14,7 +14,7 @@
     "gradient_accumulation_steps": 1,
     "n_tokens": 2,
     "ti_lr": 0.001,
-    "freeze_ti_after_completion_f": 0.3,
+    "freeze_ti_after_completion_f": 0.0,
     "ti_weight_decay": 0.0005,
     "text_encoder_lora_optimizer": "adamw",
     "text_encoder_lora_lr": 0.5e-4,

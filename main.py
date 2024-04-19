@@ -382,12 +382,10 @@ def train(
                 plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
 
-
-                if global_step != config.max_train_steps:
+                if global_step < config.max_train_steps:
                     # checkpoint_folder = None because we dont want to reload from disk during trainings
                     render_images_pipe = pipe
                     render_images_checkpoint_folder=None
-
                 else:
                     render_images_pipe = None
                     render_images_checkpoint_folder=output_save_dir
@@ -447,6 +445,18 @@ def train(
             unet_lora_parameters=unet_lora_parameters,
             name=config.name
         )
+
+        del unet
+        del vae
+        del text_encoder_one
+        del text_encoder_two
+        del tokenizer_one
+        del tokenizer_two
+        del embedding_handler
+        del pipe
+        gc.collect()
+        torch.cuda.empty_cache()
+
         # pipe is None because we want to load from disk
         validation_prompts = render_images(
             pipe = None, 
@@ -467,17 +477,6 @@ def train(
 
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
-
-    del unet
-    del vae
-    del text_encoder_one
-    del text_encoder_two
-    del tokenizer_one
-    del tokenizer_two
-    del embedding_handler
-    del pipe
-    gc.collect()
-    torch.cuda.empty_cache()
 
     if config.debug:
         parent_dir = os.path.dirname(os.path.abspath(__file__))
