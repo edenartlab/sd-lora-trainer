@@ -37,7 +37,8 @@ def save_checkpoint(
     embedding_handler, 
     token_dict: dict, 
     is_lora: bool, 
-    unet_lora_parameters, 
+    unet_lora_parameters,
+    pretrained_model_version: str, 
     name: str = None,
     text_encoder_peft_models: list = [None]
 ):
@@ -121,11 +122,22 @@ def save_checkpoint(
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
 
         # TODO have a separate save for non SDXL model:
-        StableDiffusionXLPipeline.save_lora_weights(
+        if pretrained_model_version == "sdxl":
+            StableDiffusionXLPipeline.save_lora_weights(
+                    output_dir,
+                    unet_lora_layers=unet_lora_layers_to_save,
+                    text_encoder_lora_layers=text_encoder_lora_layers[0],
+                    text_encoder_2_lora_layers=text_encoder_lora_layers[1],
+                )
+        elif pretrained_model_version == "sd15":
+            StableDiffusionPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
                 text_encoder_lora_layers=text_encoder_lora_layers[0],
-                text_encoder_2_lora_layers=text_encoder_lora_layers[1],
+            )
+        else:
+            raise ValueError(
+                f"Invalid pretrained_model_version: {pretrained_model_version}. Expected one of: 'sdxl' or 'sd15'"
             )
 
         convert_pytorch_lora_safetensors_to_webui(

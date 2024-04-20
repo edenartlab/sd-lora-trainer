@@ -357,7 +357,8 @@ def train(
                     is_lora=config.is_lora, 
                     unet_lora_parameters=unet_lora_parameters,
                     name=config.name,
-                    text_encoder_peft_models=text_encoder_peft_models
+                    text_encoder_peft_models=text_encoder_peft_models,
+                    pretrained_model_version=config.pretrained_model["version"]
                 )
                 last_save_step = global_step
 
@@ -435,7 +436,8 @@ def train(
             token_dict=config.token_dict, 
             is_lora=config.is_lora, 
             unet_lora_parameters=unet_lora_parameters,
-            name=config.name
+            name=config.name,
+            pretrained_model_version=config.pretrained_model["version"]
         )
 
         del unet
