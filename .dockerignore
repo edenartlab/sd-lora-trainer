@@ -1,5 +1,4 @@
 # The .dockerignore file excludes files from the container build process.
-#
 # https://docs.docker.com/engine/reference/builder/#dockerignore-file
 
 # Exclude Git files
@@ -12,6 +11,12 @@ __pycache__
 .mypy_cache
 .pytest_cache
 .ruff_cache
+
+# Dev files:
+debug
+xander
+datasets
+rendered_images
 
 # trained models:
 lora_models/*
