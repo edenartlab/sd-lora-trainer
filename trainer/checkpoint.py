@@ -110,7 +110,7 @@ def save_checkpoint(
         
         # This saves adapter_config.json:
         # TODO: adjust inference.py so it can load everything without needing this file
-        # unet.save_pretrained(save_directory = output_dir)
+        unet.save_pretrained(save_directory = output_dir)
 
         text_encoder_lora_layers = [None, None]
         for idx, model in enumerate(text_encoder_peft_models):

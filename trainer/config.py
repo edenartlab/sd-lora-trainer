@@ -13,7 +13,7 @@ class TrainingConfig(BaseModel):
     pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 512
-    validation_img_size: List[int] = None
+    validation_img_size: List[int] = [1024, 1024]
     train_img_size: List[int] = None
     train_aspect_ratio: float = 1.0
     train_batch_size: int = 4
