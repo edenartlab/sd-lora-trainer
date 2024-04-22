@@ -2,12 +2,11 @@
 GPU_ID="device=2"
 
 cog predict --gpus $GPU_ID \
-    -i name="clipx_sdxl_cog" \
-    -i caption_prefix="in the style of TOK, " \
-    -i concept_mode="style" \
+    -i name="xander_sdxl_cog" \
+    -i lora_training_urls="https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip" \
+    -i concept_mode="face" \
     -i sd_model_version="sdxl" \
-    -i max_train_steps="50" \
-    -i checkpointing_steps="500" \
+    -i max_train_steps="360" \
+    -i caption_model="gpt4-v" \
     -i debug="False" \
-    -i lora_training_urls="https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip" \
     -i seed="0"

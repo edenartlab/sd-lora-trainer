@@ -182,7 +182,7 @@ class Predictor(BasePredictor):
         ),
         caption_model: str = Input(
             description="Which captioning model to use. ['gpt4-v', 'blip'] are supported right now",
-            default="blip",
+            default="gpt4-v",
         ),
         n_tokens: int = Input(
             description="How many new tokens to inject per concept",
@@ -221,15 +221,14 @@ class Predictor(BasePredictor):
             is_lora=is_lora,
             prodigy_d_coef=prodigy_d_coef,
             ti_lr=ti_lr,
-            ti_weight_decay=ti_weight_decay,
-            lora_weight_decay=lora_weight_decay,
-            l1_penalty=l1_penalty,
             lora_rank=lora_rank,
             caption_model=caption_model,
             n_tokens=n_tokens,
             verbose=verbose,
             debug=debug,
-            off_ratio_power=off_ratio_power
+            text_encoder_lora_optimizer=text_encoder_lora_optimizer,
+            freeze_ti_after_completion_f=freeze_ti_after_completion_f,
+            token_warmup_steps=token_warmup_steps
         )
         
         train_generator = train(config=config)
