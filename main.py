@@ -326,21 +326,23 @@ def train(
                             text_encoder_norm = compute_grad_norm(itertools.chain(text_encoder.parameters())).item()
                             grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
 
-                    # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
-                    embedding_handler.fix_embedding_std(config.off_ratio_power)
-
                 optimizer_collection.step()
                 optimizer_collection.zero_grad()
 
-            #############################################################################################################
+                # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
+                if optimizer_collection.get_lr('textual_inversion') > 0.0:
+                    embedding_handler.fix_embedding_std(config.off_ratio_power)
 
-            # Track the token embedding stds:
-            trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
-            for idx in range(len(text_encoders)):
-                if text_encoders[idx] is not None:
-                    embedding_stds = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).detach().float().std(dim=1)
-                    for std_i, std in enumerate(embedding_stds):
-                        token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
+            #############################################################################################################
+            
+            if config.debug:
+                # Track the token embedding stds:
+                trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
+                for idx in range(len(text_encoders)):
+                    if text_encoders[idx] is not None:
+                        embedding_stds = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).detach().float().std(dim=1)
+                        for std_i, std in enumerate(embedding_stds):
+                            token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
             if config.debug and (global_step % config.checkpointing_steps == 0): #and global_step > 0:

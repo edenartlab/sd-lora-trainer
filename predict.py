@@ -197,7 +197,7 @@ class Predictor(BasePredictor):
     ) -> Iterator[GENERATOR_OUTPUT_TYPE]:
 
         """
-        lambda @1024 training speed (SDXL):
+        lambda training speed (SDXL):
         bs=2: 3.5 imgs/s, 1.8 batches/s
         bs=3: 5.1 imgs/s
         bs=4: 6.0 imgs/s,

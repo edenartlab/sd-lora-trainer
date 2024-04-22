@@ -220,6 +220,9 @@ class OptimizerCollection:
             if self.optimizers[key] is not None:
                 print(key)
 
+    def get_lr(self, key):
+        return get_current_lr(self.optimizers[key])
+
     def zero_grad(self):
         for key in self.optimizers.keys():
             if self.optimizers[key] is not None:
