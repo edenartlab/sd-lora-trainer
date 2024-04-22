@@ -136,16 +136,21 @@ class Predictor(BasePredictor):
             default=None,
         ),
         resolution: int = Input(
-            description="Square pixel resolution which your images will be resized to for training, recommended [512-640]",
+            description="Square pixel resolution which your images will be resized to for training, recommended: 512 or 640",
             default=512,
         ),
         train_batch_size: int = Input(
             description="Batch size (per device) for training",
             default=4,
         ),
+
         max_train_steps: int = Input(
             description="Number of training steps.",
             default=400,
+        ),
+        token_warmup_steps: int = Input(
+            description="Number of steps for token (textual_inversion) warmup.",
+            default=50,
         ),
         checkpointing_steps: int = Input(
             description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need intermediate checkpoints.",
@@ -163,21 +168,17 @@ class Predictor(BasePredictor):
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
             default=1e-3,
         ),
-        ti_weight_decay: float = Input(
-            description="weight decay for textual inversion embeddings. Don't alter unless you know what you're doing.",
-            default=3e-4,
-        ),
-        lora_weight_decay: float = Input(
-            description="weight decay for lora parameters. Don't alter unless you know what you're doing.",
-            default=0.002,
-        ),
-        l1_penalty: float = Input(
-            description="Sparsity penalty for the LoRA matrices, possibly improves merge-ability and generalization",
-            default=0.1,
+        freeze_ti_after_completion_f: float = Input(
+            description="Fraction of training steps after which to freeze textual inversion embeddings",
+            default=0.5,
         ),
         lora_rank: int = Input(
-            description="Rank of LoRA embeddings. For faces 5 is good, for complex concepts / styles you can try 8 or 12",
+            description="Rank of LoRA embeddings for the unet.",
             default=12,
+        ),
+        text_encoder_lora_optimizer: str = Input(
+            description="Which optimizer to use for the text_encoder_lora. ['adamw', None] are supported right now (None will disable txt-lora training)",
+            default="adamw",
         ),
         caption_model: str = Input(
             description="Which captioning model to use. ['gpt4-v', 'blip'] are supported right now",
@@ -191,11 +192,7 @@ class Predictor(BasePredictor):
         debug: bool = Input(
             description="For debugging locally only (dont activate this on replicate)",
             default=False,
-        ),
-        off_ratio_power: float = Input(
-            description="How strongly to correct the embedding std vs the avg-std (0=off, 0.05=weak, 0.1=standard)",
-            default=0.05,
-        ),
+        )
 
     ) -> Iterator[GENERATOR_OUTPUT_TYPE]:
 
