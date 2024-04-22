@@ -25,6 +25,7 @@ class TrainingConfig(BaseModel):
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     prodigy_d_coef: float = 0.5
+    unet_prodigy_growth_factor: float = 1.025
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"

@@ -142,6 +142,7 @@ def train(
 
     optimizer_unet = get_unet_optimizer(
         prodigy_d_coef=config.prodigy_d_coef,
+        prodigy_growth_factor=config.unet_prodigy_growth_factor,
         lora_weight_decay=config.lora_weight_decay,
         use_dora=config.use_dora,
         unet_trainable_params=unet_trainable_params,

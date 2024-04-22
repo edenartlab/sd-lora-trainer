@@ -5,6 +5,7 @@ from typing import Iterable
 
 def get_unet_optimizer(
     prodigy_d_coef: float,
+    prodigy_growth_factor: float,
     lora_weight_decay: float,
     use_dora: bool,
     unet_trainable_params: Iterable,
@@ -26,12 +27,12 @@ def get_unet_optimizer(
             safeguard_warmup=True,
             weight_decay=lora_weight_decay if not use_dora else 0.0,
             betas=(0.9, 0.99),
-            #growth_rate=1.025,  # this slows down the lr_rampup
-            growth_rate=1.04,  # this slows down the lr_rampup
+            growth_rate=prodigy_growth_factor  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
         )
     else:
         raise NotImplementedError(f"Invalid optimizer_name for unet: {optimizer_name}")
-
+    
+    print(f"Created {optimizer_name} optimizer for unet!")
     return optimizer_unet
 
 def get_unet_lora_parameters(
@@ -68,7 +69,7 @@ def get_textual_inversion_optimizer(
     text_encoders: list,
     textual_inversion_lr: float,
     textual_inversion_weight_decay,
-    optimizer_name = "prodigy"
+    optimizer_name: str
 ):
     text_encoder_parameters = []
     for text_encoder in text_encoders:
@@ -101,7 +102,7 @@ def get_textual_inversion_optimizer(
                             safeguard_warmup=True,
                             weight_decay=textual_inversion_weight_decay,
                             betas=(0.9, 0.99),
-                            #growth_rate=5.0,  # this slows down the lr_rampup
+                            #growth_rate=1.5,  # this slows down the lr_rampup
                         )
     elif  optimizer_name == "adamw":
         optimizer_ti = torch.optim.AdamW(
@@ -110,6 +111,8 @@ def get_textual_inversion_optimizer(
         )
     else:
         raise NotImplementedError(f"Invalid optimizer_name: '{optimizer_name}'") 
+    
+    print(f"Created {optimizer_name} optimizer for textual inversion!")
     return optimizer_ti, text_encoder_parameters
 
 def get_text_encoder_lora_parameters(text_encoder, lora_rank, lora_alpha_multiplier, use_dora: bool):

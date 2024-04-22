@@ -85,7 +85,6 @@ def preprocess(
 ) -> Path:
 
     if os.path.exists(working_directory):
-        print(f"working_directory {working_directory} already existed.. deleting and recreating!")
         shutil.rmtree(working_directory)
     os.makedirs(working_directory)
 
