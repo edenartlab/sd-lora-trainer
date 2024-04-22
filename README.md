@@ -52,7 +52,6 @@ Code / Cleanup:
 - cleanup optimizers / optimizeable params code into optimizer.py
 - Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
 - Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
-- properly measure regularization target_values for conditioning and add pooled_prompt_embeds into regularizer for SDXL
 
 Algo:
 - Improve some of the chatgpt functionality:
@@ -66,13 +65,14 @@ Algo:
 - figure out why the initial onset of learning in the LoRa / Dora causes a temporary drop in img quality
 
 Bigger improvements:
-- add stronger token regularization (eg CelebBasis spanning basis)
+- add stronger token regularization (eg CelebBasis spanning basis):
+    - remove the fix_embedding_std() hack that messes up the gradients and replace with something better
 - Add multi-token training
-- implement perfusion: https://research.nvidia.com/labs/par/Perfusion/
+- implement perfusion ideas (key locking with superclass): https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
 
 Tuning Experiments once code is fully ready:
-- gridsearch over LoRa target_modules=["to_k", "to_q", "to_v", "to_out.0"]
+- gridsearch over LoRa target_modules=["to_k", "to_q", "to_v", "to_out.0"] for both unet and txt-encoder
 - try-out conditioning noise injection during training to increase robustness
 - re-test / tweak the adaptive learning rates (also test Prodigy vs Adam)
 - right now it looks like the diffusion model gets partially "destroyed" in the beginning of training (outputs from steps 100-200 look terrible), 

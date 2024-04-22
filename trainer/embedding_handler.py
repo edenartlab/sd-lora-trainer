@@ -280,13 +280,15 @@ class TokenEmbeddingsHandler:
             )
 
         token_string = config.token_dict["TOK"]
+
+        # TODO: check if some light prompt template augmentation is useful here to make the optimization more robust
         prompt_template = [
             '{}',
             '{}',
             '{}',
-            'a {}',
-            '{} image',
-            'a picture of {}',
+            #'a {}',
+            #'{} image',
+            #'a picture of {}',
         ]
 
         #condtioning_regularizer = ConditioningRegularizer(config, self)
@@ -302,10 +304,16 @@ class TokenEmbeddingsHandler:
             prompt_to_optimize = np.random.choice(prompt_template).format(token_string)
             prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize)
 
-            # compute the loss:
+            # compute the MSE losses:
             embeds_l2_loss = F.mse_loss(prompt_embeds, target_prompt_embeds)
             pooled_embeds_l2_loss = F.mse_loss(pooled_prompt_embeds, target_pooled_prompt_embeds)
-            loss = 4.0 * embeds_l2_loss + pooled_embeds_l2_loss
+
+            # Compute the cosine-similarity losses:
+            embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, target_prompt_embeds, dim=-1).mean()
+            pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, target_pooled_prompt_embeds, dim=-1).mean()
+
+            # Combine the losses:
+            loss = 4.0 * embeds_l2_loss + 1.0 * pooled_embeds_l2_loss + 4.0 * embeds_cosine_loss + 1.0 * pooled_embeds_cosine_loss
 
             # Backward pass:
             retain_graph = step < (config.token_warmup_steps - 1)  # Retain graph for all but the last step

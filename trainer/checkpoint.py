@@ -183,6 +183,7 @@ def load_checkpoint(
 
     pipe = pipe.to('cuda', dtype=torch.float16)
     pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config) #, timestep_spacing="trailing")
+    print(f"Loaded new {pretrained_model_version} model from: {pretrained_model_path}")
 
     assert os.path.exists(checkpoint_folder), f"Invalid checkpoint_folder: {checkpoint_folder}"    
     text_encoder_0_path =  os.path.join(

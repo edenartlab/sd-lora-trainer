@@ -18,14 +18,14 @@ class TrainingConfig(BaseModel):
     train_aspect_ratio: float = 1.0
     train_batch_size: int = 4
     num_train_epochs: int = 10000
-    max_train_steps: int = 600
+    max_train_steps: int = 500
     token_warmup_steps: int = 40
     checkpointing_steps: int = 10000
     txt_encoders_lr_warmup_steps: int = 30
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     prodigy_d_coef: float = 0.5
-    unet_prodigy_growth_factor: float = 1.025
+    unet_prodigy_growth_factor: float = 1.025  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
@@ -77,7 +77,7 @@ class TrainingConfig(BaseModel):
     if text_encoder_lora_optimizer is not None then everything else is used. 
     Else the other variables are ignored.
     """
-    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = None
+    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = "adamw"
     text_encoder_lora_lr: float = 0.5e-5
     text_encoder_lora_weight_decay: float = 1e-5
     text_encoder_lora_rank: int = 12

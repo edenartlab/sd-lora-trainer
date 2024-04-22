@@ -12,7 +12,7 @@ __pycache__
 .pytest_cache
 .ruff_cache
 
-# Dev files:
+# Dev folders:
 debug
 xander
 datasets

@@ -332,7 +332,7 @@ def render_images(
         print(f"Reloading checkpoint from disk: {checkpoint_folder}")
         gc.collect()
         torch.cuda.empty_cache()
-
+        
         pipe = load_checkpoint(
             pretrained_model_version=pretrained_model["version"],
             pretrained_model_path=pretrained_model["path"],
