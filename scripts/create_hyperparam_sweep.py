@@ -35,7 +35,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_sdxl"
+exp_name             = "gridsearch_sdxl_beeple"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
@@ -50,18 +50,21 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/xander/datasets/beeple"
+        "/home/rednax/Documents/datasets/beeple"
     ],
     "concept_mode": ['style'],
     "seed": [0],
-    "resolution": [512,640],
+    "resolution": [512],
     "validation_img_size": [[1024, 1024]],
     "train_batch_size": [4],
     "n_sample_imgs": [6],
-    "max_train_steps": [400],
+    "max_train_steps": [600],
     "checkpointing_steps": [100],
-    "gradient_accumulation_steps": [1,2],
-    "prodigy_d_coef": [0.5],
+    "gradient_accumulation_steps": [1],
+    "freeze_ti_after_completion_f": [0.4,0.8],
+    "tok_cov_reg_w": [0.0, 0.001, 0.005, 0.015],
+    "text_encoder_lora_optimizer": ["adamw", None],
+    "prodigy_d_coef": [0.5,1.0],
     "cond_reg_w": [0.0],
     "tok_cond_reg_w": [0.0],
     "n_tokens": [2,3],
@@ -69,12 +72,11 @@ hyperparameters = {
     "ti_weight_decay": [0.0005],
     "lora_weight_decay": [0.001],
     "l1_penalty": [0.1, 0.0],
-    "off_ratio_power": [0.0, 0.02, 0.05],
-    "hard_pivot": ['false', 'true'],
-    "token_embedding_lr_warmup_steps": [0, 50],
+    "off_ratio_power": [0.0, 0.05],
+    "token_embedding_lr_warmup_steps": [0],
     "snr_gamma": [5.0],
     "lora_rank": [12,24],
-    "use_dora": ['false', 'true'],
+    "use_dora": ['false'],
     "caption_model": ["blip"],
     "augment_imgs_up_to_n": [20],
     "verbose": ['true'],
