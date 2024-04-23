@@ -13,7 +13,6 @@ import torch.utils.checkpoint
 from tqdm import tqdm
 
 import prodigyopt
-from peft import LoraConfig, get_peft_model
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 #from diffusers.training_utils import cast_training_params
 
@@ -86,6 +85,7 @@ def train(
     )
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
+    embedding_handler.make_embeddings_trainable()
     embedding_handler.pre_optimize_token_embeddings(config)
 
     # Turn off all gradients for now:
@@ -111,6 +111,8 @@ def train(
         optimizer_text_encoder_lora = None
         text_encoder_peft_models = [None] * len(text_encoders)
 
+
+    embedding_handler.make_embeddings_trainable()
     optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
         text_encoders=text_encoders,
         textual_inversion_lr=config.ti_lr,
@@ -208,13 +210,13 @@ def train(
     # Data tracking inits:
     start_time, images_done = time.time(), 0
     prompt_embeds_norms = {'main':[], 'reg':[]}
-    losses = {'img_loss': [], 'tot_loss': []}
+    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
 
-    condtioning_regularizer = ConditioningRegularizer(config)
+    condtioning_regularizer = ConditioningRegularizer(config, embedding_handler)
 
     #######################################################################################################
     
@@ -228,6 +230,8 @@ def train(
         debug = config.debug
     )
     optimizers = optimizer_collection.optimizers
+
+    embedding_handler.visualize_random_token_embeddings(os.path.join(config.output_dir, 'ti_embeddings'), n = 10)
 
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
@@ -327,11 +331,13 @@ def train(
                             grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
 
                 optimizer_collection.step()
-                optimizer_collection.zero_grad()
 
                 # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
                 if optimizer_collection.get_lr('textual_inversion') > 0.0:
                     embedding_handler.fix_embedding_std(config.off_ratio_power)
+                    pass
+
+                optimizer_collection.zero_grad()
 
             #############################################################################################################
             
@@ -340,7 +346,7 @@ def train(
                 trainable_embeddings, _ = embedding_handler.get_trainable_embeddings()
                 for idx in range(len(text_encoders)):
                     if text_encoders[idx] is not None:
-                        embedding_stds = torch.stack(trainable_embeddings[f'txt_encoder_{idx}']).detach().float().std(dim=1)
+                        embedding_stds = trainable_embeddings[f'txt_encoder_{idx}'].detach().float().std(dim=1)
                         for std_i, std in enumerate(embedding_stds):
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
@@ -423,7 +429,7 @@ def train(
 
     if config.debug:
         plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
-        target_std_dict = {f"txt_encoder_{idx}": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
+        target_std_dict = {f"text_encoder_{idx}_target": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
         plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
         plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
         plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)

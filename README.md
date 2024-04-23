@@ -66,7 +66,8 @@ Algo:
 
 Bigger improvements:
 - add stronger token regularization (eg CelebBasis spanning basis):
-    - remove the fix_embedding_std() hack that messes up the gradients and replace with something better
+    - remove the fix_embedding_std() hack with gradient based std-matching penalty
+    - grid-search the new CovarianceLoss() strength
 - Add multi-token training
 - implement perfusion ideas (key locking with superclass): https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/

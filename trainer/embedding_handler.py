@@ -19,28 +19,42 @@ class TokenEmbeddingsHandler:
         self.inserting_toks: Optional[List[str]] = None
         self.embeddings_settings = {}
 
+    def make_embeddings_trainable(self):
+        """
+        Sets requires_grad to True for specific indices directly in the embeddings weight tensor.
+        """
+        for idx, text_encoder in enumerate(self.text_encoders):
+            if text_encoder is None:
+                continue
+            
+            # Directly accessing and modifying the original weights tensor
+            text_encoder.text_model.embeddings.token_embedding.weight.requires_grad_(True)
+            print(f"All embeddings in text_encoder_{idx} are now set to be trainable.")
+
     def get_trainable_embeddings(self):
         return self.get_embeddings_and_tokens(self.train_ids)
 
     def get_embeddings_and_tokens(self, indices):
         """
-        Get the embeddings and tokens for the given indices
+        Get the embeddings and tokens for the given indices using PyTorch indexing.
+        This version avoids detaching the original tensor and returns a view into the original
+        weights tensor whenever possible.
         """
         embeddings, tokens = {}, {}
         for idx, text_encoder in enumerate(self.text_encoders):
             if text_encoder is None:
                 continue
 
-            embeddings['txt_encoder_%d' % idx] = []
-            tokens['txt_encoder_%d' % idx] = []
+            # Ensure indices are a tensor. Use pre-existing dtype and device to match the model's.
+            indices_tensor = torch.tensor(indices, dtype=torch.long, device=text_encoder.text_model.embeddings.token_embedding.weight.device)
 
-            for index in indices:
-                token_embedding = text_encoder.text_model.embeddings.token_embedding.weight.data[index]
-                embeddings['txt_encoder_%d' % idx].append(token_embedding)
+            # Directly access the embedding weights without detaching
+            token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight[indices_tensor]
+            embeddings[f'txt_encoder_{idx}'] = token_embeddings
 
-                # also get the corresponding token for this embedding id:
-                token = self.tokenizers[idx].convert_ids_to_tokens([index])[0]
-                tokens['txt_encoder_%d' % idx].append(token)
+            # Get all corresponding tokens for these embeddings
+            token_list = self.tokenizers[idx].convert_ids_to_tokens(indices)
+            tokens[f'txt_encoder_{idx}'] = token_list
 
         return embeddings, tokens
 
@@ -167,12 +181,19 @@ class TokenEmbeddingsHandler:
             text_encoder.resize_token_embeddings(len(tokenizer))
 
             self.train_ids = tokenizer.convert_tokens_to_ids(self.inserting_toks)
+            embedding_matrix_shape = text_encoder.text_model.embeddings.token_embedding.weight.data.shape
+
+            # construct the indices for all the non-trainable embeddings:
+            all_indices = torch.linspace(0, len(tokenizer) - 1, len(tokenizer), dtype=torch.long)
+            inu = torch.ones((len(tokenizer),), dtype=torch.bool)
+            inu[self.train_ids] = False
+            self.non_train_ids = all_indices[inu]
 
             # random initialization of new tokens
             std_token_embedding = (
                 text_encoder.text_model.embeddings.token_embedding.weight.data.std(dim=1).mean()
             )
-            print(f"Text encoder {idx} token_embedding_std:  {std_token_embedding}")
+            self.embeddings_settings[f"std_token_embedding_{idx}"] = std_token_embedding
 
             if starting_toks is not None:
                 assert len(starting_toks) == len(self.inserting_toks), "starting_toks should have the same length as inserting_toks"
@@ -184,14 +205,14 @@ class TokenEmbeddingsHandler:
                     self.train_ids] = text_encoder.text_model.embeddings.token_embedding.weight.data[self.starting_ids].clone()
             else:
                 std_multiplier = 1.0
-                init_embeddings = (torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype) * std_token_embedding)
-                init_embeddings *= std_multiplier
+                init_embeddings = torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype)
+                current_std = init_embeddings.std(dim=1).mean()
+                init_embeddings = init_embeddings * std_multiplier * std_token_embedding / current_std
                 text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids] = init_embeddings.clone()
 
             self.embeddings_settings[
                 f"original_embeddings_{idx}"
             ] = text_encoder.text_model.embeddings.token_embedding.weight.data.clone()
-            self.embeddings_settings[f"std_token_embedding_{idx}"] = std_token_embedding
 
             inu = torch.ones((len(tokenizer),), dtype=torch.bool)
             inu[self.train_ids] = False
@@ -343,6 +364,9 @@ class TokenEmbeddingsHandler:
         assert (
             self.train_ids is not None
         ), "Initialize new tokens before saving embeddings."
+
+        # Create a set of indices for the non-train_ids:
+        self.not_train_ids = torch.linspace(0, len(self.tokenizers[0]) - 1, len(self.tokenizers[0]), dtype=torch.long)
         tensors = {}
         for idx, text_encoder in enumerate(self.text_encoders):
             if text_encoder is None:
@@ -363,101 +387,38 @@ class TokenEmbeddingsHandler:
     def device(self):
         return self.text_encoders[0].device
 
-    def _compute_off_ratio(self, idx):
-        # compute the off-std-ratio for the embeddings, to be used for regularization rescaling
-
-        text_encoder = self.text_encoders[idx]
-        if text_encoder is None:
-            off_ratio = 1.0
-            new_embeddings = None
-        else:
-            index_no_updates    = self.embeddings_settings[f"index_no_updates_{idx}"]
-            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"].float()
-            index_updates = ~index_no_updates
-            new_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates]#.float()
-            new_stds = new_embeddings.std(dim=1)
-            off_ratio = std_token_embedding / new_stds.mean().float()
-
-        return off_ratio.float(), new_embeddings
-
-    def fix_embedding_std(self, off_ratio_power = 0.1):
+    def fix_embedding_std(self, off_ratio_power=0.1):
         if off_ratio_power == 0.0:
             return
 
-        std_penalty = 0.0
         idx = 0
-
         for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
             if text_encoder is None:
                 idx += 1
                 continue
 
+            # Get the standard deviation target and current embeddings.
+            target_std = self.embeddings_settings[f"std_token_embedding_{idx}"]
+            embeddings, _ = self.get_trainable_embeddings()
+            new_embeddings = embeddings[f'txt_encoder_{idx}']
+            assert len(new_embeddings.shape) == 2, "Embeddings should be 2D!"
+
+            new_stds = new_embeddings.std(dim=1)
+            #off_ratios = target_std.float() / new_stds.float()
+            off_ratios = target_std / new_stds
+
+            # Check if off_ratios are within an acceptable range.
+            if (off_ratios.min() < 0.9) or (off_ratios.max() > 1.1):
+                print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) token-ratios = {off_ratios}, prob not ideal...")
+
+            # Adjust embeddings using the computed ratios.
             index_no_updates = self.embeddings_settings[f"index_no_updates_{idx}"]
             index_updates = ~index_no_updates
-
-            off_ratio, new_embeddings = self._compute_off_ratio(idx)
-            std_penalty += (off_ratio - 1.0)**2
-
-            if (off_ratio < 0.95) or (off_ratio > 1.05):
-                print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) = {off_ratio:.4f}, prob not ideal...")                
-
-            # rescale the embeddings to have a more similar std as before:
-            new_embeddings = new_embeddings * (off_ratio**off_ratio_power)
-            text_encoder.text_model.embeddings.token_embedding.weight.data[
-                    index_updates
-                ] = new_embeddings.to(device=text_encoder.device).to(dtype=text_encoder.dtype)
+            multiplier_values = off_ratios**off_ratio_power
+            multiplier_values = multiplier_values.unsqueeze(1).expand_as(new_embeddings)
+            text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates] *= multiplier_values
 
             idx += 1
-
-
-    @torch.no_grad()
-    def retract_embeddings(self, print_stds = False):
-        idx = 0
-        means, stds = [], []
-
-        for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
-            if text_encoder is None:
-                idx += 1
-                continue
-
-            index_no_updates = self.embeddings_settings[f"index_no_updates_{idx}"]
-            text_encoder.text_model.embeddings.token_embedding.weight.data[
-                index_no_updates
-            ] = (
-                self.embeddings_settings[f"original_embeddings_{idx}"][index_no_updates]
-                .to(device=text_encoder.device)
-                .to(dtype=text_encoder.dtype)
-            )
-
-            # for the parts that were updated, we can normalize them a bit
-            # to have the same std as before
-            std_token_embedding = self.embeddings_settings[f"std_token_embedding_{idx}"]
-
-            index_updates = ~index_no_updates
-            new_embeddings = (
-                text_encoder.text_model.embeddings.token_embedding.weight.data[
-                    index_updates
-                ]
-            )
-
-            idx += 1
-
-            if 0:
-                # get the actual embeddings that will get updated:
-                inu = torch.ones((len(tokenizer),), dtype=torch.bool)
-                inu[self.train_ids] = False
-                updateable_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data[~inu].detach().clone().to(dtype=torch.float32).cpu().numpy()
-                
-                mean_0, mean_1 = updateable_embeddings[0].mean(), updateable_embeddings[1].mean()
-                std_0, std_1 = updateable_embeddings[0].std(), updateable_embeddings[1].std()
-
-                means.append((mean_0, mean_1))
-                stds.append((std_0, std_1))
-
-                if print_stds:
-                    print(f"Text Encoder {idx} token embeddings:")
-                    print(f" --- Means: ({mean_0:.6f}, {mean_1:.6f})")
-                    print(f" --- Stds:  ({std_0:.6f}, {std_1:.6f})")
 
     def _load_embeddings(self, loaded_embeddings, tokenizer, text_encoder):
         # Assuming new tokens are of the format <s_i>

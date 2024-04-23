@@ -96,11 +96,22 @@ class ConditioningRegularizer:
     Regularizes the norms of the prompt_conditioning vectors.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, embedding_handler):
         self.config = config
+        self.embedding_handler = embedding_handler
         self.target_norm = 34.5 if config.sd_model_version == 'sdxl' else 27.8
         self.reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
         self.token_replacement = config.token_dict.get("TOK", "TOK")  # Fallback to "TOK" if not in dict
+
+        self.distribution_regularizers = {}
+        idx = 0
+        for tokenizer, text_encoder in zip(embedding_handler.tokenizers, embedding_handler.text_encoders):
+            if tokenizer is None:
+                idx += 1
+                continue
+            pretrained_token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data
+            self.distribution_regularizers[f'txt_encoder_{idx}'] = CovarianceLoss(pretrained_token_embeddings)
+            idx += 1
 
     def apply_regularization(self, loss, prompt_embeds_norms, prompt_embeds, pipe=None):
         noise_sigma = 0.0
@@ -116,6 +127,11 @@ class ConditioningRegularizer:
             regularization_loss, regularization_norm_value = self._compute_tok_regularization_loss(pipe)
             loss += self.config.tok_cond_reg_w * regularization_loss
             prompt_embeds_norms['reg'].append(regularization_norm_value.item())
+        
+        for key, distribution_regularizer in self.distribution_regularizers.items():
+            reg_loss = distribution_regularizer.compute_covariance_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
+            print(f"Covariance Regularization loss for {key} token-embeds: {reg_loss.item():.5f}")
+            loss += 0.005 * reg_loss
 
         return loss, prompt_embeds_norms
 
@@ -136,3 +152,120 @@ class ConditioningRegularizer:
         regularization_loss = (regularization_norm_value - self.target_norm).pow(2)
 
         return regularization_loss, regularization_norm_value
+
+
+class CovarianceLoss(torch.nn.Module):
+    def __init__(self, pretrained_embeddings, dtype = torch.float32):
+        super(CovarianceLoss, self).__init__()
+        self.dtype = dtype
+        self.cov_pretrained = self._calculate_covariance(pretrained_embeddings)
+
+    def _calculate_covariance(self, embeddings):
+        embeddings = embeddings.to(self.dtype)
+        mean = embeddings.mean(0)
+        embeddings_adjusted = embeddings - mean
+        covariance = torch.mm(embeddings_adjusted.T, embeddings_adjusted) / (embeddings.size(0) - 1)
+        return covariance
+
+    def compute_covariance_loss(self, new_embeddings):
+        input_dtype = new_embeddings.dtype
+        cov_new = self._calculate_covariance(new_embeddings)
+        loss = torch.norm(self.cov_pretrained - cov_new, p='fro')
+        return loss.to(input_dtype)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+
+Learned Notes on the token embeddings:
+shape = 49410, 768
+Computed means of [1, 768] = [0, 0, 0, 0,...]
+Computed stds  of [1, 768] = [0.0139, 0.0139, 0.0139, ...]
+
+Computed means of [49410, 1] = [0, 0, 0, 0,...]
+Computed stds  of [49410, 1] = [0.0151, 0.0154, 0.0141, ...,  0.0396, 0.0150, 0.0148]
+
+"""
+
+
+import torch.nn as nn
+
+class DistributionRegularizer:
+    def __init__(self, reference_tensors, stats=['mean', 'std', 'norm'], sample_dims=[0]):
+        """
+        Initialize a regularizer with reference distributions
+        Facilitates computing regularization loss for trainable parameters to match the distribution of the reference distributions.
+        
+        :param reference_tensors: List of torch.Tensors for calculating the statistics.
+        :param stats: List of statistics to calculate ('mean', 'std').
+        :param sample_dims: Dimensions over which to compute these statistics.
+        """
+        self.stats = {}
+        self.sample_dims = sample_dims
+        # Calculate and store the statistics for each stat in stats
+        print(f"Computing reference stats from reference tensor of shape: {reference_tensors.shape}...")
+
+        if len(reference_tensors.shape) > 2:
+            raise ValueError("Reference tensor should have at most 2 dimensions: [samples x features]")
+
+        for stat in stats:
+            if stat == 'mean':
+                self.stats['mean'] = reference_tensors.mean(dim=sample_dims, keepdim=True)
+                print(f"Computed reference means of shape: {self.stats['mean'].shape}")
+                print(self.stats['mean'])
+            elif stat == 'std':
+                self.stats['std'] = reference_tensors.std(dim=sample_dims, keepdim=True)
+                print(f"Computed reference stds of shape: {self.stats['std'].shape}")
+                print(self.stats['std'])
+            elif stat == 'norm':
+                self.stats['norm'] = reference_tensors.norm(dim=-1, keepdim=True)
+                print(f"Computed reference norms of shape: {self.stats['norm'].shape}")
+                print(self.stats['norm'])
+            else:
+                raise ValueError(f"Unsupported statistic {stat}")
+
+    def compute_reg_loss(self, list_of_samples):
+        """
+        Compute the regularization loss by comparing the new_tensor's statistics to the precomputed ones.
+        
+        :param new_tensor: a list of samples from the trained distribution
+        :return: A scalar tensor representing the regularization loss wrt the reference statistics.
+        """
+        
+        loss = 0
+        # Calculate the new statistics and compare them to the precomputed ones
+
+        for sample in list_of_samples:
+            print(f"Sample shape: {sample.shape}")
+
+            for stat_name, ref_stat in self.stats.items():
+                if stat_name == 'mean':
+                    new_stat    = new_tensor.mean(dim=self.sample_dims, keepdim=True)
+                    reg_penalty = nn.functional.mse_loss(new_stat, ref_stat)
+                    loss       += reg_penalty
+                    print(f"{stat_name} loss: {reg_penalty.item()}")
+                elif stat_name == 'std':
+                    new_stat    = new_tensor.std(dim=self.sample_dims, keepdim=True)
+                    reg_penalty = nn.functional.mse_loss(new_stat, ref_stat)
+                    loss       += reg_penalty
+                    print(f"{stat_name} loss: {reg_penalty.item()}")
+                elif stat_name == 'norm':
+                    new_stat    = new_tensor.norm(dim=-1, keepdim=True)
+                    reg_penalty = nn.functional.mse_loss(new_stat, ref_stat)
+                    loss       += reg_penalty
+                    print(f"{stat_name} loss: {reg_penalty.item()}")
+
+        return loss

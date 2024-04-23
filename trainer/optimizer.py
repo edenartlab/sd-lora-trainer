@@ -48,7 +48,7 @@ def get_unet_lora_parameters(
         lora_alpha=lora_rank * lora_alpha_multiplier,
         init_lora_weights="gaussian",
         target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-        #target_modules=["to_v"],
+        #target_modules=["to_v"],  # TODO add conv layers for sd15
         use_dora=use_dora,
     )
 
