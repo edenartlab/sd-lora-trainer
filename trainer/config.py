@@ -33,6 +33,7 @@ class TrainingConfig(BaseModel):
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
+    tok_cov_reg_w: float = 0.005
     l1_penalty: float = 0.1
     noise_offset: float = 0.02
     snr_gamma: float = 5.0

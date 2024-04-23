@@ -67,7 +67,9 @@ Algo:
 Bigger improvements:
 - add stronger token regularization (eg CelebBasis spanning basis):
     - remove the fix_embedding_std() hack with gradient based std-matching penalty
+    - add covariance_loss to token_warmup phase
     - grid-search the new CovarianceLoss() strength
+    - continue plotting the token_warmup_loss post warmup to visualize the distance to the chatgpt_description
 - Add multi-token training
 - implement perfusion ideas (key locking with superclass): https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/

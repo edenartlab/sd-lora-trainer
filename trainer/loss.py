@@ -128,10 +128,11 @@ class ConditioningRegularizer:
             loss += self.config.tok_cond_reg_w * regularization_loss
             prompt_embeds_norms['reg'].append(regularization_norm_value.item())
         
-        for key, distribution_regularizer in self.distribution_regularizers.items():
-            reg_loss = distribution_regularizer.compute_covariance_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
-            print(f"Covariance Regularization loss for {key} token-embeds: {reg_loss.item():.5f}")
-            loss += 0.005 * reg_loss
+        if self.config.tok_cov_reg_w > 0.0:
+            for key, distribution_regularizer in self.distribution_regularizers.items():
+                reg_loss = distribution_regularizer.compute_covariance_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
+                print(f"Covariance Regularization loss for {key} token-embeds: {reg_loss.item():.5f}")
+                loss += self.config.tok_cov_reg_w * reg_loss
 
         return loss, prompt_embeds_norms
 

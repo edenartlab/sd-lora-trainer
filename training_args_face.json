@@ -14,7 +14,7 @@
     "gradient_accumulation_steps": 1,
     "n_tokens": 2,
     "ti_lr": 0.001,
-    "freeze_ti_after_completion_f": 0.0,
+    "freeze_ti_after_completion_f": 0.3,
     "ti_weight_decay": 0.0005,
     "text_encoder_lora_optimizer": "adamw",
     "text_encoder_lora_lr": 0.5e-4,
