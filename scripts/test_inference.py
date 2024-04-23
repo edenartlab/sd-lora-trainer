@@ -18,8 +18,8 @@ from trainer.checkpoint import load_checkpoint
 if __name__ == "__main__":
 
     pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/gridsearch_sdxl__019--17_06-45-58-sdxl_face_lora_512_0.4_blip/checkpoints/checkpoint-300'
-    lora_scales    = np.linspace(0.6, 0.7, 2)
+    lora_path      = 'lora_models/xander_one_img--23_15-25-00-sdxl_face_lora_512_1.0_gpt4-v/checkpoints/checkpoint-360'
+    lora_scales    = np.linspace(0.6, 0.9, 4)
     token_scale    = None # None means it well get automatically set using lora_scale
     render_size    = (1024, 1024)  # H,W
     n_imgs         = 14
@@ -27,12 +27,12 @@ if __name__ == "__main__":
 
     n_steps        = 35
     guidance_scale = 7.5
-    seed           = 10
+    seed           = 12
     use_lightning  = 0
 
     #####################################################################################
 
-    output_dir = f'rendered_images_tok_0.0/{lora_path.split("/")[-1]}'
+    output_dir = f'rendered_images/{lora_path.split("/")[-1]}'
     os.makedirs(output_dir, exist_ok=True)
 
     seed_everything(seed)

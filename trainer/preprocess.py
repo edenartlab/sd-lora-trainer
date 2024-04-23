@@ -55,6 +55,7 @@ except:
     print("WARNING: Could not find OPENAI_API_KEY in .env, disabling gpt prompt generation.")
 
 MODEL_PATH = "./cache"
+MIN_GPT_PROMPTS = 3
 MAX_GPT_PROMPTS = 50
 
 def _find_files(pattern, dir="."):
@@ -343,7 +344,7 @@ def post_process_captions(captions, text, concept_mode, job_seed):
     text = text.strip()
     print(f"Input captioning text: {text}")
 
-    if len(captions) > 3 and len(captions) < MAX_GPT_PROMPTS and not text and client:
+    if len(captions) >= MIN_GPT_PROMPTS and len(captions) <= MAX_GPT_PROMPTS and not text and client:
         retry_count = 0
         while retry_count < 10:
             try:
@@ -812,6 +813,18 @@ def load_and_save_masks_and_captions(
         images   = images + [image.transpose(Image.FLIP_LEFT_RIGHT) for image in images]
         captions = captions + captions
 
+    # It's nice if we can achieve the gpt pass, so pre-augment the images if there's very few:
+    # Ensure we have at least 'augment_imgs_up_to_n' images through augmentation
+    aug_imgs, aug_caps = [],[]
+    # if we still have a very small amount of imgs, do some basic augmentation:
+    while len(images) + len(aug_imgs) < MIN_GPT_PROMPTS: 
+        print(f"Adding augmented version of each training img...")
+        aug_imgs.extend([augment_image(image) for image in images])
+        aug_caps.extend(captions)
+
+    images.extend(aug_imgs)
+    captions.extend(aug_caps)
+
     # It's nice if we can achieve the gpt pass, so if we're not losing too much, cut-off the n_images to just match what we're allowed to give to gpt:
     if (len(images) > MAX_GPT_PROMPTS) and (len(images) < MAX_GPT_PROMPTS*1.33):
         images = images[:MAX_GPT_PROMPTS-1]
@@ -826,7 +839,8 @@ def load_and_save_masks_and_captions(
     captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
 
     aug_imgs, aug_caps = [],[]
-    while len(images) + len(aug_imgs) < augment_imgs_up_to_n: # if we still have a very small amount of imgs, do some basic augmentation:
+    # if we still have a very small amount of imgs, do some basic augmentation:
+    while len(images) + len(aug_imgs) < augment_imgs_up_to_n: 
         print(f"Adding augmented version of each training img...")
         aug_imgs.extend([augment_image(image) for image in images])
         aug_caps.extend(captions)
