@@ -250,7 +250,7 @@ def cleanup_prompts_with_chatgpt(
         chat_gpt_prompt_1 = textwrap.dedent("""
             Analyze a set of (poor) image descriptions each featuring the same concept, figure or thing.
             Tasks:
-            1. Deduce a concise (max 10 words) visual description of just the concept TOK (Concept Description).
+            1. Deduce a concise (max 10 words) visual description of just the concept TOK (Concept Description), try to be as visually descriptive of TOK as possible!
             2. Substitute the concept in each description with the placeholder "TOK", rearranging or adjusting the text where needed. Hallucinate TOK into the description if necessary (but dont mention when doing so, simply provide the final description)!
             3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of the placeholder string "TOK".
             The descriptions are:""")
@@ -263,7 +263,7 @@ def cleanup_prompts_with_chatgpt(
         chat_gpt_prompt_1 = textwrap.dedent("""
             Analyze a set of (poor) image descriptions, each featuring a person named TOK.
             Tasks:
-            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description), hallucinate a basic description if necessary (eg black man with long beard).
+            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description), try to be as visually descriptive of TOK as possible, hallucinate a basic description if necessary (eg black man with long beard).
             2. Rewrite each description, injecting "TOK" naturally into each description, adjusting where needed.
             3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
             The descriptions are:""")
@@ -716,6 +716,9 @@ def augment_image(image):
         image = gaussian_blur(image)
     return image
 
+def round_to_nearest_multiple(x, multiple):
+    return int(float(multiple) * round(float(x) / float(multiple)))
+
 def calculate_new_dimensions(target_size, target_aspect_ratio):
     """
     Calculate the new width and height given a target size and aspect ratio.
@@ -728,8 +731,8 @@ def calculate_new_dimensions(target_size, target_aspect_ratio):
     new_height = (n_pixels / new_width)
 
     # round up/down to the nearest multiple of 64:
-    new_width  = int(64 * round(new_width  / 64.0))
-    new_height = int(64 * round(new_height / 64.0))
+    new_width  = round_to_nearest_multiple(new_width, 64)
+    new_height = round_to_nearest_multiple(new_height, 64)
 
     return [new_width, new_height]
 
@@ -796,8 +799,19 @@ def load_and_save_masks_and_captions(
     print(f"New train_img_size: {config.train_img_size}")
 
     if config.validation_img_size is None:
-        print(f"Validation_img_size was not specified in config, so also setting this to {config.train_img_size}")
-        config.validation_img_size = config.train_img_size
+        config.validation_img_size = [0, 0]
+        multiplier = 2.0 if config.sd_model_version == "sdxl" else 1.25
+        config.validation_img_size[0] = config.train_img_size[0] * multiplier
+        config.validation_img_size[1] = config.train_img_size[1] * multiplier
+    elif isinstance(config.validation_img_size, int):
+        n_pixels = config.validation_img_size ** 2
+        config.validation_img_size = [0, 0]
+        config.validation_img_size[0] = (n_pixels * config.train_aspect_ratio) ** 0.5
+        config.validation_img_size[1] = (n_pixels / config.validation_img_size[0])
+    
+    config.validation_img_size[0]  = round_to_nearest_multiple(config.validation_img_size[0], 64)
+    config.validation_img_size[1] = round_to_nearest_multiple(config.validation_img_size[1], 64)
+    print(f"Validation_img_size was set to: {config.validation_img_size}")
 
     n_training_imgs = len(images)
     n_captions      = len([c for c in captions if c is not None])

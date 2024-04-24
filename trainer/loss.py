@@ -119,29 +119,33 @@ class ConditioningRegularizer:
             prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma
 
         if self.config.cond_reg_w > 0.0:
-            regularization_loss, regularization_norm_value = self._compute_regularization_loss(prompt_embeds)
-            loss += self.config.cond_reg_w * regularization_loss
+            reg_loss, regularization_norm_value = self._compute_regularization_loss(prompt_embeds)
+            loss += self.config.cond_reg_w * reg_loss
             prompt_embeds_norms['main'].append(regularization_norm_value.item())
 
         if self.config.tok_cond_reg_w > 0.0 and pipe is not None:
-            regularization_loss, regularization_norm_value = self._compute_tok_regularization_loss(pipe)
-            loss += self.config.tok_cond_reg_w * regularization_loss
+            reg_loss, regularization_norm_value = self._compute_tok_regularization_loss(pipe)
+            loss += self.config.tok_cond_reg_w * reg_loss
             prompt_embeds_norms['reg'].append(regularization_norm_value.item())
         
         if self.config.tok_cov_reg_w > 0.0:
+            tot_reg_losses = []
             for key, distribution_regularizer in self.distribution_regularizers.items():
                 reg_loss = distribution_regularizer.compute_covariance_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
-                #print(f"Covariance Regularization loss for {key} token-embeds: {reg_loss.item():.5f}")
-                losses['covariance_tok_reg_loss'].append(reg_loss.item())
-                loss += self.config.tok_cov_reg_w * reg_loss
+                print(f"Reg loss for {key}: {reg_loss}")
+                tot_reg_losses.append(reg_loss)
+            
+            mean_reg_loss = torch.stack(tot_reg_losses).mean()
+            loss += self.config.tok_cov_reg_w * mean_reg_loss
+            losses['covariance_tok_reg_loss'].append(mean_reg_loss.item())
 
         return loss, losses, prompt_embeds_norms
 
     def _compute_regularization_loss(self, prompt_embeds):
         conditioning_norms = prompt_embeds.norm(dim=-1).mean(dim=0)
         regularization_norm_value = conditioning_norms[2:].mean()
-        regularization_loss = (regularization_norm_value - self.target_norm).pow(2)
-        return regularization_loss, regularization_norm_value
+        reg_loss = (regularization_norm_value - self.target_norm).pow(2)
+        return reg_loss, regularization_norm_value
 
     def _compute_tok_regularization_loss(self, pipe):
         reg_captions = [caption.replace("TOK", self.token_replacement) for caption in self.reg_captions]
@@ -151,13 +155,12 @@ class ConditioningRegularizer:
 
         reg_conditioning_norms = reg_prompt_embeds.norm(dim=-1).mean(dim=0)
         regularization_norm_value = reg_conditioning_norms[2:].mean()
-        regularization_loss = (regularization_norm_value - self.target_norm).pow(2)
+        reg_loss = (regularization_norm_value - self.target_norm).pow(2)
 
-        return regularization_loss, regularization_norm_value
-
+        return reg_loss, regularization_norm_value
 
 class CovarianceLoss(torch.nn.Module):
-    def __init__(self, pretrained_embeddings, dtype = torch.float32):
+    def __init__(self, pretrained_embeddings, dtype=torch.float32):
         super(CovarianceLoss, self).__init__()
         self.dtype = dtype
         self.cov_pretrained = self._calculate_covariance(pretrained_embeddings)
@@ -172,21 +175,12 @@ class CovarianceLoss(torch.nn.Module):
     def compute_covariance_loss(self, new_embeddings):
         input_dtype = new_embeddings.dtype
         cov_new = self._calculate_covariance(new_embeddings)
-        loss = torch.norm(self.cov_pretrained - cov_new, p='fro')
+        # Normalizing by the product of the dimensions of the covariance matrix.
+        num_features = new_embeddings.size(1)  # Assuming embeddings are of shape [n_samples, n_features]
+        scale_factor = num_features * num_features
+        loss = torch.norm(self.cov_pretrained - cov_new, p='fro') / scale_factor
         return loss.to(input_dtype)
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
 
 
 

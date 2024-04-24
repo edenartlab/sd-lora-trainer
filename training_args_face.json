@@ -23,8 +23,6 @@
     "off_ratio_power": 0.02,
     "prodigy_d_coef": 0.7,
     "lora_weight_decay": 1.0,
-    "cond_reg_w": 0.0,
-    "tok_cond_reg_w": 0.0,
     "l1_penalty": 0.1,
     "noise_offset": 0.05,
     "snr_gamma": 5.0,

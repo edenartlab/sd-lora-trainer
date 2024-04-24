@@ -19,6 +19,8 @@ class TokenEmbeddingsHandler:
         self.inserting_toks: Optional[List[str]] = None
         self.embeddings_settings = {}
 
+        self.target_prompt = ""
+
     def make_embeddings_trainable(self):
         """
         Sets requires_grad to True for specific indices directly in the embeddings weight tensor.
@@ -260,6 +262,33 @@ class TokenEmbeddingsHandler:
         prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
 
         return prompt_embeds, pooled_prompt_embeds
+    
+    def compute_target_prompt_loss(self, target_prompt, prompt_embeds, pooled_prompt_embeds):
+        """
+        Compute a distance loss between the prompt embeddings and the target prompt embeddings
+        """
+
+        if target_prompt != self.target_prompt:
+            self.target_prompt = target_prompt
+            self.target_prompt_embeds, self.target_pooled_prompt_embeds = self.encode_text(self.target_prompt)
+
+        # compute the MSE losses:
+        embeds_l2_loss = F.mse_loss(prompt_embeds, self.target_prompt_embeds)
+        pooled_embeds_l2_loss = F.mse_loss(pooled_prompt_embeds, self.target_pooled_prompt_embeds)
+
+        # Compute the cosine-similarity losses:
+        embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, self.target_prompt_embeds, dim=-1).mean()
+        pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, self.target_pooled_prompt_embeds, dim=-1).mean()
+
+        # print the different components:
+        print("----------------------------------------------------")
+        print(f"Embeds L2 loss: {embeds_l2_loss:.4f}, Pooled Embeds L2 loss: {pooled_embeds_l2_loss:.4f}")
+        print(f"Embeds cosine loss: {embeds_cosine_loss:.4f}, Pooled Embeds cosine loss: {pooled_embeds_cosine_loss:.4f}")
+
+        # Combine the losses:
+        loss = 4.0 * embeds_l2_loss + 1.0 * pooled_embeds_l2_loss + 4.0 * embeds_cosine_loss + 1.0 * pooled_embeds_cosine_loss
+
+        return loss
 
     def pre_optimize_token_embeddings(self, config):
         """
@@ -275,8 +304,6 @@ class TokenEmbeddingsHandler:
             print("Skipping token embedding warmup.")
             return
 
-        # This is the concept description from chatgpt:
-        target_prompt_embeds, target_pooled_prompt_embeds = self.encode_text(target_prompt)
         print(f'Warming up token embeddings with prompt: {target_prompt}...')
 
         # Setup the token optimizer:
@@ -324,17 +351,9 @@ class TokenEmbeddingsHandler:
             # pick a random prompt template and inject the token string:
             prompt_to_optimize = np.random.choice(prompt_template).format(token_string)
             prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize)
-
-            # compute the MSE losses:
-            embeds_l2_loss = F.mse_loss(prompt_embeds, target_prompt_embeds)
-            pooled_embeds_l2_loss = F.mse_loss(pooled_prompt_embeds, target_pooled_prompt_embeds)
-
-            # Compute the cosine-similarity losses:
-            embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, target_prompt_embeds, dim=-1).mean()
-            pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, target_pooled_prompt_embeds, dim=-1).mean()
-
-            # Combine the losses:
-            loss = 4.0 * embeds_l2_loss + 1.0 * pooled_embeds_l2_loss + 4.0 * embeds_cosine_loss + 1.0 * pooled_embeds_cosine_loss
+            
+            # Compute the target_prompt distance loss:
+            loss = self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds)
 
             # Backward pass:
             retain_graph = step < (config.token_warmup_steps - 1)  # Retain graph for all but the last step

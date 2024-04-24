@@ -208,20 +208,22 @@ def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3):
         
         if len(losses) < window_length:
             continue
-        
-        # Normalize losses to [0, 1]
-        normalized_losses = (losses - np.min(losses)) / (np.max(losses) - np.min(losses))
 
         if key in plot_smoothed:
-            smoothed_losses = savgol_filter(normalized_losses, window_length, polyorder)
-            plt.plot(smoothed_losses, label=f'Smoothed {key}', color=colormap[key], linestyle='dashed')
+            losses = savgol_filter(losses, window_length, polyorder)
+            label = f'Smoothed {key}'
+            linestyle = 'dashed'
         else:
-            plt.plot(normalized_losses, label=key, color = colormap[key], linestyle='solid')
+            label = key
+            linestyle = 'solid'
+
+        plot_losses = losses / np.max(losses)
+        plt.plot(plot_losses, label=label, color = colormap[key], linestyle=linestyle)
 
         
-    plt.xlabel('Step')
+    plt.xlabel('Optimizer Step')
     plt.ylabel('Training Losses')
     plt.ylim(0, 1.1)  # Adjust the y-axis limits for normalized data
-    plt.legend()
+    plt.legend(loc='lower left')
     plt.savefig(save_path)
     plt.close()

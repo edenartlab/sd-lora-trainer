@@ -1,4 +1,4 @@
-from typing import Union, List, Dict
+from typing import Union, List, Optional
 from datetime import datetime
 from pydantic import BaseModel
 import json, time, os
@@ -13,7 +13,7 @@ class TrainingConfig(BaseModel):
     pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 512
-    validation_img_size: List[int] = [1024, 1024]
+    validation_img_size: Optional[Union[int, List[int]]] = None   # [width, height], target_n_pixels ** 0.5 or None
     train_img_size: List[int] = None
     train_aspect_ratio: float = None
     train_batch_size: int = 4
@@ -33,7 +33,7 @@ class TrainingConfig(BaseModel):
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 0.001    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
+    tok_cov_reg_w: float = 500.     # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.01   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.1         # Makes the unet lora matrix more sparse
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
