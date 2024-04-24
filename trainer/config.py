@@ -33,7 +33,7 @@ class TrainingConfig(BaseModel):
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 0.005
+    tok_cov_reg_w: float = 0.001    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.01   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.1         # Makes the unet lora matrix more sparse
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images

@@ -300,6 +300,7 @@ def train(
             
             # Compute the loss:
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
+            losses['img_loss'].append(loss.item())
 
             if config.l1_penalty > 0.0:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
@@ -308,7 +309,7 @@ def train(
 
             if optimizers['textual_inversion'] is not None and optimizers['textual_inversion'].param_groups[0]['lr'] > 0.0:
                 # Some custom regularization: # TODO test how much these actually help!!
-                loss, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, prompt_embeds_norms, prompt_embeds, pipe)
+                loss, losses, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe)
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps

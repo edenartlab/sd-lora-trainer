@@ -113,7 +113,7 @@ class ConditioningRegularizer:
             self.distribution_regularizers[f'txt_encoder_{idx}'] = CovarianceLoss(pretrained_token_embeddings)
             idx += 1
 
-    def apply_regularization(self, loss, prompt_embeds_norms, prompt_embeds, pipe=None):
+    def apply_regularization(self, loss, losses, prompt_embeds_norms, prompt_embeds, pipe=None):
         noise_sigma = 0.0
         if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
             prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma
@@ -131,10 +131,11 @@ class ConditioningRegularizer:
         if self.config.tok_cov_reg_w > 0.0:
             for key, distribution_regularizer in self.distribution_regularizers.items():
                 reg_loss = distribution_regularizer.compute_covariance_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
-                print(f"Covariance Regularization loss for {key} token-embeds: {reg_loss.item():.5f}")
+                #print(f"Covariance Regularization loss for {key} token-embeds: {reg_loss.item():.5f}")
+                losses['covariance_tok_reg_loss'].append(reg_loss.item())
                 loss += self.config.tok_cov_reg_w * reg_loss
 
-        return loss, prompt_embeds_norms
+        return loss, losses, prompt_embeds_norms
 
     def _compute_regularization_loss(self, prompt_embeds):
         conditioning_norms = prompt_embeds.norm(dim=-1).mean(dim=0)

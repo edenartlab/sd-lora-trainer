@@ -196,26 +196,32 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png', target_value_dic
 
 from scipy.signal import savgol_filter
 def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3):
-
+    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange'}
+    plot_smoothed = ['img_loss']
     plt.figure()
-
+    
     for key in loss_dict.keys():
-        losses = loss_dict[key]
-        smoothed_losses = [0]
+        if key == 'tot_loss':
+            continue
+
+        losses = np.array(loss_dict[key])
+        
         if len(losses) < window_length:
             continue
         
-        smoothed_losses = savgol_filter(losses, window_length, polyorder)
-        
-        plt.plot(losses, label=key)
-        plt.plot(smoothed_losses, label=f'Smoothed {key}', color='red')
-        # plt.yscale('log')  # Uncomment if log scale is desired
+        # Normalize losses to [0, 1]
+        normalized_losses = (losses - np.min(losses)) / (np.max(losses) - np.min(losses))
 
+        if key in plot_smoothed:
+            smoothed_losses = savgol_filter(normalized_losses, window_length, polyorder)
+            plt.plot(smoothed_losses, label=f'Smoothed {key}', color=colormap[key], linestyle='dashed')
+        else:
+            plt.plot(normalized_losses, label=key, color = colormap[key], linestyle='solid')
+
+        
     plt.xlabel('Step')
-    plt.ylabel('Training Loss')
-    plt.ylim(0, max(0.01, np.max(smoothed_losses)*1.4))
+    plt.ylabel('Training Losses')
+    plt.ylim(0, 1.1)  # Adjust the y-axis limits for normalized data
     plt.legend()
     plt.savefig(save_path)
     plt.close()
-
-
