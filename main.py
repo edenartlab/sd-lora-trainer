@@ -22,7 +22,7 @@ from trainer.embedding_handler import TokenEmbeddingsHandler
 from trainer.dataset import PreprocessedDataset
 from trainer.config import TrainingConfig
 from trainer.models import print_trainable_parameters, load_models
-from trainer.loss import *
+from trainer.loss import compute_diffusion_loss, compute_grad_norm, ConditioningRegularizer
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
@@ -86,6 +86,7 @@ def train(
 
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     embedding_handler.make_embeddings_trainable()
+    embedding_handler.token_regularizer = ConditioningRegularizer(config, embedding_handler)
     embedding_handler.pre_optimize_token_embeddings(config)
 
     # Turn off all gradients for now:
@@ -216,7 +217,6 @@ def train(
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
 
-    condtioning_regularizer = ConditioningRegularizer(config, embedding_handler)
 
     #######################################################################################################
     
@@ -308,8 +308,7 @@ def train(
                 loss += config.l1_penalty * l1_norm
 
             if optimizers['textual_inversion'] is not None and optimizers['textual_inversion'].param_groups[0]['lr'] > 0.0:
-                # Some custom regularization: # TODO test how much these actually help!!
-                loss, losses, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe)
+                loss, losses, prompt_embeds_norms = embedding_handler.token_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe)
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps

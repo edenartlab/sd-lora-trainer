@@ -121,23 +121,27 @@ class ConditioningRegularizer:
         if self.config.cond_reg_w > 0.0:
             reg_loss, regularization_norm_value = self._compute_regularization_loss(prompt_embeds)
             loss += self.config.cond_reg_w * reg_loss
-            prompt_embeds_norms['main'].append(regularization_norm_value.item())
+            if prompt_embeds_norms is not None:
+                prompt_embeds_norms['main'].append(regularization_norm_value.item())
 
         if self.config.tok_cond_reg_w > 0.0 and pipe is not None:
             reg_loss, regularization_norm_value = self._compute_tok_regularization_loss(pipe)
             loss += self.config.tok_cond_reg_w * reg_loss
-            prompt_embeds_norms['reg'].append(regularization_norm_value.item())
+            if prompt_embeds_norms is not None:
+                prompt_embeds_norms['reg'].append(regularization_norm_value.item())
         
         if self.config.tok_cov_reg_w > 0.0:
             tot_reg_losses = []
             for key, distribution_regularizer in self.distribution_regularizers.items():
                 reg_loss = distribution_regularizer.compute_covariance_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
-                print(f"Reg loss for {key}: {reg_loss}")
                 tot_reg_losses.append(reg_loss)
             
             mean_reg_loss = torch.stack(tot_reg_losses).mean()
             loss += self.config.tok_cov_reg_w * mean_reg_loss
             losses['covariance_tok_reg_loss'].append(mean_reg_loss.item())
+
+        std_loss = 1.0
+        
 
         return loss, losses, prompt_embeds_norms
 
@@ -196,72 +200,3 @@ Computed stds  of [49410, 1] = [0.0151, 0.0154, 0.0141, ...,  0.0396, 0.0150, 0.
 
 """
 
-
-import torch.nn as nn
-
-class DistributionRegularizer:
-    def __init__(self, reference_tensors, stats=['mean', 'std', 'norm'], sample_dims=[0]):
-        """
-        Initialize a regularizer with reference distributions
-        Facilitates computing regularization loss for trainable parameters to match the distribution of the reference distributions.
-        
-        :param reference_tensors: List of torch.Tensors for calculating the statistics.
-        :param stats: List of statistics to calculate ('mean', 'std').
-        :param sample_dims: Dimensions over which to compute these statistics.
-        """
-        self.stats = {}
-        self.sample_dims = sample_dims
-        # Calculate and store the statistics for each stat in stats
-        print(f"Computing reference stats from reference tensor of shape: {reference_tensors.shape}...")
-
-        if len(reference_tensors.shape) > 2:
-            raise ValueError("Reference tensor should have at most 2 dimensions: [samples x features]")
-
-        for stat in stats:
-            if stat == 'mean':
-                self.stats['mean'] = reference_tensors.mean(dim=sample_dims, keepdim=True)
-                print(f"Computed reference means of shape: {self.stats['mean'].shape}")
-                print(self.stats['mean'])
-            elif stat == 'std':
-                self.stats['std'] = reference_tensors.std(dim=sample_dims, keepdim=True)
-                print(f"Computed reference stds of shape: {self.stats['std'].shape}")
-                print(self.stats['std'])
-            elif stat == 'norm':
-                self.stats['norm'] = reference_tensors.norm(dim=-1, keepdim=True)
-                print(f"Computed reference norms of shape: {self.stats['norm'].shape}")
-                print(self.stats['norm'])
-            else:
-                raise ValueError(f"Unsupported statistic {stat}")
-
-    def compute_reg_loss(self, list_of_samples):
-        """
-        Compute the regularization loss by comparing the new_tensor's statistics to the precomputed ones.
-        
-        :param new_tensor: a list of samples from the trained distribution
-        :return: A scalar tensor representing the regularization loss wrt the reference statistics.
-        """
-        
-        loss = 0
-        # Calculate the new statistics and compare them to the precomputed ones
-
-        for sample in list_of_samples:
-            print(f"Sample shape: {sample.shape}")
-
-            for stat_name, ref_stat in self.stats.items():
-                if stat_name == 'mean':
-                    new_stat    = new_tensor.mean(dim=self.sample_dims, keepdim=True)
-                    reg_penalty = nn.functional.mse_loss(new_stat, ref_stat)
-                    loss       += reg_penalty
-                    print(f"{stat_name} loss: {reg_penalty.item()}")
-                elif stat_name == 'std':
-                    new_stat    = new_tensor.std(dim=self.sample_dims, keepdim=True)
-                    reg_penalty = nn.functional.mse_loss(new_stat, ref_stat)
-                    loss       += reg_penalty
-                    print(f"{stat_name} loss: {reg_penalty.item()}")
-                elif stat_name == 'norm':
-                    new_stat    = new_tensor.norm(dim=-1, keepdim=True)
-                    reg_penalty = nn.functional.mse_loss(new_stat, ref_stat)
-                    loss       += reg_penalty
-                    print(f"{stat_name} loss: {reg_penalty.item()}")
-
-        return loss

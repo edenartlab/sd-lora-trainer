@@ -33,7 +33,7 @@ class TrainingConfig(BaseModel):
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 500.     # regularizes the token covariance matrix wrt pretrained "healthy" tokens
+    tok_cov_reg_w: float = 750.     # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.01   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.1         # Makes the unet lora matrix more sparse
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
@@ -47,7 +47,7 @@ class TrainingConfig(BaseModel):
     augment_imgs_up_to_n: int = 20
     mask_target_prompts: Union[None, str] = None
     crop_based_on_salience: bool = True
-    use_face_detection_instead: bool = False
+    use_face_detection_instead: bool = False  # use a different model (not CLIPSeg) to generate face masks
     clipseg_temperature: float = 0.6
     n_sample_imgs: int = 4
     verbose: bool = False
@@ -105,6 +105,7 @@ class TrainingConfig(BaseModel):
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
             self.mask_target_prompts = "face"
             self.clipseg_temperature = 0.4
+            self.use_face_detection_instead = True
         
         if self.use_dora:
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")

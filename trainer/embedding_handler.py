@@ -8,7 +8,8 @@ from tqdm import tqdm
 from typing import List, Optional, Dict
 from safetensors.torch import save_file, safe_open
 import matplotlib.pyplot as plt
-from trainer.utils.utils import seed_everything, plot_torch_hist
+from trainer.utils.utils import seed_everything, plot_torch_hist, plot_loss
+
 
 class TokenEmbeddingsHandler:
     def __init__(self, text_encoders, tokenizers):
@@ -20,6 +21,7 @@ class TokenEmbeddingsHandler:
         self.embeddings_settings = {}
 
         self.target_prompt = ""
+        self.token_regularizer = None
 
     def make_embeddings_trainable(self):
         """
@@ -280,13 +282,8 @@ class TokenEmbeddingsHandler:
         embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, self.target_prompt_embeds, dim=-1).mean()
         pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, self.target_pooled_prompt_embeds, dim=-1).mean()
 
-        # print the different components:
-        print("----------------------------------------------------")
-        print(f"Embeds L2 loss: {embeds_l2_loss:.4f}, Pooled Embeds L2 loss: {pooled_embeds_l2_loss:.4f}")
-        print(f"Embeds cosine loss: {embeds_cosine_loss:.4f}, Pooled Embeds cosine loss: {pooled_embeds_cosine_loss:.4f}")
-
         # Combine the losses:
-        loss = 4.0 * embeds_l2_loss + 1.0 * pooled_embeds_l2_loss + 4.0 * embeds_cosine_loss + 1.0 * pooled_embeds_cosine_loss
+        loss = embeds_l2_loss + 0.25 * pooled_embeds_l2_loss + embeds_cosine_loss + 0.25 * pooled_embeds_cosine_loss
 
         return loss
 
@@ -339,10 +336,7 @@ class TokenEmbeddingsHandler:
             #'a picture of {}',
         ]
 
-        #condtioning_regularizer = ConditioningRegularizer(config, self)
-        #loss, prompt_embeds_norms = condtioning_regularizer.apply_regularization(loss, prompt_embeds_norms, prompt_embeds, pipe)
-
-        losses = []
+        losses = {'target_prompt_loss': [], 'covariance_tok_reg_loss': []}
         for step in tqdm(range(config.token_warmup_steps)):
             if step % 30 == 0 and config.debug and 0: # disalbe this for now
                 for i, token_index in enumerate(self.train_ids):
@@ -353,12 +347,15 @@ class TokenEmbeddingsHandler:
             prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize)
             
             # Compute the target_prompt distance loss:
-            loss = self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds)
+            loss = 1.0 * self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds)
+            losses['target_prompt_loss'].append(loss.item())
+
+            # Compute token regularization loss:
+            loss, losses, _ = self.token_regularizer.apply_regularization(loss, losses, None, prompt_embeds)
 
             # Backward pass:
             retain_graph = step < (config.token_warmup_steps - 1)  # Retain graph for all but the last step
             loss.backward(retain_graph=retain_graph)
-            losses.append(loss.item())
 
             # zero out the gradients of the non-trained text-encoder embeddings
             for embedding_tensor in ti_parameters:
@@ -369,15 +366,7 @@ class TokenEmbeddingsHandler:
             optimizer_ti.zero_grad()
 
         if config.debug:
-            # Plot the losses:
-            plt.plot(losses)
-            plt.xlabel("Step")
-            plt.ylabel("Loss")
-            plt.ylim(0, np.max(losses) * 1.1)
-            plt.title("Token Embedding Warmup Loss")
-            plt.savefig(f'{config.output_dir}/token_warmup_loss.png')
-            plt.close()
-
+            plot_loss(losses, save_path=f'{config.output_dir}/token_warmup_loss.png')
 
     def save_embeddings(self, file_path: str, txt_encoder_keys = ["clip_l", "clip_g"]):
         assert (

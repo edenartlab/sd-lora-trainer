@@ -62,10 +62,8 @@ def _find_files(pattern, dir="."):
     """Return list of files matching pattern in a given directory, in absolute format.
     Unlike glob, this is case-insensitive.
     """
-
     rule = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
     return [os.path.join(dir, f) for f in os.listdir(dir) if rule.match(f)]
-
 
 
 def preprocess(
@@ -1073,15 +1071,14 @@ def face_mask_google_mediapipe(
 
                     # Convert mask to 'L' mode (grayscale) before saving
                     mask = mask.convert("L")
-
                     masks.append(mask)
                 else:
                     # If face landmarks are not available, add a black mask of the same size as the image
-                    masks.append(Image.new("L", (iw, ih), 255))
+                    masks.append(Image.new("L", (iw, ih), 0))
 
         else:
             print("No face detected, adding full mask")
-            # If no face is detected, add a white mask of the same size as the image
-            masks.append(Image.new("L", (iw, ih), 255))
+            # If no face is detected, add a black mask of the same size as the image
+            masks.append(Image.new("L", (iw, ih), 0))
 
     return masks

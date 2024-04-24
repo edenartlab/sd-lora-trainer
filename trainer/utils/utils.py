@@ -195,16 +195,16 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png', target_value_dic
     plt.close()
 
 from scipy.signal import savgol_filter
-def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3):
-    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange'}
+def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3, default_color='gray'):
+    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange', 'target_prompt_loss': 'red'}
     plot_smoothed = ['img_loss']
     plt.figure()
     
-    for key in loss_dict.keys():
+    for key, losses in loss_dict.items():
         if key == 'tot_loss':
             continue
 
-        losses = np.array(loss_dict[key])
+        losses = np.array(losses)
         
         if len(losses) < window_length:
             continue
@@ -218,9 +218,9 @@ def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3):
             linestyle = 'solid'
 
         plot_losses = losses / np.max(losses)
-        plt.plot(plot_losses, label=label, color = colormap[key], linestyle=linestyle)
+        color = colormap.get(key, default_color)  # Use the default color if the key is not in the colormap
+        plt.plot(plot_losses, label=label, color=color, linestyle=linestyle)
 
-        
     plt.xlabel('Optimizer Step')
     plt.ylabel('Training Losses')
     plt.ylim(0, 1.1)  # Adjust the y-axis limits for normalized data
