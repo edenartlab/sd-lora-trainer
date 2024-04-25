@@ -227,7 +227,8 @@ def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3, 
     title = 'Loss values:'
     for key in values_to_add_to_title:
         if key in loss_dict:
-            title += f' {key}: {loss_dict[key][-1]:.3f}'
+            if loss_dict[key]:
+                title += f' {key}: {loss_dict[key][-1]:.3f}'
 
     plt.title(title)
     plt.xlabel('Optimizer Step')

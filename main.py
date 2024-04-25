@@ -302,11 +302,11 @@ def train(
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
 
-            #if config.debug:
-            concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds)
-            # TODO: fix this backward pass (right now this causes an error...)
-            #loss += 1.0 * concept_description_loss
-            losses['concept_description_loss'].append(concept_description_loss.item())
+            if config.training_attributes["gpt_description"]:
+                concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds)
+                # TODO: fix this backward pass (right now this causes an error...)
+                #loss += 1.0 * concept_description_loss
+                losses['concept_description_loss'].append(concept_description_loss.item())
 
             if config.l1_penalty > 0.0:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
