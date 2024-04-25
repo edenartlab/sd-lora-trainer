@@ -548,94 +548,6 @@ def caption_dataset(
 
     return captions
 
-def _crop_to_aspect_ratio(
-    image: Image.Image,
-    com: List[Tuple[int, int]],
-    target_aspect_ratio: float = 1.0,  # width / height
-    resize_to: Optional[int] = None
-):
-    """
-    Crops the image to the specified aspect ratio around the center of mass of the mask.
-    """
-    cx, cy = com
-    width, height = image.size
-
-    if target_aspect_ratio > 1:  # Wider than tall
-        new_width = min(width, height * target_aspect_ratio)
-        new_height = new_width / target_aspect_ratio
-    else:  # Taller than wide or square
-        new_height = min(height, width / target_aspect_ratio)
-        new_width = new_height * target_aspect_ratio
-
-    left = max(cx - new_width / 2, 0)
-    right = min(left + new_width, width)
-    top = max(cy - new_height / 2, 0)
-    bottom = min(top + new_height, height)
-
-    # Adjust if the crop goes beyond the image boundaries
-    if right > width:
-        right = width
-        left = right - new_width
-    if bottom > height:
-        bottom = height
-        top = bottom - new_height
-
-    image = image.crop((left, top, right, bottom))
-
-    if resize_to:
-        if target_aspect_ratio > 1:
-            resize_height = int(resize_to / target_aspect_ratio)
-            image = image.resize((resize_to, resize_height), Image.Resampling.LANCZOS)
-        else:
-            resize_width = int(resize_to * target_aspect_ratio)
-            image = image.resize((resize_width, resize_to), Image.Resampling.LANCZOS)
-
-    return image
-
-def _crop_to_square(
-    image: Image.Image, com: List[Tuple[int, int]], resize_to: Optional[int] = None
-):
-    """
-    Crops the image to a square around the center of mass of the mask.
-    """
-    cx, cy = com
-    width, height = image.size
-    if width > height:
-        left_possible = max(cx - height / 2, 0)
-        left = min(left_possible, width - height)
-        right = left + height
-        top = 0
-        bottom = height
-    else:
-        left = 0
-        right = width
-        top_possible = max(cy - width / 2, 0)
-        top = min(top_possible, height - width)
-        bottom = top + width
-
-    image = image.crop((left, top, right, bottom))
-
-    if resize_to:
-        image = image.resize((resize_to, resize_to), Image.Resampling.LANCZOS)
-
-    return image
-
-
-def _center_of_mass(mask: Image.Image):
-    """
-    Returns the center of mass of the mask
-    """
-    x, y = np.meshgrid(np.arange(mask.size[0]), np.arange(mask.size[1]))
-    mask_np = np.array(mask) + 0.01
-    x_ = x * mask_np
-    y_ = y * mask_np
-
-    x = np.sum(x_) / np.sum(mask_np)
-    y = np.sum(y_) / np.sum(mask_np)
-
-    return x, y
-
-
 def load_image_with_orientation(path, mode = "RGB"):
     image = Image.open(path)
 
@@ -733,6 +645,8 @@ def calculate_new_dimensions(target_size, target_aspect_ratio):
     new_height = round_to_nearest_multiple(new_height, 64)
 
     return [new_width, new_height]
+
+
 
 
 def load_and_save_masks_and_captions(
@@ -870,15 +784,18 @@ def load_and_save_masks_and_captions(
         temp = 999
 
     print(f"Generating {len(images)} masks...")
+
+    # Make sure we have a bias for the background pixels to never 100% ignore them
+    background_bias = 0.05
     if not use_face_detection_instead:
         seg_masks = clipseg_mask_generator(
-            images=images, target_prompts=mask_target_prompts, temp=temp
+            images=images, target_prompts=mask_target_prompts, temp=temp, bias=background_bias
         )
     else:
         mask_target_prompts = "FACE detection was used"
         if add_lr_flips:
             print("WARNING you are applying face detection while also doing left-right flips, this might not be what you intended?")
-        seg_masks = face_mask_google_mediapipe(images=images)
+        seg_masks = face_mask_google_mediapipe(images=images, bias=background_bias*255)
 
     print("Masks generated! Cropping images to center of mass...")
     # find the center of mass of the mask
@@ -901,6 +818,13 @@ def load_and_save_masks_and_captions(
         for mask, com in zip(seg_masks, coms)
     ]
 
+    print("Expanding masks...")
+    dilation_radius = -0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
+    blur_radius     = 0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
+    for i in range(len(seg_masks)):
+        seg_masks[i] = grow_mask(seg_masks[i], dilation_radius=dilation_radius, blur_radius=blur_radius)
+    print("Done!")
+    
     data = []
     # clean TEMP_OUT_DIR first
     if os.path.exists(output_dir):
@@ -951,9 +875,99 @@ def load_and_save_masks_and_captions(
     return config
 
 
+from PIL import Image, ImageFilter, ImageChops
+
+def grow_mask(mask, dilation_radius=5, blur_radius=3):
+    dilation_radius = int(dilation_radius)
+    blur_radius     = int(blur_radius)
+
+    # Load the image
+    mask = mask.convert('L')  # Ensure it's in grayscale
+
+    # Get the minimum pixel value in the mask:
+    min_mask_value = int(np.min(np.array(mask)))
+
+    # Dilate the mask
+    if dilation_radius > 0:
+        mask = mask.filter(ImageFilter.MinFilter(dilation_radius * 2 + 1))
+
+    # Apply Gaussian blur to the dilated mask
+    if blur_radius > 0:
+        mask = mask.filter(ImageFilter.GaussianBlur(blur_radius))
+
+    # Clip the mask pixel values to make sure they dont go below the minimum value
+    mask = ImageChops.lighter(mask, Image.new('L', mask.size, min_mask_value))
+
+    return mask
+
+
+def _center_of_mass(mask: Image.Image):
+    """
+    Returns the center of mass of the mask
+    """
+    x, y = np.meshgrid(np.arange(mask.size[0]), np.arange(mask.size[1]))
+    mask_np = np.array(mask) + 0.01
+    x_ = x * mask_np
+    y_ = y * mask_np
+
+    x = np.sum(x_) / np.sum(mask_np)
+    y = np.sum(y_) / np.sum(mask_np)
+
+    return x, y
+
+def _crop_to_aspect_ratio(
+    image: Image.Image,
+    com: List[Tuple[int, int]],
+    target_aspect_ratio: float = 1.0,  # width / height
+    resize_to: Optional[int] = None
+):
+    """
+    Crops the image to the specified aspect ratio around the center of mass of the mask.
+    """
+    cx, cy = com
+    width, height = image.size
+
+    if target_aspect_ratio > 1:  # Wider than tall
+        new_width = int(min(width, height * target_aspect_ratio))
+        new_height = int(new_width / target_aspect_ratio)
+    else:  # Taller than wide or square
+        new_height = int(min(height, width / target_aspect_ratio))
+        new_width = int(new_height * target_aspect_ratio)
+
+    left = int(max(cx - new_width / 2, 0))
+    right = int(min(left + new_width, width))
+    top = int(max(cy - new_height / 2, 0))
+    bottom = int(min(top + new_height, height))
+
+    # Adjust if the crop goes beyond the image boundaries
+    if right > width:
+        overshoot = right - width
+        right = width
+        left = max(0, left - overshoot)  # Adjust left as well symmetrically
+
+    if bottom > height:
+        overshoot = bottom - height
+        bottom = height
+        top = max(0, top - overshoot)  # Adjust top as well symmetrically
+
+
+    image = image.crop((left, top, right, bottom))
+
+    if resize_to:
+        if target_aspect_ratio > 1:
+            resize_height = int(resize_to / target_aspect_ratio)
+            image = image.resize((resize_to, resize_height), Image.Resampling.LANCZOS)
+        else:
+            resize_width = int(resize_to * target_aspect_ratio)
+            image = image.resize((resize_width, resize_to), Image.Resampling.LANCZOS)
+
+    return image
+
+
+
 
 def face_mask_google_mediapipe(
-    images: List[Image.Image], blur_amount: float = 0.0, bias: float = 50.0
+    images: List[Image.Image], blur_amount: float = 0.0, bias: float = 10.0
 ) -> List[Image.Image]:
     """
     Returns a list of images with masks on the face parts.
@@ -993,8 +1007,6 @@ def face_mask_google_mediapipe(
                     min(iw - bbox[0], bbox[2]),
                     min(ih - bbox[1], bbox[3]),
                 )
-
-                print(bbox)
 
                 # Extract face landmarks
                 face_landmarks = face_mesh.process(

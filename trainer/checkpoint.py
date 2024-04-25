@@ -28,6 +28,16 @@ def convert_pytorch_lora_safetensors_to_webui(
     lora_state_dict = load_file(pytorch_lora_weights_filename)
     peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
     kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
+    
+    # This is a very custom hack because for some reason these 'base_model_model_' prefixes are added to the keys and ComfyUI does not like them...
+    replace_dict = {"base_model_model_": ""}
+    # enumerate and apply replace_dict:
+    for key in list(kohya_state_dict.keys()):
+        for old_key, new_key in replace_dict.items():
+            if old_key in key:
+                new_key = key.replace(old_key, new_key)
+                kohya_state_dict[new_key] = kohya_state_dict.pop(key)
+
     save_file(kohya_state_dict, output_filename)
 
 def save_checkpoint(

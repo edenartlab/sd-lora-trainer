@@ -211,7 +211,7 @@ def train(
     # Data tracking inits:
     start_time, images_done = time.time(), 0
     prompt_embeds_norms = {'main':[], 'reg':[]}
-    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': []}
+    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': [], 'concept_description_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
@@ -301,6 +301,12 @@ def train(
             # Compute the loss:
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
+
+            #if config.debug:
+            concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds)
+            # TODO: fix this backward pass (right now this causes an error...)
+            #loss += 1.0 * concept_description_loss
+            losses['concept_description_loss'].append(concept_description_loss.item())
 
             if config.l1_penalty > 0.0:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
@@ -457,6 +463,8 @@ def train(
         del tokenizer_two
         del embedding_handler
         del pipe
+        del train_dataloader
+        del train_dataset
         gc.collect()
         torch.cuda.empty_cache()
 

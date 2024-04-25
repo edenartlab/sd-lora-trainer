@@ -196,8 +196,10 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png', target_value_dic
 
 from scipy.signal import savgol_filter
 def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3, default_color='gray'):
-    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange', 'target_prompt_loss': 'red'}
+    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange', 'concept_description_loss': 'red'}
+    values_to_add_to_title = ['concept_description_loss', 'covariance_tok_reg_loss']
     plot_smoothed = ['img_loss']
+
     plt.figure()
     
     for key, losses in loss_dict.items():
@@ -221,6 +223,13 @@ def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3, 
         color = colormap.get(key, default_color)  # Use the default color if the key is not in the colormap
         plt.plot(plot_losses, label=label, color=color, linestyle=linestyle)
 
+    # Create the title:
+    title = 'Loss values:'
+    for key in values_to_add_to_title:
+        if key in loss_dict:
+            title += f' {key}: {loss_dict[key][-1]:.3f}'
+
+    plt.title(title)
     plt.xlabel('Optimizer Step')
     plt.ylabel('Training Losses')
     plt.ylim(0, 1.1)  # Adjust the y-axis limits for normalized data
