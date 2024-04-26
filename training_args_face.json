@@ -1,7 +1,7 @@
 {
-    "output_dir": "lora_models/xander_ti",
+    "output_dir": "lora_models/gene_ti",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "/home/rednax/Documents/datasets/people/mira",
+    "lora_training_urls": "/home/rednax/Documents/datasets/people/gene",
     "concept_mode": "face",
     "seed": 0,
     "resolution": 512,
@@ -20,16 +20,9 @@
     "text_encoder_lora_lr": 1.0e-4,
     "text_encoder_lora_weight_decay": 1e-5,
     "text_encoder_lora_rank": 12,
-    "off_ratio_power": 0.02,
     "prodigy_d_coef": 0.0,
-    "lora_weight_decay": 0.002,
-    "l1_penalty": 0.1,
-    "noise_offset": 0.05,
-    "snr_gamma": 5.0,
-    "lora_alpha_multiplier": 1.0,
     "lora_rank": 12,
     "use_dora": false,
     "caption_model": "gpt4-v",
-    "verbose": true,
     "debug": true
 }

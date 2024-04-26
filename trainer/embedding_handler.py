@@ -10,7 +10,6 @@ from safetensors.torch import save_file, safe_open
 import matplotlib.pyplot as plt
 from trainer.utils.utils import seed_everything, plot_torch_hist, plot_loss
 
-
 class TokenEmbeddingsHandler:
     def __init__(self, text_encoders, tokenizers):
         self.text_encoders = text_encoders
@@ -234,62 +233,91 @@ class TokenEmbeddingsHandler:
             plot_torch_hist(embeddings, 0, output_folder, f"tok_{token_id}_{idx}_{suffix}", bins=100, min_val=x_range[0], max_val=x_range[1], ymax_f = 0.05)
             idx += 1
 
-    def encode_text(self, text, clip_skip = None):
-        prompt_embeds_list = []
+    def get_conditioning_signals(self, config, pipe, captions):
+        conditioning_signals = pipe.encode_prompt(
+            prompt=captions,
+            device=pipe.unet.device,
+            num_images_per_prompt=1,
+            do_classifier_free_guidance=True,
+            negative_prompt=None,
+            clip_skip=None,
+        )
 
-        for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
-            if text_encoder is None:
-                continue
-            text_input_ids = tokenizer(
-                text,
-                padding="max_length",
-                max_length=tokenizer.model_max_length,
-                truncation=True,
-                add_special_tokens=True,
-                return_tensors="pt",
-            ).input_ids
+        try:  # sd15
+            prompt_embeds, negative_prompt_embeds = conditioning_signals
+            pooled_prompt_embeds, add_time_ids = None, None
 
-            prompt_embeds = text_encoder(text_input_ids.to(text_encoder.device), output_hidden_states=True)
-            
-            # We are only ALWAYS interested in the pooled output of the final text encoder
-            pooled_prompt_embeds = prompt_embeds[0]
-            if clip_skip is None:
-                prompt_embeds = prompt_embeds.hidden_states[-2]
-            else: # "2" because SDXL always indexes from the penultimate layer.
-                prompt_embeds = prompt_embeds.hidden_states[-(clip_skip + 2)]
+        except:  # sdxl
+            (
+                prompt_embeds,
+                negative_prompt_embeds,
+                pooled_prompt_embeds,
+                negative_pooled_prompt_embeds,
+            ) = conditioning_signals
 
-            prompt_embeds_list.append(prompt_embeds)
+            # Create Spatial-dimensional conditions.
+            # I dont understand why, but I get better results hardcoding the original_size values...
+            # original_size = (config.resolution, config.resolution)
+            original_size = (1024, 1024)
+            target_size = (config.resolution, config.resolution)
 
-        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
+            crops_coords_top_left = (
+                config.crops_coords_top_left_h,
+                config.crops_coords_top_left_w,
+            )
 
+            if pipe.text_encoder_2 is None:
+                text_encoder_projection_dim = int(pooled_prompt_embeds.shape[-1])
+            else:
+                text_encoder_projection_dim = pipe.text_encoder_2.config.projection_dim
+
+            add_time_ids = pipe._get_add_time_ids(
+                original_size,
+                crops_coords_top_left,
+                target_size,
+                dtype=prompt_embeds.dtype,
+                text_encoder_projection_dim=text_encoder_projection_dim,
+            )
+
+            add_time_ids = add_time_ids.to(config.device, dtype=prompt_embeds.dtype).repeat(
+                prompt_embeds.shape[0], 1
+            )
+
+        return prompt_embeds, pooled_prompt_embeds, add_time_ids
+
+    def encode_text(self, text, config, pipe):
+        prompt_embeds, pooled_prompt_embeds, add_time_ids = self.get_conditioning_signals(config, pipe, [text])
         return prompt_embeds, pooled_prompt_embeds
-    
-    def compute_target_prompt_loss(self, target_prompt, prompt_embeds, pooled_prompt_embeds):
+
+    def compute_target_prompt_loss(self, target_prompt, prompt_embeds, pooled_prompt_embeds, config, pipe):
         """
         Compute a distance loss between the prompt embeddings and the target prompt embeddings
         """
 
         if target_prompt != self.target_prompt:
             self.target_prompt = target_prompt
-            self.target_prompt_embeds, self.target_pooled_prompt_embeds = self.encode_text(self.target_prompt)
+            self.target_prompt_embeds, self.target_pooled_prompt_embeds = self.encode_text(self.target_prompt, config, pipe)
             # detach the target prompt embeddings (we don't need gradients here, these are just static targets)
             self.target_prompt_embeds = self.target_prompt_embeds.detach()
-            self.target_pooled_prompt_embeds = self.target_pooled_prompt_embeds.detach()
+            try:
+                self.target_pooled_prompt_embeds = self.target_pooled_prompt_embeds.detach()
+            except:
+                self.target_pooled_prompt_embeds = None
 
-        # compute the MSE losses:
+        # compute the losses:
         embeds_l2_loss = F.mse_loss(prompt_embeds, self.target_prompt_embeds)
-        pooled_embeds_l2_loss = F.mse_loss(pooled_prompt_embeds, self.target_pooled_prompt_embeds)
-
-        # Compute the cosine-similarity losses:
         embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, self.target_prompt_embeds, dim=-1).mean()
-        pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, self.target_pooled_prompt_embeds, dim=-1).mean()
 
-        # Combine the losses:
-        loss = embeds_l2_loss + 0.25 * pooled_embeds_l2_loss + embeds_cosine_loss + 0.25 * pooled_embeds_cosine_loss
+        loss = embeds_l2_loss + embeds_cosine_loss
+
+        if pooled_prompt_embeds is not None:
+            pooled_embeds_l2_loss     = F.mse_loss(pooled_prompt_embeds, self.target_pooled_prompt_embeds)
+            pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, self.target_pooled_prompt_embeds, dim=-1).mean()
+            loss += 0.25 * (pooled_embeds_l2_loss + pooled_embeds_cosine_loss)
 
         return loss
 
-    def pre_optimize_token_embeddings(self, config):
+    def pre_optimize_token_embeddings(self, config, pipe):
         """
         Warmup the token embeddings by optimizing them without using the image denoiser,
         but simply using CLIP-txt and CLIP-img similarity losses
@@ -346,10 +374,10 @@ class TokenEmbeddingsHandler:
 
             # pick a random prompt template and inject the token string:
             prompt_to_optimize = np.random.choice(prompt_template).format(token_string)
-            prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize)
+            prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize, config, pipe)
             
             # Compute the target_prompt distance loss:
-            loss = 0.25 * self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds)
+            loss = 0.2 * self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds, config, pipe)
             losses['concept_description_loss'].append(loss.item())
 
             # Compute token regularization loss:

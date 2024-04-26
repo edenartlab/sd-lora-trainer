@@ -49,7 +49,6 @@ class TrainingConfig(BaseModel):
     use_face_detection_instead: bool = False  # use a different model (not CLIPSeg) to generate face masks
     clipseg_temperature: float = 0.5   # temperature for the CLIPSeg mask
     n_sample_imgs: int = 4
-    verbose: bool = False
     name: str = None
     output_dir: str = "lora_models/unnamed"
     debug: bool = False

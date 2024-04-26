@@ -86,7 +86,7 @@ def train(
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
     embedding_handler.make_embeddings_trainable()
     embedding_handler.token_regularizer = ConditioningRegularizer(config, embedding_handler)
-    embedding_handler.pre_optimize_token_embeddings(config)
+    embedding_handler.pre_optimize_token_embeddings(config, pipe)
 
     # Turn off all gradients for now:
     unet.requires_grad_(False)
@@ -189,14 +189,13 @@ def train(
     config.num_train_epochs = math.ceil(config.max_train_steps / num_update_steps_per_epoch)
     total_batch_size = config.train_batch_size * config.gradient_accumulation_steps
 
-    if config.verbose:
-        print(f"--- Num samples = {len(train_dataset)}")
-        print(f"--- Num batches each epoch = {len(train_dataloader)}")
-        print(f"--- Num Epochs = {config.num_train_epochs}")
-        print(f"--- Instantaneous batch size per device = {config.train_batch_size}")
-        print(f"--- Total batch_size (distributed + accumulation) = {total_batch_size}")
-        print(f"--- Gradient Accumulation steps = {config.gradient_accumulation_steps}")
-        print(f"--- Total optimization steps = {config.max_train_steps}\n")
+    print(f"--- Num samples = {len(train_dataset)}")
+    print(f"--- Num batches each epoch = {len(train_dataloader)}")
+    print(f"--- Num Epochs = {config.num_train_epochs}")
+    print(f"--- Instantaneous batch size per device = {config.train_batch_size}")
+    print(f"--- Total batch_size (distributed + accumulation) = {total_batch_size}")
+    print(f"--- Gradient Accumulation steps = {config.gradient_accumulation_steps}")
+    print(f"--- Total optimization steps = {config.max_train_steps}\n")
 
     global_step = 0
     last_save_step = 0
@@ -302,7 +301,7 @@ def train(
             losses['img_loss'].append(loss.item())
 
             if config.training_attributes["gpt_description"] and config.debug:
-                concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds)
+                concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds, config, pipe)
                 # Dont apply this loss, just plot it for now:
                 loss += 0.0 * concept_description_loss
                 losses['concept_description_loss'].append(concept_description_loss.item())

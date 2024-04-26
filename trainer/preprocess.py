@@ -824,10 +824,11 @@ def load_and_save_masks_and_captions(
     print("Expanding masks...")
     if use_face_detection_instead:
         dilation_radius = -0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
+        blur_radius     = 0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
     else:
         dilation_radius = 0.0
+        blur_radius     = 0.01 * (config.train_img_size[0] + config.train_img_size[0]) / 2
 
-    blur_radius     = 0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
     for i in range(len(seg_masks)):
         seg_masks[i] = grow_mask(seg_masks[i], dilation_radius=dilation_radius, blur_radius=blur_radius)
     print("Done!")

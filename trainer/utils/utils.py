@@ -200,7 +200,7 @@ def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3, 
     values_to_add_to_title = ['concept_description_loss', 'covariance_tok_reg_loss']
     plot_smoothed = ['img_loss']
 
-    plt.figure()
+    plt.figure(figsize=(8, 5))
     
     for key, losses in loss_dict.items():
         if key == 'tot_loss':

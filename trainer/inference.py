@@ -129,6 +129,7 @@ def prepare_prompt_for_lora(prompt, lora_path, interpolation=False, verbose=True
     return prompt
 
 
+
 def get_conditioning_signals(config, pipe, captions):
     conditioning_signals = pipe.encode_prompt(
         prompt=captions,
