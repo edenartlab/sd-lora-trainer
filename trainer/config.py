@@ -19,9 +19,8 @@ class TrainingConfig(BaseModel):
     train_batch_size: int = 4
     num_train_epochs: int = 10000
     max_train_steps: int = 500
-    token_warmup_steps: int = 40
+    token_warmup_steps: int = 50
     checkpointing_steps: int = 10000
-    txt_encoders_lr_warmup_steps: int = 30
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     prodigy_d_coef: float = 1.0
@@ -29,13 +28,13 @@ class TrainingConfig(BaseModel):
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
-    freeze_ti_after_completion_f: float = 0.5   # freeze the TI after this fraction of the training is done
+    freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 750.     # regularizes the token covariance matrix wrt pretrained "healthy" tokens
+    tok_cov_reg_w: float = 1000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.01   # Pulls the std of the token distribution towards the target std
-    l1_penalty: float = 0.1         # Makes the unet lora matrix more sparse
+    l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
     snr_gamma: float = 5.0
     lora_alpha_multiplier: float = 1.0
@@ -79,8 +78,9 @@ class TrainingConfig(BaseModel):
     Else the other variables are ignored.
     """
     text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = "adamw"
-    text_encoder_lora_lr: float = 0.5e-5
-    text_encoder_lora_weight_decay: float = 1e-5
+    text_encoder_lora_lr: float = 1.5e-5
+    txt_encoders_lr_warmup_steps: int = 100
+    text_encoder_lora_weight_decay: float = 1.0e-5
     text_encoder_lora_rank: int = 12
 
     def __init__(self, **data):

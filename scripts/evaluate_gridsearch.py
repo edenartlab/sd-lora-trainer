@@ -11,8 +11,11 @@ from sklearn.metrics import r2_score
 
 
 # Define paths
-exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/beeple_02"
-config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/gridsearch_sdxl_beeple"
+exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/style_sweep/all"
+config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/gridsearch_sdxl_styles"
+
+output_dir = f"gridsearch_configs/results/{os.path.basename(config_dir)}"
+output_suffix = f"{os.path.basename(exp_dir)}"
 
 # Initialize a dictionary to hold parameter values and associated scores
 parameters = defaultdict(lambda: defaultdict(list))
@@ -49,15 +52,21 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import LabelEncoder
 
+os.makedirs(output_dir, exist_ok=True)
+
 def plot_parameters(parameters):
     for param, data in parameters.items():
         values = np.array(data['values'])
         scores = np.array(data['scores'])
+
+
+        noise_strength_values = 0.02
+        noise_strength_scores = 0.02
         
         # Determine if values are numeric
         if values.dtype.kind in 'bifc':  # Numeric types
             # Add noise directly to values
-            jittered_values = values + np.random.normal(0, 0.01 * np.max(values), values.shape)
+            jittered_values = values + np.random.normal(0, noise_strength_values * (np.max(values) - np.min(values)), values.shape)
         else:
             # Encode string values to integers for plotting
             encoder = LabelEncoder()
@@ -75,7 +84,7 @@ def plot_parameters(parameters):
         predicted_scores = model.predict(values_reshaped)
 
         # add some jitter to the scores:
-        jittered_scores = scores + np.random.normal(0, 0.02 * np.max(scores), scores.shape)
+        jittered_scores = scores + np.random.normal(0, noise_strength_scores * np.max(scores), scores.shape)
 
         # Calculate R² value
         r_squared = r2_score(scores, predicted_scores)
@@ -84,7 +93,7 @@ def plot_parameters(parameters):
         sns.scatterplot(x=jittered_values, y=jittered_scores, alpha=0.6)
         
         # Plot trendline
-        sns.lineplot(x=np.sort(values), y=predicted_scores[np.argsort(values)], color='red', label=f'Fit: y={model.coef_[0]:.2f}x+{model.intercept_:.2f}, R²={r_squared:.2f}')
+        sns.lineplot(x=np.sort(values), y=predicted_scores[np.argsort(values)], color='red', label=f'Fit: y={model.coef_[0]:.1f}x+{model.intercept_:.1f}, R²={r_squared:.2f}')
 
         # Set plot title and labels
         plt.title(f'Influence of {param} on the score')
@@ -93,7 +102,7 @@ def plot_parameters(parameters):
         plt.legend()
         
         # Save and close the plot
-        plt.savefig(f'res_{param}.png')
+        plt.savefig(f'{output_dir}/res_{param}_{output_suffix}.png')
         plt.close()
 
 # Call the updated function with your parameters dictionary
