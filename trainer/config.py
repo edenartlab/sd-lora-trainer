@@ -33,8 +33,8 @@ class TrainingConfig(BaseModel):
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     lora_weight_decay: float = 0.002
-    cond_reg_w: float = 0.0e-5
-    tok_cond_reg_w: float = 0.0e-5
+    cond_reg_w: float = 2.0e-5
+    tok_cond_reg_w: float = 2.0e-5
     tok_cov_reg_w: float = 2000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.02   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse

@@ -37,6 +37,8 @@ def replace_in_string(s, replacements):
     return s
 
 def fix_prompt(prompt: str):
+    print(prompt)
+    print(type(prompt))
     # Remove extra commas and spaces, and fix space before punctuation
     prompt = re.sub(r"\s+", " ", prompt)  # Replace multiple spaces with a single space
     prompt = re.sub(r",,", ",", prompt)  # Replace double commas with a single comma
@@ -177,8 +179,8 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png', target_value_dic
 
     plt.xlabel('Step')
     plt.ylabel('Token Embedding Std')
-    centre_value = 0.014
-    up_f, down_f = 1.5, 1.2
+    centre_value = 0.013
+    up_f, down_f = 1.4, 1.3
     try:
         plt.ylim(centre_value/down_f, centre_value*up_f)
     except:
