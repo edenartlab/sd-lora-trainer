@@ -244,6 +244,10 @@ def train(
             if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
                 if optimizers['textual_inversion'] is not None:
                     optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                    # warmup the ti-lr:
+                    if config.ti_lr_warmup_steps > 0:
+                        warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
+                        optimizers['textual_inversion'].param_groups[0]['lr'] *= warmup_f
                     if config.freeze_ti_after_completion_f <= completion_f:
                         optimizers['textual_inversion'].param_groups[0]['lr'] *= 0
 

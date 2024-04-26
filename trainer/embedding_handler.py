@@ -305,14 +305,19 @@ class TokenEmbeddingsHandler:
                 self.target_pooled_prompt_embeds = None
 
         # compute the losses:
-        embeds_l2_loss = F.mse_loss(prompt_embeds, self.target_prompt_embeds)
-        embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, self.target_prompt_embeds, dim=-1).mean()
+        
+        # Replicate target embeddings to match the batch size of prompt_embeds
+        batch_size = prompt_embeds.size(0)
+        target = self.target_prompt_embeds.expand(batch_size, -1, -1)
+        embeds_l2_loss = F.mse_loss(prompt_embeds, target)
+        embeds_cosine_loss = 1.0 - F.cosine_similarity(prompt_embeds, target, dim=-1).mean()
 
         loss = embeds_l2_loss + embeds_cosine_loss
 
         if pooled_prompt_embeds is not None:
-            pooled_embeds_l2_loss     = F.mse_loss(pooled_prompt_embeds, self.target_pooled_prompt_embeds)
-            pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, self.target_pooled_prompt_embeds, dim=-1).mean()
+            target = self.target_pooled_prompt_embeds.expand(batch_size, -1)
+            pooled_embeds_l2_loss     = F.mse_loss(pooled_prompt_embeds, target)
+            pooled_embeds_cosine_loss = 1.0 - F.cosine_similarity(pooled_prompt_embeds, target, dim=-1).mean()
             loss += 0.25 * (pooled_embeds_l2_loss + pooled_embeds_cosine_loss)
 
         return loss
