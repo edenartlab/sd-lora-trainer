@@ -1,3 +1,6 @@
+import os
+import time
+import matplotlib.pyplot as plt
 import torch
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
 from trainer.inference import get_conditioning_signals
@@ -93,7 +96,9 @@ def compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_
 
 class ConditioningRegularizer:
     """
-    Regularizes the norms of the prompt_conditioning vectors.
+    Regularizes:
+        - the norms of the prompt_conditioning vectors
+        - the statistics of the token embeddings.
     """
 
     def __init__(self, config, embedding_handler):
@@ -110,10 +115,10 @@ class ConditioningRegularizer:
                 idx += 1
                 continue
             pretrained_token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data
-            self.distribution_regularizers[f'txt_encoder_{idx}'] = CovarianceLoss(pretrained_token_embeddings)
+            self.distribution_regularizers[f'txt_encoder_{idx}'] = DistributionLoss(pretrained_token_embeddings, outdir = self.config.output_dir if config.debug else None)
             idx += 1
 
-    def apply_regularization(self, loss, losses, prompt_embeds_norms, prompt_embeds, pipe=None):
+    def apply_regularization(self, loss, losses, prompt_embeds_norms, prompt_embeds, std_loss_w = 0.005, pipe=None):
         noise_sigma = 0.0
         if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
             prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma
@@ -140,8 +145,15 @@ class ConditioningRegularizer:
             loss += self.config.tok_cov_reg_w * mean_reg_loss
             losses['covariance_tok_reg_loss'].append(mean_reg_loss.item())
 
-        std_loss = 1.0
-        
+        if std_loss_w > 0.0:
+            tot_std_losses = []
+            for key, distribution_regularizer in self.distribution_regularizers.items():
+                std_loss = distribution_regularizer.compute_std_loss(self.embedding_handler.get_trainable_embeddings()[0][key])
+                tot_std_losses.append(std_loss)
+            
+            mean_std_loss = torch.stack(tot_std_losses).mean()
+            loss += std_loss_w * mean_std_loss
+            losses['token_std_loss'].append(mean_std_loss.item())
 
         return loss, losses, prompt_embeds_norms
 
@@ -163,11 +175,27 @@ class ConditioningRegularizer:
 
         return reg_loss, regularization_norm_value
 
-class CovarianceLoss(torch.nn.Module):
-    def __init__(self, pretrained_embeddings, dtype=torch.float32):
-        super(CovarianceLoss, self).__init__()
+
+class DistributionLoss(torch.nn.Module):
+    def __init__(self, pretrained_embeddings, dtype=torch.float32, outdir = None):
+        super(DistributionLoss, self).__init__()
         self.dtype = dtype
-        self.cov_pretrained = self._calculate_covariance(pretrained_embeddings)
+        self.target_cov   = self._calculate_covariance(pretrained_embeddings)
+        self.target_stds  = pretrained_embeddings.std(-1)
+        self.target_stds_mean = self.target_stds.mean()
+        self.target_stds_var  = self.target_stds.std()**2 / self.target_stds.mean()
+        
+        #self.target_norms = pretrained_embeddings.norm(dim=-1)
+        #self.std_histogram  = DifferentiableHistogram(self.target_stds)
+        #self.norm_histogram = DifferentiableHistogram(self.target_norms)
+
+        if outdir:
+            # Plot a histogram of the stds:
+            plt.figure()
+            plt.hist(self.target_stds.detach().float().cpu().numpy(), bins=100)
+            plt.title(f"stds of tokens (shape = {pretrained_embeddings.shape[0]} x {pretrained_embeddings.shape[1]})")
+            plt.xlim(0, 0.02)
+            plt.savefig(os.path.join(outdir, f"stds_histogram_{int(time.time()*100)}.png"))
 
     def _calculate_covariance(self, embeddings):
         embeddings = embeddings.to(self.dtype)
@@ -182,10 +210,155 @@ class CovarianceLoss(torch.nn.Module):
         # Normalizing by the product of the dimensions of the covariance matrix.
         num_features = new_embeddings.size(1)  # Assuming embeddings are of shape [n_samples, n_features]
         scale_factor = num_features * num_features
-        loss = torch.norm(self.cov_pretrained - cov_new, p='fro') / scale_factor
+        loss = torch.norm(self.target_cov - cov_new, p='fro') / scale_factor
         return loss.to(input_dtype)
     
+    def compute_std_loss(self, new_embeddings):
+        if new_embeddings.size(1) == 1:
+            new_embeddings = new_embeddings.unsqueeze(0)
 
+        deviation_loss = ((self.target_stds_mean - new_embeddings.std(-1))**2 / self.target_stds_var).mean()
+
+        return deviation_loss
+
+
+
+#######################################################################
+#######################################################################
+
+## Everything below here is experimental stuff not yet fully functional:
+
+import torch
+import numpy as np
+from torch.distributions import MultivariateNormal, Normal
+from torch.distributions.distribution import Distribution
+
+class GaussianKDE(Distribution):
+    def __init__(self, X, bw = 0.1):
+        """
+        X : tensor (n, d)
+          `n` points with `d` dimensions to which KDE will be fit
+        bw : numeric
+          bandwidth for Gaussian kernel
+        """
+        self.X = X
+        self.bw = bw
+        self.dims = X.shape[-1]
+        self.n = X.shape[0]
+        self.mvn = MultivariateNormal(loc=torch.zeros(self.dims),
+                                      covariance_matrix=torch.eye(self.dims))
+
+    def sample(self, num_samples):
+        idxs = (np.random.uniform(0, 1, num_samples) * self.n).astype(int)
+        norm = Normal(loc=self.X[idxs], scale=self.bw)
+        return norm.sample()
+
+    def score_samples(self, Y, X=None):
+        """Returns the kernel density estimates of each point in `Y`.
+
+        Parameters
+        ----------
+        Y : tensor (m, d)
+          `m` points with `d` dimensions for which the probability density will
+          be calculated
+        X : tensor (n, d), optional
+          `n` points with `d` dimensions to which KDE will be fit. Provided to
+          allow batch calculations in `log_prob`. By default, `X` is None and
+          all points used to initialize KernelDensityEstimator are included.
+
+
+        Returns
+        -------
+        log_probs : tensor (m)
+          log probability densities for each of the queried points in `Y`
+        """
+        if X == None:
+            X = self.X
+        log_probs = torch.log(
+            (self.bw**(-self.dims) *
+             torch.exp(self.mvn.log_prob(
+                 (X.unsqueeze(1) - Y) / self.bw))).sum(dim=0) / self.n)
+
+        return log_probs
+
+    def log_prob(self, Y):
+        """Returns the total log probability of one or more points, `Y`, using
+        a Multivariate Normal kernel fit to `X` and scaled using `bw`.
+
+        Parameters
+        ----------
+        Y : tensor (m, d)
+          `m` points with `d` dimensions for which the probability density will
+          be calculated
+
+        Returns
+        -------
+        log_prob : numeric
+          total log probability density for the queried points, `Y`
+        """
+
+        X_chunks = self.X.split(1000)
+        Y_chunks = Y.split(1000)
+
+        log_prob = 0
+
+        for x in X_chunks:
+            for y in Y_chunks:
+                log_prob += self.score_samples(y, x).sum(dim=0)
+
+        return log_prob
+    
+
+class DifferentiableHistogram:
+    """
+    TODO fix this function
+    
+    """
+    def __init__(self, x, bins=64, min_range=None, max_range=None, bandwidth=0.02):
+        self.bins = bins
+        self.bandwidth = bandwidth * (x.max() - x.min())
+        
+        if min_range is None or max_range is None:
+            self.min_range = x.min()
+            self.max_range = x.max()
+        else:
+            self.min_range = min_range
+            self.max_range = max_range
+
+        # Create bins
+        self.bin_edges = torch.linspace(self.min_range, self.max_range, bins + 1).to(x.device)
+        self.bin_centers = (self.bin_edges[:-1] + self.bin_edges[1:]) / 2.0
+        
+        # Compute histogram using Gaussian smoothing with bandwidth
+        distances = (x.unsqueeze(1) - self.bin_centers.unsqueeze(0)) / self.bandwidth
+        weights = torch.exp(-0.5 * (distances ** 2))
+        histogram = weights.sum(dim=0)
+        
+        # Normalize to form a PDF
+        self.pdf = histogram / histogram.sum()
+
+        # Plot the histogram for validation
+        plt.figure()
+        plt.plot(self.bin_centers.float().cpu().numpy(), self.pdf.float().cpu().numpy())
+        plt.title(f"PDF of token embeddings (shape = {x.shape})")
+        plt.xlim(0, x.max().item()*1.1)
+        plt.savefig(f"pdf_histogram_{int(time.time()*100)}.png")
+        plt.close()
+
+    def __call__(self, y):
+        """
+        Compute the negative log likelihood for a given sample y.
+        Arguments:
+        - y: Tensor of shape (m,) for which to compute the loss.
+        Returns:
+        - loss: Scalar representing the negative log likelihood of sample y.
+        """
+        y_distances = (y.unsqueeze(1) - self.bin_centers.unsqueeze(0)) / self.bandwidth
+        y_weights = torch.exp(-0.5 * (y_distances ** 2))
+        likelihoods = (self.pdf * y_weights).sum(dim=1)
+        
+        nll = -torch.log(likelihoods).mean()
+        return nll
 
 
 """

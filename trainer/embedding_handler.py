@@ -185,7 +185,6 @@ class TokenEmbeddingsHandler:
             text_encoder.resize_token_embeddings(len(tokenizer))
 
             self.train_ids = tokenizer.convert_tokens_to_ids(self.inserting_toks)
-            embedding_matrix_shape = text_encoder.text_model.embeddings.token_embedding.weight.data.shape
 
             # construct the indices for all the non-trainable embeddings:
             all_indices = torch.linspace(0, len(tokenizer) - 1, len(tokenizer), dtype=torch.long)
@@ -273,6 +272,9 @@ class TokenEmbeddingsHandler:
         if target_prompt != self.target_prompt:
             self.target_prompt = target_prompt
             self.target_prompt_embeds, self.target_pooled_prompt_embeds = self.encode_text(self.target_prompt)
+            # detach the target prompt embeddings (we don't need gradients here, these are just static targets)
+            self.target_prompt_embeds = self.target_prompt_embeds.detach()
+            self.target_pooled_prompt_embeds = self.target_pooled_prompt_embeds.detach()
 
         # compute the MSE losses:
         embeds_l2_loss = F.mse_loss(prompt_embeds, self.target_prompt_embeds)
@@ -336,7 +338,7 @@ class TokenEmbeddingsHandler:
             #'a picture of {}',
         ]
 
-        losses = {'target_prompt_loss': [], 'covariance_tok_reg_loss': []}
+        losses = {'concept_description_loss': [], 'covariance_tok_reg_loss': [], 'token_std_loss': []}
         for step in tqdm(range(config.token_warmup_steps)):
             if step % 30 == 0 and config.debug and 0: # disalbe this for now
                 for i, token_index in enumerate(self.train_ids):
@@ -347,11 +349,11 @@ class TokenEmbeddingsHandler:
             prompt_embeds, pooled_prompt_embeds = self.encode_text(prompt_to_optimize)
             
             # Compute the target_prompt distance loss:
-            loss = 1.0 * self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds)
-            losses['target_prompt_loss'].append(loss.item())
+            loss = 0.25 * self.compute_target_prompt_loss(target_prompt, prompt_embeds, pooled_prompt_embeds)
+            losses['concept_description_loss'].append(loss.item())
 
             # Compute token regularization loss:
-            loss, losses, _ = self.token_regularizer.apply_regularization(loss, losses, None, prompt_embeds)
+            loss, losses, _ = self.token_regularizer.apply_regularization(loss, losses, None, prompt_embeds, std_loss_w = 0.5)
 
             # Backward pass:
             retain_graph = step < (config.token_warmup_steps - 1)  # Retain graph for all but the last step
@@ -417,7 +419,9 @@ class TokenEmbeddingsHandler:
 
             # Check if off_ratios are within an acceptable range.
             if (off_ratios.min() < 0.9) or (off_ratios.max() > 1.1):
-                print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) token-ratios = {off_ratios}, prob not ideal...")
+                # Convert the pytorch tensor into a list of python floats:
+                off_ratio_float_list = np.round(off_ratios.detach().float().cpu().numpy().tolist(), 3)
+                print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) token-ratios = {off_ratio_float_list}, prob not ideal...")
 
             # Adjust embeddings using the computed ratios.
             index_no_updates = self.embeddings_settings[f"index_no_updates_{idx}"]

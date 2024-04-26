@@ -12,7 +12,7 @@ def get_unet_optimizer(
     optimizer_name="prodigy"
 ):
     ## unet_trainable_params can be unet.parameters() or a list of lora params
-
+    
     if optimizer_name == "adamw":
         optimizer_unet = torch.optim.AdamW(unet_trainable_params, lr = 1e-4)
     

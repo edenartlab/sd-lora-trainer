@@ -9,6 +9,8 @@ from trainer.utils.utils import pick_best_gpu_id
 class TrainingConfig(BaseModel):
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
+    caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
+    caption_model: Literal["gpt4-v", "blip"] = "blip"
     sd_model_version: Literal["sdxl", "sd15"]
     pretrained_model: dict = None
     seed: Union[int, None] = None
@@ -24,7 +26,7 @@ class TrainingConfig(BaseModel):
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
     prodigy_d_coef: float = 1.0
-    unet_prodigy_growth_factor: float = 1.02  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
+    unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     ti_lr: float = 1e-3
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
@@ -32,7 +34,7 @@ class TrainingConfig(BaseModel):
     lora_weight_decay: float = 0.002
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 1000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
+    tok_cov_reg_w: float = 2000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.01   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
@@ -40,14 +42,12 @@ class TrainingConfig(BaseModel):
     lora_alpha_multiplier: float = 1.0
     lora_rank: int = 12
     use_dora: bool = False
-    caption_prefix: str = ""
-    caption_model: Literal["gpt4-v", "blip"] = "blip"
     left_right_flip_augmentation: bool = True
     augment_imgs_up_to_n: int = 20
     mask_target_prompts: Union[None, str] = None
     crop_based_on_salience: bool = True
     use_face_detection_instead: bool = False  # use a different model (not CLIPSeg) to generate face masks
-    clipseg_temperature: float = 0.6
+    clipseg_temperature: float = 0.5   # temperature for the CLIPSeg mask
     n_sample_imgs: int = 4
     verbose: bool = False
     name: str = None
@@ -78,8 +78,8 @@ class TrainingConfig(BaseModel):
     Else the other variables are ignored.
     """
     text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = "adamw"
-    text_encoder_lora_lr: float = 1.5e-5
-    txt_encoders_lr_warmup_steps: int = 100
+    text_encoder_lora_lr: float = 1.0e-5
+    txt_encoders_lr_warmup_steps: int = 200
     text_encoder_lora_weight_decay: float = 1.0e-5
     text_encoder_lora_rank: int = 12
 
@@ -104,7 +104,6 @@ class TrainingConfig(BaseModel):
             print(f"Face mode is active ----> disabling left-right flips and setting mask_target_prompts to 'face'.")
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
             self.mask_target_prompts = "face"
-            self.clipseg_temperature = 0.4
             self.use_face_detection_instead = True
         
         if self.use_dora:

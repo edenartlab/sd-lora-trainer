@@ -76,7 +76,6 @@ def preprocess(
     target_size: int,
     crop_based_on_salience: bool,
     use_face_detection_instead: bool,
-    temp: float,
     left_right_flip_augmentation: bool = False,
     augment_imgs_up_to_n: int = 0,
     caption_model: str = "blip",
@@ -109,7 +108,6 @@ def preprocess(
         target_size=target_size,
         crop_based_on_salience=crop_based_on_salience,
         use_face_detection_instead=use_face_detection_instead,
-        temp=temp,
         add_lr_flips = left_right_flip_augmentation,
         augment_imgs_up_to_n = augment_imgs_up_to_n,
         caption_model = caption_model
@@ -396,6 +394,11 @@ def blip_caption_dataset(
             "Salesforce/blip2-opt-2.7b",
         ] = "Salesforce/blip-image-captioning-large"
         ):
+    
+    # If non of the captions are None, we dont need to do anything:
+    if all(captions):
+        print(f"All captions are already generated, skipping captioning...")
+        return captions
 
     print(f"Using model {model_id} for image captioning...")
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -660,7 +663,6 @@ def load_and_save_masks_and_captions(
     target_size: int = 1024,
     crop_based_on_salience: bool = True,
     use_face_detection_instead: bool = False,
-    temp: float = 1.0,
     n_length: int = -1,
     add_lr_flips: bool = False,
     augment_imgs_up_to_n: int = 0,
@@ -676,7 +678,6 @@ def load_and_save_masks_and_captions(
     # load images
     if isinstance(files, str):
         if os.path.isdir(files):
-            print("Scanning directory for images...")
             files = (
                 _find_files("*.png", files)
                 + _find_files("*.jpg", files)
@@ -704,7 +705,7 @@ def load_and_save_masks_and_captions(
     # Compute average aspect ratio of images:
     aspect_ratios = [image.size[0] / image.size[1] for image in images]
     avg_aspect_ratio = sum(aspect_ratios) / len(aspect_ratios)
-    print(f"Average aspect ratio of images: {avg_aspect_ratio}")
+    print(f"Average aspect ratio of images (width / height): {avg_aspect_ratio:.3f}")
     config.train_img_size = calculate_new_dimensions(target_size, avg_aspect_ratio)
     config.train_aspect_ratio = config.train_img_size[0] / config.train_img_size[1]
     target_size = max(config.train_img_size)
@@ -782,6 +783,8 @@ def load_and_save_masks_and_captions(
         print("Disabling CLIP-segmentation")
         mask_target_prompts = ""
         temp = 999
+    else:
+        temp = config.clipseg_temperature
 
     print(f"Generating {len(images)} masks...")
 
@@ -819,7 +822,11 @@ def load_and_save_masks_and_captions(
     ]
 
     print("Expanding masks...")
-    dilation_radius = -0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
+    if use_face_detection_instead:
+        dilation_radius = -0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
+    else:
+        dilation_radius = 0.0
+
     blur_radius     = 0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
     for i in range(len(seg_masks)):
         seg_masks[i] = grow_mask(seg_masks[i], dilation_radius=dilation_radius, blur_radius=blur_radius)

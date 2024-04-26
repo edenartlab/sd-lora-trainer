@@ -49,7 +49,6 @@ def train(
         target_size=config.resolution,
         crop_based_on_salience=config.crop_based_on_salience,
         use_face_detection_instead=config.use_face_detection_instead,
-        temp=config.clipseg_temperature,
         left_right_flip_augmentation=config.left_right_flip_augmentation,
         augment_imgs_up_to_n = config.augment_imgs_up_to_n,
         caption_model = config.caption_model,
@@ -211,7 +210,7 @@ def train(
     # Data tracking inits:
     start_time, images_done = time.time(), 0
     prompt_embeds_norms = {'main':[], 'reg':[]}
-    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': [], 'concept_description_loss': []}
+    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': [], 'concept_description_loss': [], 'token_std_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
@@ -302,10 +301,10 @@ def train(
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
 
-            if config.training_attributes["gpt_description"]:
+            if config.training_attributes["gpt_description"] and config.debug:
                 concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds)
-                # TODO: fix this backward pass (right now this causes an error...)
-                #loss += 1.0 * concept_description_loss
+                # Dont apply this loss, just plot it for now:
+                loss += 0.0 * concept_description_loss
                 losses['concept_description_loss'].append(concept_description_loss.item())
 
             if config.l1_penalty > 0.0:
@@ -314,7 +313,7 @@ def train(
                 loss += config.l1_penalty * l1_norm
 
             if optimizers['textual_inversion'] is not None and optimizers['textual_inversion'].param_groups[0]['lr'] > 0.0:
-                loss, losses, prompt_embeds_norms = embedding_handler.token_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe)
+                loss, losses, prompt_embeds_norms = embedding_handler.token_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe = pipe)
 
             losses['tot_loss'].append(loss.item())
             loss = loss / config.gradient_accumulation_steps
@@ -340,7 +339,7 @@ def train(
 
                 # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
                 if optimizer_collection.get_lr('textual_inversion') > 0.0:
-                    embedding_handler.fix_embedding_std(config.off_ratio_power)
+                    #embedding_handler.fix_embedding_std(config.off_ratio_power)
                     pass
 
                 optimizer_collection.zero_grad()

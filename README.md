@@ -64,6 +64,9 @@ Algo:
 - improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
 - figure out why the initial onset of learning in the LoRa / Dora causes a temporary drop in img quality
 
+Small, minor tweaks:
+- preprocess.py: the imgs are first auto-captioned and then cropped, this is not ideal, swap this around!
+
 Bigger improvements:
 - add stronger token regularization (eg CelebBasis spanning basis):
     - remove the fix_embedding_std() hack with gradient based std-matching penalty
@@ -82,4 +85,3 @@ Tuning Experiments once code is fully ready:
 but it then recovers. Can we avoid this collapse? Is the learning rate too high?
 - offset noise
 - AB test Dora vs Lora
-- sweep n_trainable_tokens to inject

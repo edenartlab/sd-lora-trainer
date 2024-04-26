@@ -35,11 +35,11 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "gridsearch_sdxl_styles"
+exp_name             = "unet_opt_sweep"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
-min_hamming_distance = 3   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
 
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
@@ -50,35 +50,34 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/sweep/beeple",
-        "/home/rednax/Documents/datasets/sweep/clipx_75",
-        "/home/rednax/Documents/datasets/sweep/speelveld"
+        "/home/rednax/Documents/datasets/sweep/beeple"
     ],
     "concept_mode": ['style'],
+    "caption_prefix": ["in the style of TOK, "],
     "seed": [0],
     "resolution": [512],
     "validation_img_size": [[1024, 1024]],
     "train_batch_size": [4],
-    "n_sample_imgs": [6],
+    "n_sample_imgs": [4],
     "max_train_steps": [400],
     "checkpointing_steps": [80],
     "gradient_accumulation_steps": [1],
-    "token_warmup_steps": [100,0],
-    "freeze_ti_after_completion_f": [0.5,1.0],
-    "tok_cov_reg_w": [500,1000,2000],
+    "token_warmup_steps": [0],
+    "freeze_ti_after_completion_f": [1.0],
+    "tok_cov_reg_w": [500,2500,10000],
     "text_encoder_lora_optimizer": ["adamw"],
-    "text_encoder_lora_lr": [0.0, 0.5e-4, 2.0e-5],
-    "unet_prodigy_growth_factor": [1.05, 1.02, 1.01],
+    "text_encoder_lora_lr": [1.5e-4],
+    "unet_prodigy_growth_factor": [1.05, 1.1, 2.0],
     "prodigy_d_coef": [1.0],
-    "n_tokens": [2,3],
+    "n_tokens": [2],
     "ti_lr": [0.001],
     "ti_weight_decay": [0.0005],
     "lora_weight_decay": [0.001],
     "l1_penalty": [0.1, 0.0],
     "token_embedding_lr_warmup_steps": [0],
     "snr_gamma": [5.0],
-    "lora_rank": [12,24],
-    "use_dora": ['false'],
+    "lora_rank": [12],
+    "use_dora": ['false', 'true'],
     "caption_model": ["blip"],
     "augment_imgs_up_to_n": [20],
     "verbose": ['true'],
