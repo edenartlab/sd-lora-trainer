@@ -20,29 +20,36 @@ class TrainingConfig(BaseModel):
     train_aspect_ratio: float = None
     train_batch_size: int = 4
     num_train_epochs: int = 10000
-    max_train_steps: int = 500
-    token_warmup_steps: int = 50
+    max_train_steps: int = 360
     checkpointing_steps: int = 10000
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
+
+    unet_lr_warmup_steps: int = 200
+    unet_lr: float = 5.0e-4
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
+    lora_weight_decay: float = 0.002
+
     ti_lr: float = 1e-3
     ti_lr_warmup_steps: int = 20   # slowly ramp up the learning rate to build some momentum
+    token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
     ti_weight_decay: float = 3e-4
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
-    lora_weight_decay: float = 0.002
+    
     cond_reg_w: float = 2.0e-5
-    tok_cond_reg_w: float = 2.0e-5
-    tok_cov_reg_w: float = 2000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
+    tok_cond_reg_w: float = 0.01e-5
+    tok_cov_reg_w: float = 1000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.02   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
+    
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
     snr_gamma: float = 5.0
     lora_alpha_multiplier: float = 1.0
     lora_rank: int = 12
-    use_dora: bool = False
+    use_dora: bool = True
+
     left_right_flip_augmentation: bool = True
     augment_imgs_up_to_n: int = 20
     mask_target_prompts: Union[None, str] = None

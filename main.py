@@ -148,8 +148,8 @@ def train(
         lora_weight_decay=config.lora_weight_decay,
         use_dora=config.use_dora,
         unet_trainable_params=unet_trainable_params,
-        optimizer_name="prodigy" # hardcode for now
-        #optimizer_name="adamW" # hardcode for now
+        #optimizer_name="prodigy" # hardcode for now
+        optimizer_name="adamw" # hardcode for now
     )
         
     print_trainable_parameters(unet, model_name = 'unet')
@@ -258,6 +258,10 @@ def train(
                 if config.txt_encoders_lr_warmup_steps > 0 and optimizers['text_encoders'] is not None:
                     warmup_f = min(global_step / config.txt_encoders_lr_warmup_steps, 1.0)
                     optimizers['text_encoders'].param_groups[0]['lr'] *= warmup_f
+            
+            if optimizers['unet'] is not None:
+                warmup_f = min(global_step / config.unet_lr_warmup_steps, 1.0)
+                optimizers['unet'].param_groups[0]['lr'] = config.unet_lr * warmup_f
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
@@ -359,7 +363,7 @@ def train(
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0): #and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(

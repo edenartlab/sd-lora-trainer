@@ -686,7 +686,7 @@ def load_and_save_masks_and_captions(
 
         if len(files) == 0:
             raise Exception(
-                f"No files found in {files}. Either {files} is not a directory or it does not contain any .png or .jpg/jpeg files."
+                f"No images were found... Are you sure you provided a valid dataset?"
             )
         if n_length == -1:
             n_length = len(files)
@@ -827,7 +827,7 @@ def load_and_save_masks_and_captions(
         blur_radius     = 0.02 * (config.train_img_size[0] + config.train_img_size[0]) / 2
     else:
         dilation_radius = 0.0
-        blur_radius     = 0.01 * (config.train_img_size[0] + config.train_img_size[0]) / 2
+        blur_radius     = 0.005 * (config.train_img_size[0] + config.train_img_size[0]) / 2
 
     for i in range(len(seg_masks)):
         seg_masks[i] = grow_mask(seg_masks[i], dilation_radius=dilation_radius, blur_radius=blur_radius)
@@ -957,7 +957,6 @@ def _crop_to_aspect_ratio(
         overshoot = bottom - height
         bottom = height
         top = max(0, top - overshoot)  # Adjust top as well symmetrically
-
 
     image = image.crop((left, top, right, bottom))
 

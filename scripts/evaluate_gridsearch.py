@@ -11,18 +11,20 @@ from sklearn.metrics import r2_score
 
 
 # Define paths
-exp_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/style_sweep/all"
-config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/gridsearch_sdxl_styles"
+render_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/unet2"
+config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/unet_adam_object"
+
+ignore_threshold_relative = 0.25  # ignore any datapoint with a score below this threshold
 
 output_dir = f"gridsearch_configs/results/{os.path.basename(config_dir)}"
-output_suffix = f"{os.path.basename(exp_dir)}"
+output_suffix = f"{os.path.basename(render_dir)}"
 
 # Initialize a dictionary to hold parameter values and associated scores
 parameters = defaultdict(lambda: defaultdict(list))
 
 # Step 1: Loop over each experiment subdirectory
-for i, exp_subdir in enumerate(os.listdir(exp_dir)):
-    exp_path = os.path.join(exp_dir, exp_subdir)
+for i, exp_subdir in enumerate(sorted(os.listdir(render_dir))):
+    exp_path = os.path.join(render_dir, exp_subdir)
     checkpoints_path = os.path.join(exp_path, "checkpoints")
 
     # Step 2: Get the score by counting the number of .jpg files in the checkpoints subdir
@@ -53,12 +55,18 @@ from sklearn.metrics import r2_score
 from sklearn.preprocessing import LabelEncoder
 
 os.makedirs(output_dir, exist_ok=True)
+print(f"Saving results to {output_dir}...")
 
 def plot_parameters(parameters):
     for param, data in parameters.items():
         values = np.array(data['values'])
         scores = np.array(data['scores'])
 
+        # filter based on the ignore_threshold:
+        ignore_threshold = ignore_threshold_relative * np.max(scores)
+        mask = scores > ignore_threshold
+        values = values[mask]
+        scores = scores[mask]
 
         noise_strength_values = 0.02
         noise_strength_scores = 0.02
@@ -93,7 +101,7 @@ def plot_parameters(parameters):
         sns.scatterplot(x=jittered_values, y=jittered_scores, alpha=0.6)
         
         # Plot trendline
-        sns.lineplot(x=np.sort(values), y=predicted_scores[np.argsort(values)], color='red', label=f'Fit: y={model.coef_[0]:.1f}x+{model.intercept_:.1f}, R²={r_squared:.2f}')
+        sns.lineplot(x=np.sort(values), y=predicted_scores[np.argsort(values)], color='red', label=f'R²={r_squared:.2f}')
 
         # Set plot title and labels
         plt.title(f'Influence of {param} on the score')

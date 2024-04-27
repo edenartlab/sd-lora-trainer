@@ -9,7 +9,7 @@
     "train_batch_size": 4,
     "n_sample_imgs": 4,
     "max_train_steps": 600,
-    "token_warmup_steps": 100,
+    "token_warmup_steps": 0,
     "checkpointing_steps": 80,
     "gradient_accumulation_steps": 1,
     "n_tokens": 2,
@@ -22,7 +22,7 @@
     "prodigy_d_coef": 1.0,
     "unet_prodigy_growth_factor": 1.05,
     "lora_rank": 12,
-    "use_dora": false,
+    "use_dora": true,
     "caption_model": "blip",
     "debug": true,
     "caption_prefix": "in the style of TOK, "
