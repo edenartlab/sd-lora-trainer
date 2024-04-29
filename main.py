@@ -148,8 +148,7 @@ def train(
         lora_weight_decay=config.lora_weight_decay,
         use_dora=config.use_dora,
         unet_trainable_params=unet_trainable_params,
-        #optimizer_name="prodigy" # hardcode for now
-        optimizer_name="adamw" # hardcode for now
+        optimizer_name=config.unet_optimizer_type
     )
         
     print_trainable_parameters(unet, model_name = 'unet')
@@ -509,15 +508,12 @@ def train(
     return config, output_save_dir
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
-    parser.add_argument("-c", '--config-filename', type=str, help='Input string to be processed')
+    parser.add_argument('config_filename', type=str, help='Input JSON configuration file')
     args = parser.parse_args()
 
-    config = TrainingConfig.from_json(
-        file_path=args.config_filename
-    )
+    config = TrainingConfig.from_json(file_path=args.config_filename)
     for progress in train(config=config):
         print(f"Progress: {(100*progress):.2f}%", end="\r")
 

@@ -1,7 +1,7 @@
 {
-    "output_dir": "lora_models/mira",
+    "output_dir": "lora_models/kofi",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "/home/rednax/Documents/datasets/people/gene",
+    "lora_training_urls": "/home/rednax/Documents/datasets/DOV/kofi",
     "concept_mode": "face",
     "seed": 0,
     "resolution": 512,
