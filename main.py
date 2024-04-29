@@ -215,6 +215,9 @@ def train(
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
 
 
+    # default value of cold (pre-warmup) optimizer lr:
+    base_lr = 0.5e-5
+        
     #######################################################################################################
     
     """
@@ -259,8 +262,10 @@ def train(
                     optimizers['text_encoders'].param_groups[0]['lr'] *= warmup_f
             
             if optimizers['unet'] is not None:
-                warmup_f = min(global_step / config.unet_lr_warmup_steps, 1.0)
-                optimizers['unet'].param_groups[0]['lr'] = config.unet_lr * warmup_f
+                # Calculate the exponential factor
+                exp_factor = (config.unet_lr / base_lr) ** (global_step / config.unet_lr_warmup_steps)
+                # Apply the exponential learning rate
+                optimizers['unet'].param_groups[0]['lr'] = base_lr * exp_factor
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch

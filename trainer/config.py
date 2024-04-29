@@ -26,7 +26,7 @@ class TrainingConfig(BaseModel):
     is_lora: bool = True
 
     unet_optimizer_type: Literal["adamw", "prodigy"] = "adamw"
-    unet_lr_warmup_steps: int = 200
+    unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
     unet_lr: float = 5.0e-4
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
@@ -40,8 +40,8 @@ class TrainingConfig(BaseModel):
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     
     cond_reg_w: float = 2.0e-5
-    tok_cond_reg_w: float = 0.01e-5
-    tok_cov_reg_w: float = 1000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
+    tok_cond_reg_w: float = 1.0e-5
+    tok_cov_reg_w: float = 2000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.02   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
     
@@ -108,11 +108,14 @@ class TrainingConfig(BaseModel):
         if self.seed is None:
             self.seed = int(time.time())
 
+        if self.unet_lr_warmup_steps is None:
+            self.unet_lr_warmup_steps = self.max_train_steps
+
         if self.concept_mode == "face":
             print(f"Face mode is active ----> disabling left-right flips and setting mask_target_prompts to 'face'.")
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
             self.mask_target_prompts = "face"
-            self.use_face_detection_instead = True
+            #self.use_face_detection_instead = True
         
         if self.use_dora:
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")

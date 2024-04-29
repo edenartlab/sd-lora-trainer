@@ -259,9 +259,9 @@ def cleanup_prompts_with_chatgpt(
         chat_gpt_prompt_1 = textwrap.dedent("""
             Analyze a set of (poor) image descriptions, each featuring a person named TOK.
             Tasks:
-            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description), try to be as visually descriptive of TOK as possible, hallucinate a basic description if necessary (eg black man with long beard).
+            1. Deduce a concise (max 10 words) visual description of TOK (TOK Description), try to be as visually descriptive of TOK as possible, always mention their skin color, hallucinate a basic description if necessary (eg black man with long beard).
             2. Rewrite each description, injecting "TOK" naturally into each description, adjusting where needed.
-            3. Streamline each description to its core elements, ensuring clarity and mandatory inclusion of "TOK".
+            3. Streamline each description to focus on the context and surroundings of TOK instead of the visual appearance of TOK's face. Ensure mandatory inclusion of "TOK".
             The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
@@ -847,11 +847,16 @@ def load_and_save_masks_and_captions(
         print(caption)
 
     if config.remove_ti_token_from_prompts:
-        print('------------ WARNING ------------')
+        print('------------------ WARNING -------------------')
         print("Removing 'TOK, ' from captions...")
         print("This will completely break textual_inversion!!")
-        print('------------ WARNING ------------')
-        captions = [caption.replace("TOK, ", "") for caption in captions]
+        print('------------------ WARNING -------------------')
+        if gpt_concept_description:
+            replace_str = gpt_concept_description
+        else:
+            replace_str = ""
+        captions = [caption.replace("TOK, ", replace_str + ", ") for caption in captions]
+        captions = [caption.replace("TOK", replace_str) for caption in captions]
 
     # iterate through the images, masks, and captions and add a row to the dataframe for each
     print("Saving final training dataset...")

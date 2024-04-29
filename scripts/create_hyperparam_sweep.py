@@ -48,19 +48,17 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sdxl"],
+    "sd_model_version": ["sd15"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/sweep/banny",
-        "/home/rednax/Documents/datasets/sweep/plantoid",
-        "/home/rednax/Documents/datasets/koji_color"
+        "/home/rednax/Documents/datasets/people/xander"
 
     ],
-    "concept_mode": ['object'],
+    "concept_mode": ['face'],
     "seed": [0],
-    "resolution": [512],
-    "train_batch_size": [4],
+    "resolution": [512,640,768,1024],
+    "train_batch_size": [3],
     "n_sample_imgs": [6],
-    "max_train_steps": [400],
+    "max_train_steps": [400,800],
     "checkpointing_steps": [100],
     "gradient_accumulation_steps": [1],    
 
@@ -75,10 +73,10 @@ hyperparameters = {
 
     "unet_prodigy_growth_factor": [1.05],
     "unet_lr_warmup_steps": [100,200,400],
-    "unet_lr": [0.3e-3, 1e-3, 3e-3],
+    "unet_lr": [1.0e-4, 3e-4, 1e-3, 3e-3],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [6, 12, 24],
+    "lora_rank": [6, 12, 24, 48],
     "use_dora": ['false', 'true'],
 
     "text_encoder_lora_optimizer": [None],
@@ -86,7 +84,7 @@ hyperparameters = {
 
     "snr_gamma": [5.0],
     "caption_model": ["blip"],
-    "augment_imgs_up_to_n": [20],
+    "augment_imgs_up_to_n": [20,40],
     "verbose": ['true'],
     "debug": ['true']
 }

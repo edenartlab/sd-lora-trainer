@@ -31,26 +31,21 @@ val_prompts['style'] = [
         ]
 
 val_prompts["face"] = [
-            "an intricate wood carving of <concept> in a historic temple",
             '<concept> as pixel art, 8-bit video game style',
             'painting of <concept> by Vincent van Gogh',
-            '<concept> as a superhero, wearing a cape',
             '<concept> as a statue made of marble',
             '<concept> as a character in a noir graphic novel, under a rain-soaked streetlamp',
-            'stop motion animation of <concept> using clay, Wallace and Gromit style',
             '<concept> portrayed in a famous renaissance painting, replacing Mona Lisas face',
             'a photo of <concept> attending the Oscars, walking down the red carpet with sunglasses',
-            '<concept> as a pop vinyl figure, complete with oversized head and small body',
+            #'<concept> as a pop vinyl figure, complete with oversized head and small body',
             '<concept> as a retro holographic sticker, shimmering in bright colors',
             '<concept> as a bobblehead on a car dashboard, nodding incessantly',
             "<concept> captured in a snow globe, complete with intricate details",
-            "a photo of <concept> climbing mount Everest in the snow, alpinism",
             "<concept> as an action figure superhero, lego toy, toy story",
             'a photo of a massive statue of <concept> in the middle of the city',
             'a masterful oil painting portraying <concept> with vibrant colors, brushstrokes and textures',
             'a vibrant low-poly artwork of <concept>, rendered in SVG, vector graphics',
-            '<concept>, polaroid photograph',
-            'a huge <concept> sand sculpture on a sunny beach, made of sand',
+            'an old, vintage, polaroid photograph of <concept>, artsy look',
             '<concept> immortalized as an exquisite marble statue with masterful chiseling, swirling marble patterns and textures',
             ]
 
