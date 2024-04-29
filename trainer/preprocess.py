@@ -713,7 +713,7 @@ def load_and_save_masks_and_captions(
 
     if config.validation_img_size is None:
         config.validation_img_size = [0, 0]
-        multiplier = 2.0 if config.sd_model_version == "sdxl" else 1.25
+        multiplier = 2.0 if config.sd_model_version == "sdxl" else 1.0
         config.validation_img_size[0] = config.train_img_size[0] * multiplier
         config.validation_img_size[1] = config.train_img_size[1] * multiplier
     elif isinstance(config.validation_img_size, int):

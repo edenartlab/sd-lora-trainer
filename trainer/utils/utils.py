@@ -90,25 +90,28 @@ def pick_best_gpu_id():
 
 
 def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75, color = 'blue'):
-    os.makedirs(checkpoint_dir, exist_ok=True)
+    try:
+        os.makedirs(checkpoint_dir, exist_ok=True)
 
-    # Flatten and concatenate all parameters into a single tensor
-    all_params = torch.cat([p.data.view(-1) for p in parameters])
-    norm = torch.norm(all_params)
+        # Flatten and concatenate all parameters into a single tensor
+        all_params = torch.cat([p.data.view(-1) for p in parameters])
+        norm = torch.norm(all_params)
 
-    # Convert to CPU for plotting
-    all_params_cpu = all_params.cpu().float().numpy()
+        # Convert to CPU for plotting
+        all_params_cpu = all_params.cpu().float().numpy()
 
-    # Plot histogram
-    plt.figure()
-    plt.hist(all_params_cpu, bins=bins, density=False, color = color)
-    plt.ylim(0, ymax_f * len(all_params_cpu.flatten()))
-    plt.xlim(min_val, max_val)
-    plt.xlabel('Weight Value')
-    plt.ylabel('Count')
-    plt.title(f'{name} (std: {np.std(all_params_cpu):.5f}, norm: {norm:.3f}, step {step:03d})')
-    plt.savefig(f"{checkpoint_dir}/{name}_hist_{step:04d}.png")
-    plt.close()
+        # Plot histogram
+        plt.figure()
+        plt.hist(all_params_cpu, bins=bins, density=False, color = color)
+        plt.ylim(0, ymax_f * len(all_params_cpu.flatten()))
+        plt.xlim(min_val, max_val)
+        plt.xlabel('Weight Value')
+        plt.ylabel('Count')
+        plt.title(f'{name} (std: {np.std(all_params_cpu):.5f}, norm: {norm:.3f}, step {step:03d})')
+        plt.savefig(f"{checkpoint_dir}/{name}_hist_{step:04d}.png")
+        plt.close()
+    except:
+        print(f'Error plotting {name} histogram')
 
 def plot_curve(value_dict, xlabel, ylabel, title, save_path, log_scale = False, y_lims = None):
     plt.figure()

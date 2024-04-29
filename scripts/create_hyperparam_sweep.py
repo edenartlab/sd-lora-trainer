@@ -35,7 +35,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "unet_adam_object"
+exp_name             = "sd15_face_sweep"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
@@ -55,14 +55,14 @@ hyperparameters = {
     ],
     "concept_mode": ['face'],
     "seed": [0],
-    "resolution": [512,640,768,1024],
-    "train_batch_size": [3],
+    "resolution": [512,640,768],
+    "train_batch_size": [4],
     "n_sample_imgs": [6],
     "max_train_steps": [400,800],
     "checkpointing_steps": [100],
-    "gradient_accumulation_steps": [1],    
+    "gradient_accumulation_steps": [1],
 
-    "n_tokens": [2],
+    "n_tokens": [1, 2],
     "ti_lr": [0.001],
     "ti_weight_decay": [0.0005],
     "l1_penalty": [0.0],
@@ -72,8 +72,7 @@ hyperparameters = {
     "tok_cond_reg_w": [0.01e-5, 2.5e-5],
 
     "unet_prodigy_growth_factor": [1.05],
-    "unet_lr_warmup_steps": [100,200,400],
-    "unet_lr": [1.0e-4, 3e-4, 1e-3, 3e-3],
+    "unet_lr": [1.0e-4, 3e-4, 1e-3],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
     "lora_rank": [6, 12, 24, 48],
@@ -146,7 +145,7 @@ def generate_sh_script(folder_path, output_sh_path):
         
         # Write a command for each JSON file
         for json_file in json_files:
-            command = f"python main.py -c {os.path.join(folder_path, json_file)}\n"
+            command = f"python main.py {os.path.join(folder_path, json_file)}\n"
             sh_file.write(command)
 
 generate_sh_script(config_output_dir, output_sh_path)
