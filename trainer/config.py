@@ -85,7 +85,7 @@ class TrainingConfig(BaseModel):
     if text_encoder_lora_optimizer is not None then everything else is used. 
     Else the other variables are ignored.
     """
-    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = null
+    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = None
     text_encoder_lora_lr: float = 1.0e-5
     txt_encoders_lr_warmup_steps: int = 200
     text_encoder_lora_weight_decay: float = 1.0e-5
