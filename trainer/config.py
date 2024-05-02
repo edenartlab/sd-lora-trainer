@@ -27,7 +27,7 @@ class TrainingConfig(BaseModel):
 
     unet_optimizer_type: Literal["adamw", "prodigy"] = "adamw"
     unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
-    unet_lr: float = 5.0e-4
+    unet_lr: float = 1.0e-3
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
@@ -39,8 +39,8 @@ class TrainingConfig(BaseModel):
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     
-    cond_reg_w: float = 2.0e-5
-    tok_cond_reg_w: float = 1.0e-5
+    cond_reg_w: float = 0.0e-5
+    tok_cond_reg_w: float = 0.0e-5
     tok_cov_reg_w: float = 2000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
     off_ratio_power: float = 0.02   # Pulls the std of the token distribution towards the target std
     l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
@@ -85,7 +85,7 @@ class TrainingConfig(BaseModel):
     if text_encoder_lora_optimizer is not None then everything else is used. 
     Else the other variables are ignored.
     """
-    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = "adamw"
+    text_encoder_lora_optimizer: Union[None, Literal["adamw"]] = null
     text_encoder_lora_lr: float = 1.0e-5
     txt_encoders_lr_warmup_steps: int = 200
     text_encoder_lora_weight_decay: float = 1.0e-5

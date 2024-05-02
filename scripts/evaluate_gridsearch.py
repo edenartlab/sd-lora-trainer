@@ -11,10 +11,14 @@ from sklearn.metrics import r2_score
 
 
 # Define paths
-render_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/unet2"
-config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/unet_adam_object"
+render_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/XANDER_SD15_SWEEP/400"
+config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/sd15_face_sweep"
 
-ignore_threshold_relative = 0.25  # ignore any datapoint with a score below this threshold
+ignore_threshold_relative = 0.0  # ignore any datapoint with a score below this threshold
+
+filters = {
+    "resolution": 512
+}
 
 output_dir = f"gridsearch_configs/results/{os.path.basename(config_dir)}"
 output_suffix = f"{os.path.basename(render_dir)}"
@@ -40,12 +44,24 @@ for i, exp_subdir in enumerate(sorted(os.listdir(render_dir))):
         if os.path.isfile(json_path):
             with open(json_path, 'r') as file:
                 config = json.load(file)
+
+                # Filter out experiments that do not match the filters
+                if not all(config[key] == value for key, value in filters.items()):
+                    continue
+
                 # Step 4: Append all key/value pairs to the total experiment dictionary
                 for key, value in config.items():
                     parameters[key]['values'].append(value)
                     parameters[key]['scores'].append(score)
         else:
             print(f"Could not find JSON file for experiment {exp_subdir}")
+
+
+# Print the parameters['output_dir'] with the highest scores (there are usually multiple ties):
+max_score = max(parameters['output_dir']['scores'])
+best_output_dirs = [output_dir for output_dir, score in zip(parameters['output_dir']['values'], parameters['output_dir']['scores']) if score == max_score]
+for best_output_dir in best_output_dirs:
+    print(f"Best output_dir: {best_output_dir} with score {max_score}")
 
 import numpy as np
 import matplotlib.pyplot as plt

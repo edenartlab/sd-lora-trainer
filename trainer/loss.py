@@ -177,8 +177,16 @@ class ConditioningRegularizer:
 
 
 class DistributionLoss(torch.nn.Module):
+    """
+        Initialized a new DistributionLoss with shape: torch.Size([49410, 768])
+        Initialized a new DistributionLoss with shape: torch.Size([49410, 1280])
+
+    Class to simplify the calculation of the covariance loss between the trained token embeddings and the pretrained embeddings.
+
+    """
     def __init__(self, pretrained_embeddings, dtype=torch.float32, outdir = None):
         super(DistributionLoss, self).__init__()
+        print(f"Initialized a new DistributionLoss with shape: {pretrained_embeddings.shape}")
         self.dtype = dtype
         self.target_cov   = self._calculate_covariance(pretrained_embeddings)
         self.target_stds  = pretrained_embeddings.std(-1)

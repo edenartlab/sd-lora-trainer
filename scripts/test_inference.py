@@ -17,11 +17,11 @@ from trainer.checkpoint import load_checkpoint
 
 if __name__ == "__main__":
 
-    pretrained_model = pretrained_models['sdxl']
-    lora_path      = 'lora_models/xander_one_img--23_15-25-00-sdxl_face_lora_512_1.0_gpt4-v/checkpoints/checkpoint-360'
+    model_version  = "sd15"
+    lora_path      = 'lora_models/XANDER_SD15_SWEEP/sd15_face_sweep__004--29_20-43-17-sd15_face_dora_640_1.0_blip_800/checkpoints/checkpoint-800'
     lora_scales    = np.linspace(0.6, 0.9, 4)
     token_scale    = None # None means it well get automatically set using lora_scale
-    render_size    = (1024, 1024)  # H,W
+    render_size    = (576, 704)  # H,W
     n_imgs         = 14
     n_loops        = 2
 
@@ -32,6 +32,7 @@ if __name__ == "__main__":
 
     #####################################################################################
 
+    pretrained_model = pretrained_models[model_version]
     output_dir = f'rendered_images/{lora_path.split("/")[-1]}'
     os.makedirs(output_dir, exist_ok=True)
 
@@ -39,8 +40,8 @@ if __name__ == "__main__":
     pick_best_gpu_id()
 
     pipe = load_checkpoint(
-        pretrained_model_version="sdxl",
-        pretrained_model_path=pretrained_models["sdxl"]["path"],
+        pretrained_model_version=model_version,
+        pretrained_model_path=pretrained_model["path"],
         checkpoint_folder=lora_path,
         is_lora=True,
         device="cuda:0"

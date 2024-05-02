@@ -247,8 +247,11 @@ def encode_prompt_advanced(
     Helper function to encode the lora_prompt (containing a trained token) and a zero prompt (without the token)
     This allows interpolating the strength of the trained token in the final image.
     """
+    if lora_path:
+        lora_prompt = prepare_prompt_for_lora(prompt, lora_path, verbose=1)
+    else:
+        lora_prompt = prompt
 
-    lora_prompt = prepare_prompt_for_lora(prompt, lora_path, verbose=1)
     if concept_mode == "face":
         replace_str = "person"
     elif concept_mode == "object":
