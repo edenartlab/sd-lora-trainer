@@ -30,75 +30,6 @@ os.environ["DIFFUSERS_CACHE"] = "/src/.huggingface/"
 os.environ["HF_HOME"] = "/src/.huggingface/"
 
 
-"""
-
-if XANDER_EXPERIMENT:
-    # overwrite some settings for experimentation:
-    lora_param_scaler = 0.1
-    l1_penalty = 0.2
-    prodigy_d_coef = 0.2
-    ti_lr = 1e-3
-    lora_rank = 24
-
-    lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/plantoid_5.zip"
-    concept_mode = "object"
-    mask_target_prompts = ""
-    left_right_flip_augmentation = True
-
-    output_dir1 = os.path.join(out_root_dir, run_name + "_xander")
-    input_dir1, n_imgs1, trigger_text1, segmentation_prompt1, captions1 = preprocess(
-        output_dir1,
-        concept_mode,
-        input_zip_path=lora_training_urls,
-        caption_text=caption_prefix,
-        mask_target_prompts=mask_target_prompts,
-        target_size=resolution,
-        crop_based_on_salience=crop_based_on_salience,
-        use_face_detection_instead=use_face_detection_instead,
-        temp=clipseg_temperature,
-        left_right_flip_augmentation=left_right_flip_augmentation,
-        augment_imgs_up_to_n = augment_imgs_up_to_n,
-        seed = seed,
-        caption_model = caption_model
-    )
-
-    lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene_5.zip"
-    concept_mode = "face"
-    mask_target_prompts = "face"
-    left_right_flip_augmentation = False
-
-    output_dir2 = os.path.join(out_root_dir, run_name + "_gene")
-    input_dir2, n_imgs2, trigger_text2, segmentation_prompt2, captions2 = preprocess(
-        output_dir2,
-        concept_mode,
-        input_zip_path=lora_training_urls,
-        caption_text=caption_prefix,
-        mask_target_prompts=mask_target_prompts,
-        target_size=resolution,
-        crop_based_on_salience=crop_based_on_salience,
-        use_face_detection_instead=use_face_detection_instead,
-        temp=clipseg_temperature,
-        left_right_flip_augmentation=left_right_flip_augmentation,
-        augment_imgs_up_to_n = augment_imgs_up_to_n,
-        seed = seed,
-    )
-    
-    # Merge the two preprocessing steps:
-    n_imgs = n_imgs1 + n_imgs2
-    captions = captions1 + captions2
-    trigger_text = trigger_text1
-    segmentation_prompt = segmentation_prompt1
-
-    # Create merged outdir:
-    output_dir = os.path.join(out_root_dir, run_name + "_combined")
-    input_dir  = os.path.join(output_dir, "images_out")
-    os.makedirs(input_dir, exist_ok=True)
-
-    # Merge the two preprocessed datasets:
-    merge_datasets(input_dir1, input_dir2, input_dir, token_dict.keys())
-
-"""
-
 class CogOutput(BaseModel):
     files: Optional[list[cogPath]] = []
     name: Optional[str] = None
@@ -121,7 +52,7 @@ class Predictor(BasePredictor):
         ),
         concept_mode: str = Input(
             description=" 'face' / 'style' / 'object' (default)",
-            default="object",
+            default="style",
         ),
         sd_model_version: str = Input(
             description=" 'sdxl' / 'sd15' ",
@@ -143,14 +74,13 @@ class Predictor(BasePredictor):
             description="Batch size (per device) for training",
             default=4,
         ),
-
         max_train_steps: int = Input(
             description="Number of training steps.",
             default=400,
         ),
         token_warmup_steps: int = Input(
             description="Number of steps for token (textual_inversion) warmup.",
-            default=50,
+            default=0,
         ),
         checkpointing_steps: int = Input(
             description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need intermediate checkpoints.",
@@ -160,9 +90,9 @@ class Predictor(BasePredictor):
             description="Whether to use LoRA training. If set to False, will use full fine tuning",
             default=True,
         ),
-        prodigy_d_coef: float = Input(
-            description="Multiplier for internal learning rate of Prodigy optimizer",
-            default=0.5,
+        unet_lr: float = Input(
+            description="final learning rate of unet (after warmup)",
+            default=0.001,
         ),
         ti_lr: float = Input(
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
@@ -170,19 +100,15 @@ class Predictor(BasePredictor):
         ),
         freeze_ti_after_completion_f: float = Input(
             description="Fraction of training steps after which to freeze textual inversion embeddings",
-            default=0.5,
+            default=1.0,
         ),
         lora_rank: int = Input(
             description="Rank of LoRA embeddings for the unet.",
-            default=12,
-        ),
-        text_encoder_lora_optimizer: str = Input(
-            description="Which optimizer to use for the text_encoder_lora. ['adamw', None] are supported right now (None will disable txt-lora training)",
-            default="adamw",
+            default=16,
         ),
         caption_model: str = Input(
             description="Which captioning model to use. ['gpt4-v', 'blip'] are supported right now",
-            default="gpt4-v",
+            default="blip",
         ),
         n_tokens: int = Input(
             description="How many new tokens to inject per concept",
@@ -269,3 +195,81 @@ class Predictor(BasePredictor):
             # clear the output_directory to avoid running out of space on the machine:
             #shutil.rmtree(output_dir)
             yield CogOutput(files=[cogPath(out_path)], name=name, thumbnails=[cogPath(validation_grid_img_path)], attributes=config.dict(), isFinal=True, progress=1.0)
+
+
+
+
+
+
+
+
+# IGNORE this:
+
+"""
+
+if XANDER_EXPERIMENT:
+    # overwrite some settings for experimentation:
+    lora_param_scaler = 0.1
+    l1_penalty = 0.2
+    prodigy_d_coef = 0.2
+    ti_lr = 1e-3
+    lora_rank = 24
+
+    lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/plantoid_5.zip"
+    concept_mode = "object"
+    mask_target_prompts = ""
+    left_right_flip_augmentation = True
+
+    output_dir1 = os.path.join(out_root_dir, run_name + "_xander")
+    input_dir1, n_imgs1, trigger_text1, segmentation_prompt1, captions1 = preprocess(
+        output_dir1,
+        concept_mode,
+        input_zip_path=lora_training_urls,
+        caption_text=caption_prefix,
+        mask_target_prompts=mask_target_prompts,
+        target_size=resolution,
+        crop_based_on_salience=crop_based_on_salience,
+        use_face_detection_instead=use_face_detection_instead,
+        temp=clipseg_temperature,
+        left_right_flip_augmentation=left_right_flip_augmentation,
+        augment_imgs_up_to_n = augment_imgs_up_to_n,
+        seed = seed,
+        caption_model = caption_model
+    )
+
+    lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene_5.zip"
+    concept_mode = "face"
+    mask_target_prompts = "face"
+    left_right_flip_augmentation = False
+
+    output_dir2 = os.path.join(out_root_dir, run_name + "_gene")
+    input_dir2, n_imgs2, trigger_text2, segmentation_prompt2, captions2 = preprocess(
+        output_dir2,
+        concept_mode,
+        input_zip_path=lora_training_urls,
+        caption_text=caption_prefix,
+        mask_target_prompts=mask_target_prompts,
+        target_size=resolution,
+        crop_based_on_salience=crop_based_on_salience,
+        use_face_detection_instead=use_face_detection_instead,
+        temp=clipseg_temperature,
+        left_right_flip_augmentation=left_right_flip_augmentation,
+        augment_imgs_up_to_n = augment_imgs_up_to_n,
+        seed = seed,
+    )
+    
+    # Merge the two preprocessing steps:
+    n_imgs = n_imgs1 + n_imgs2
+    captions = captions1 + captions2
+    trigger_text = trigger_text1
+    segmentation_prompt = segmentation_prompt1
+
+    # Create merged outdir:
+    output_dir = os.path.join(out_root_dir, run_name + "_combined")
+    input_dir  = os.path.join(output_dir, "images_out")
+    os.makedirs(input_dir, exist_ok=True)
+
+    # Merge the two preprocessed datasets:
+    merge_datasets(input_dir1, input_dir2, input_dir, token_dict.keys())
+
+"""
