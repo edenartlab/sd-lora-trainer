@@ -49,7 +49,7 @@ def set_adapter_scales(pipe, lora_scale = 1.0):
             for adapter_name in adapter_names:
                 print(f"Set adapter '{adapter_name}' of '{key}' with scale = {lora_scale:.2f}")
                 pipe.set_adapters(adapter_name, adapter_weights=[lora_scale])
-    
+
         #pipe.unet.merge_adapter()
 
     return pipe
@@ -60,7 +60,6 @@ def remove_delimiter_characters(name: str):
     return name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
 
 # Convert to WebUI format
-
 def convert_pytorch_lora_safetensors_to_webui(
     pytorch_lora_weights_filename: str,
     output_filename: str
@@ -163,7 +162,6 @@ def save_checkpoint(
         lora_tensors = get_peft_model_state_dict(unet)
         unet_lora_layers_to_save = convert_state_dict_to_diffusers(lora_tensors)
 
-        # TODO have a separate save for non SDXL model:
         if pretrained_model_version == "sdxl":
             print("Saving LoRA weights for SDXL model...")
             StableDiffusionXLPipeline.save_lora_weights(
@@ -234,6 +232,7 @@ def load_checkpoint(
 
     # TODO: why does this give key errors???
     #pipe.load_lora_weights(lora_save_path, weight_name='pytorch_lora_weights.safetensors')
+    #pipe = set_adapter_scales(pipe, lora_scale = lora_scale)
     #pipe.fuse_lora(lora_scale=lora_scale)
     #return pipe
 
