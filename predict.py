@@ -181,6 +181,8 @@ class Predictor(BasePredictor):
             
             # Add instructions README:
             tar.add("instructions_README.md", arcname="README.md")
+            tar.add("comfyui_workflow_adiff.json", arcname="comfyui_workflow_adiff.json")
+            tar.add("comfyui_workflow_img.json", arcname="comfyui_workflow_img.json")
 
         attributes = {}
         attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
