@@ -430,13 +430,15 @@ def train(
             
             images_done += config.train_batch_size
             global_step += 1
-
-            if global_step % 100 == 0:
-                print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
-
+            
             if global_step % (config.max_train_steps//20) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
+                print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
                 yield np.min((progress, 1.0))
+
+            if global_step > config.max_train_steps:
+                print("Reached max steps, stopping training!")
+                break
 
     # final_save
     if (global_step - last_save_step) > 26:
