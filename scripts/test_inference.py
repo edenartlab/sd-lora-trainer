@@ -8,7 +8,6 @@ import os, json, random, time, sys
 sys.path.append('.')
 sys.path.append('..')
 from trainer.models import load_models, pretrained_models
-from trainer.lora import patch_pipe_with_lora
 from trainer.utils.val_prompts import val_prompts
 from trainer.utils.io import make_validation_img_grid
 from trainer.utils.utils import seed_everything, pick_best_gpu_id
@@ -76,9 +75,7 @@ if __name__ == "__main__":
         for i in range(len(validation_prompts_raw)):
             for lora_scale in lora_scales:
                 seed += 1
-                #pipe = load_model(pretrained_model)
-                #pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_path, adapter_name = 'eden_lora')
-                pipe = patch_pipe_with_lora(pipe, lora_path, lora_scale=lora_scale)
+                pipe = set_adapter_scales(pipe, lora_scale=lora_scale)
                 generator = torch.Generator(device='cuda').manual_seed(seed)
 
                 c, uc, pc, puc = encode_prompt_advanced(pipe, lora_path, validation_prompts_raw[i], negative_prompt, lora_scale, guidance_scale, concept_mode = training_args["concept_mode"], token_scale = token_scale)

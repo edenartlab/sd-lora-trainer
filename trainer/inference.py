@@ -10,8 +10,7 @@ from diffusers import EulerDiscreteScheduler
 from trainer.utils.val_prompts import val_prompts
 from trainer.utils.utils import fix_prompt, replace_in_string
 from trainer.models import load_models
-from .checkpoint import load_checkpoint
-from .lora import patch_pipe_with_lora
+from .checkpoint import load_checkpoint, set_adapter_scales
 
 from diffusers import (
     DDPMScheduler,
@@ -19,7 +18,6 @@ from diffusers import (
     StableDiffusionPipeline,
     StableDiffusionXLPipeline,
 )
-
 
 def load_model(pretrained_model: dict):
     if pretrained_model["version"] == "sd15":
@@ -340,9 +338,10 @@ def render_images(
         pipe = load_checkpoint(
             pretrained_model_version=pretrained_model["version"],
             pretrained_model_path=pretrained_model["path"],
-            checkpoint_folder=checkpoint_folder,
+            lora_save_path=checkpoint_folder,
             is_lora=is_lora,
             device=device,
+            lora_scale=lora_scale,
         )
 
     else:
@@ -354,6 +353,7 @@ def render_images(
         )
         pipe.vae = pipe.vae.to(device).to(pipe.unet.dtype)
 
+    pipe = set_adapter_scales(pipe, lora_scale = lora_scale)
     pipe.scheduler = EulerDiscreteScheduler.from_config(
         pipe.scheduler.config, timestep_spacing="trailing"
     )
@@ -398,6 +398,9 @@ def render_images(
     gc.collect()
     torch.cuda.empty_cache()
 
+    # reset the adapter scales to 1.0
+    pipe = set_adapter_scales(pipe, lora_scale = 1.0)
+    
     return validation_prompts_raw
 
 
@@ -437,7 +440,7 @@ def render_images_eval(
     pipe = load_checkpoint(
         pretrained_model_version=pretrained_model["version"],
         pretrained_model_path=pretrained_model["path"],
-        checkpoint_folder=checkpoint_folder,
+        lora_save_path=checkpoint_folder,
         is_lora=is_lora,
         device=device,
     )
@@ -445,6 +448,7 @@ def render_images_eval(
     pipe.scheduler = EulerDiscreteScheduler.from_config(
         pipe.scheduler.config, timestep_spacing="trailing"
     )
+    
     generator = torch.Generator(device=device).manual_seed(seed)
     negative_prompt = "nude, naked, poorly drawn face, ugly, tiling, out of frame, extra limbs, disfigured, deformed body, blurry, blurred, watermark, text, grainy, signature, cut off, draft"
     pipeline_args = {

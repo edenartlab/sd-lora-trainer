@@ -1,4 +1,4 @@
-import os
+import os, json
 from peft.utils import get_peft_model_state_dict
 from diffusers.utils import (
     convert_all_state_dict_to_peft,
@@ -11,8 +11,49 @@ from safetensors.torch import load_file, save_file
 import torch
 from diffusers import EulerDiscreteScheduler
 from peft import PeftModel
-from .lora import patch_pipe_with_lora
 from .utils.json_stuff import save_as_json
+
+from typing import Dict
+from trainer.embedding_handler import TokenEmbeddingsHandler
+
+def load_ti_embeddings(pipe, save_path):
+    # Load the textual_inversion token embeddings into the pipeline:
+    try: #SDXL
+        handler = TokenEmbeddingsHandler([pipe.text_encoder, pipe.text_encoder_2], [pipe.tokenizer, pipe.tokenizer_2])
+    except: #SD15
+        handler = TokenEmbeddingsHandler([pipe.text_encoder, None], [pipe.tokenizer, None])
+
+    embeddings_path = [f for f in os.listdir(save_path) if f.endswith("embeddings.safetensors")][0]
+    print(f"Loading pretrained token embeddings from {embeddings_path}")
+    handler.load_embeddings(os.path.join(save_path, embeddings_path))
+
+
+def set_adapter_scales(pipe, lora_scale = 1.0):
+    """
+    update the pipe with the lora model and the token embeddings
+    """
+
+    # this loads the lora model into the pipeline at full strength (1.0)
+    #pipe.unet.load_adapter(lora_path, "eden_lora")
+    #peft_model.set_adapter(["adapter1", "adapter2"])  # activate both adapters
+
+    # First lets see if any lora's are active and unload them:
+    #pipe.unet.unmerge_adapter()
+
+    list_adapters_component_wise = pipe.get_list_adapters()
+    print(f"list_adapters_component_wise: {list_adapters_component_wise}")
+    
+    if 1:
+        for key in list_adapters_component_wise:
+            adapter_names = list_adapters_component_wise[key]
+            for adapter_name in adapter_names:
+                print(f"Set adapter '{adapter_name}' of '{key}' with scale = {lora_scale:.2f}")
+                pipe.set_adapters(adapter_name, adapter_weights=[lora_scale])
+    
+        #pipe.unet.merge_adapter()
+
+    return pipe
+
 
 def remove_delimiter_characters(name: str):
     # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
@@ -53,7 +94,7 @@ def save_checkpoint(
     text_encoder_peft_models: list = [None]
 ):
     """
-    Save the model's embeddings and special parameters to the specified directory.
+    Save the model's embeddings and special parameters (Lora) to the specified directory.
 
     Note: This function directly corresponds to the `load_checkpoint` method
 
@@ -105,15 +146,6 @@ def save_checkpoint(
             output_dir, "special_params.json"
         )
     )
-    
-    # Separate txt_lora saves:
-    #for idx, model in enumerate(text_encoder_peft_models):
-    #    if model is not None:
-    #        save_directory = os.path.join(output_dir, f"text_encoder_lora_{idx}")
-    #        model.save_pretrained(
-    #            save_directory = save_directory
-    #        )
-    #        print(f"Saved text encoder {idx} in: {save_directory}")
 
     if is_lora:
         assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero if is_lora is True"
@@ -133,6 +165,7 @@ def save_checkpoint(
 
         # TODO have a separate save for non SDXL model:
         if pretrained_model_version == "sdxl":
+            print("Saving LoRA weights for SDXL model...")
             StableDiffusionXLPipeline.save_lora_weights(
                     output_dir,
                     unet_lora_layers=unet_lora_layers_to_save,
@@ -140,6 +173,7 @@ def save_checkpoint(
                     text_encoder_2_lora_layers=text_encoder_lora_layers[1],
                 )
         elif pretrained_model_version == "sd15":
+            print("Saving LoRA weights for SD15 model...")
             StableDiffusionPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
@@ -160,9 +194,10 @@ def save_checkpoint(
 def load_checkpoint(
     pretrained_model_version: str,
     pretrained_model_path: str,
-    checkpoint_folder: str,
+    lora_save_path: str,
     is_lora: bool,
-    device: str
+    device: str,
+    lora_scale: float = 1.0,
 ):
     """
     Load a pre-trained model checkpoint and prepare it for inference.
@@ -172,7 +207,7 @@ def load_checkpoint(
     Args:
         `pretrained_model_version` (`str`): Version of the pre-trained model (`sd15` or `sdxl`).
         `pretrained_model_path` (`str`): Path to the pre-trained model file.
-        `checkpoint_folder` (`str`): Path to the checkpoint folder.
+        `lora_save_path` (`str`): Path to the LoRa checkpoint folder.
         `is_lora` (`bool`): Whether LoRA model components are used.
         `device` (Union[`str`, `torch.device`]): Device for inference.
 
@@ -191,38 +226,42 @@ def load_checkpoint(
     else:
         raise NotImplementedError(f"Invalid pretrained_model_version: {pretrained_model_version}")
 
-    pipe = pipe.to('cuda', dtype=torch.float16)
-    pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config) #, timestep_spacing="trailing")
+    pipe = pipe.to(device, dtype=torch.float16)
     print(f"Loaded new {pretrained_model_version} model from: {pretrained_model_path}")
 
-    assert os.path.exists(checkpoint_folder), f"Invalid checkpoint_folder: {checkpoint_folder}"    
+    # Load textual_inversion embeddings:
+    load_ti_embeddings(pipe, lora_save_path)
+
+    # TODO: why does this give key errors???
+    #pipe.load_lora_weights(lora_save_path, weight_name='pytorch_lora_weights.safetensors')
+    #pipe.fuse_lora(lora_scale=lora_scale)
+    #return pipe
+
+    assert os.path.exists(lora_save_path), f"Invalid lora_save_path: {lora_save_path}"    
     text_encoder_0_path =  os.path.join(
-            checkpoint_folder, "text_encoder_lora_0"
+            lora_save_path, "text_encoder_lora_0"
         )
     text_encoder_1_path =  os.path.join(
-            checkpoint_folder, "text_encoder_lora_1"
+            lora_save_path, "text_encoder_lora_1"
         )
     if os.path.exists(
         text_encoder_0_path
     ):
-        
         pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, text_encoder_0_path)
         print(f"loaded text_encoder LoRA from: {text_encoder_0_path}")
     
     if os.path.exists(
         text_encoder_1_path
     ):
-        
         pipe.text_encoder_2 = PeftModel.from_pretrained(pipe.text_encoder_2, text_encoder_1_path)
         print(f"loaded text_encoder LoRA from: {text_encoder_1_path}")
 
     if is_lora:
-        pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = checkpoint_folder, adapter_name = 'eden_lora')
-        pipe = pipe.to(device)
-        pipe = patch_pipe_with_lora(pipe, checkpoint_folder)
+        pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = lora_save_path)
     else:
-        pipe.unet = pipe.unet.from_pretrained(checkpoint_folder)
-        pipe = pipe.to(device, dtype=torch.float16)
+        pipe.unet = pipe.unet.from_pretrained(lora_save_path)
         print(f"Successfully loaded full checkpoint for inference!")
+
+    pipe = set_adapter_scales(pipe, lora_scale = lora_scale)
 
     return pipe
