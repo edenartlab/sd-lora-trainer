@@ -35,11 +35,11 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "sd15_face_sweep"
+exp_name             = "sd15_good_styles"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
-min_hamming_distance = 3   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 1   # min_n_params that have to be different from any previous experiment to be scheduled
 
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
@@ -50,32 +50,34 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sd15"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/people/xander"
+        "/home/rednax/Documents/datasets/beeple",
+        "/home/rednax/Documents/datasets/does",
+        "/home/rednax/Documents/datasets/leavingthisplace"
 
     ],
-    "concept_mode": ['face'],
+    "concept_mode": ['style'],
     "seed": [0],
-    "resolution": [512,640,768],
+    "resolution": [512],
     "train_batch_size": [4],
     "n_sample_imgs": [6],
     "max_train_steps": [400,800],
-    "checkpointing_steps": [100],
+    "checkpointing_steps": [200],
     "gradient_accumulation_steps": [1],
 
-    "n_tokens": [1, 2],
+    "n_tokens": [2],
     "ti_lr": [0.001],
     "ti_weight_decay": [0.0005],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0,60],
-    "tok_cov_reg_w": [0, 2000],
-    "cond_reg_w": [0.01e-5, 2.5e-5],
-    "tok_cond_reg_w": [0.01e-5, 2.5e-5],
+    "token_warmup_steps": [0],
+    "tok_cov_reg_w": [2000],
+    "cond_reg_w": [0.01e-5],
+    "tok_cond_reg_w": [0.01e-5],
 
     "unet_prodigy_growth_factor": [1.05],
-    "unet_lr": [1.0e-4, 3e-4, 1e-3],
+    "unet_lr": [1e-3, 2e-3],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [6, 12, 24, 48],
+    "lora_rank": [16],
     "use_dora": ['false', 'true'],
 
     "text_encoder_lora_optimizer": [None],
@@ -83,7 +85,7 @@ hyperparameters = {
 
     "snr_gamma": [5.0],
     "caption_model": ["blip"],
-    "augment_imgs_up_to_n": [20,40],
+    "augment_imgs_up_to_n": [20],
     "verbose": ['true'],
     "debug": ['true']
 }

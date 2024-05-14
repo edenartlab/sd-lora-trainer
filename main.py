@@ -367,7 +367,8 @@ def train(
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
+                
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -409,17 +410,17 @@ def train(
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
                 
                 validation_prompts = render_images(
-                    pipe=pipe, 
-                    render_size=config.validation_img_size, 
-                    lora_path= output_save_dir, 
-                    train_step= global_step, 
-                    seed= config.seed, 
-                    is_lora= config.is_lora, 
-                    pretrained_model= config.pretrained_model, 
-                    lora_scale= config.sample_imgs_lora_scale,
+                    pipe = pipe, 
+                    render_size = config.validation_img_size, 
+                    lora_path = output_save_dir, 
+                    train_step = global_step, 
+                    seed = config.seed, 
+                    is_lora = config.is_lora, 
+                    pretrained_model = config.pretrained_model, 
+                    lora_scale = config.sample_imgs_lora_scale,
                     n_imgs = config.n_sample_imgs, 
                     device = config.device,
-                    checkpoint_folder=None
+                    checkpoint_folder = None
                 )
                 img_grid_path = make_validation_img_grid(output_save_dir)
                 shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
@@ -438,7 +439,7 @@ def train(
                 yield np.min((progress, 1.0))
 
     # final_save
-    if (global_step - last_save_step) > 51:
+    if (global_step - last_save_step) > 26:
         output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
     else:
         output_save_dir = f"{checkpoint_dir}/checkpoint-{last_save_step}"
@@ -479,6 +480,7 @@ def train(
         torch.cuda.empty_cache()
 
         # pipe is None because we want to load from disk
+        print("Running final inference round...")
         validation_prompts = render_images(
             pipe = None, 
             render_size=config.validation_img_size, 

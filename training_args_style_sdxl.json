@@ -1,13 +1,13 @@
 {
-    "output_dir": "lora_models/xander_best",
-    "sd_model_version": "sd15",
-    "lora_training_urls": "/home/rednax/Documents/datasets/people/xander",
-    "concept_mode": "face",
+    "output_dir": "lora_models/Journey",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "/home/rednax/Documents/datasets/journey",
+    "concept_mode": "style",
     "seed": 0,
     "resolution": 512,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
-    "max_train_steps": 400,
+    "max_train_steps": 1000,
     "token_warmup_steps": 0,
     "checkpointing_steps": 100,
     "gradient_accumulation_steps": 1,
@@ -23,7 +23,7 @@
     "prodigy_d_coef": 1.0,
     "unet_prodigy_growth_factor": 1.05,
     "lora_rank": 16,
-    "use_dora": false,
-    "caption_model": "blip",
+    "use_dora": true,
+    "caption_model": "gpt4-v",
     "debug": true
 }

@@ -218,7 +218,6 @@ def load_checkpoint(
 
     if is_lora:
         pipe.unet = PeftModel.from_pretrained(model = pipe.unet, model_id = checkpoint_folder, adapter_name = 'eden_lora')
-
         pipe = pipe.to(device)
         pipe = patch_pipe_with_lora(pipe, checkpoint_folder)
     else:

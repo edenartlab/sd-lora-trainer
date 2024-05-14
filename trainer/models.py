@@ -19,9 +19,8 @@ SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/j
 #SD15_MODEL_CACHE = "./models/DreamShaper_6.31_BakedVae.safetensors"
 #SD15_URL         = "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_6.31_BakedVae.safetensors"
 
-SD15_MODEL_CACHE = "./models/photon_v1.safetensors"
-SD15_URL         = "https://civitai.com/api/download/models/90072"
-
+#SD15_MODEL_CACHE = "./models/photon_v1.safetensors"
+#SD15_URL         = "https://civitai.com/api/download/models/90072"
 
 pretrained_models = {
     "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL, "version": "sdxl"},

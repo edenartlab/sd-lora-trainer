@@ -336,21 +336,22 @@ def extract_gpt_concept_description(gpt_completion, concept_mode):
 
 
 def post_process_captions(captions, text, concept_mode, job_seed):
-
     text = text.strip()
-    print(f"Input captioning text: {text}")
+    gpt_cleanup_worked = False
+    gpt_concept_description = None
 
     if len(captions) >= MIN_GPT_PROMPTS and len(captions) <= MAX_GPT_PROMPTS and not text and client:
         retry_count = 0
-        while retry_count < 10:
+        while retry_count < 5:
             try:
                 gpt_captions, gpt_concept_description, trigger_text = cleanup_prompts_with_chatgpt(captions, concept_mode, job_seed + retry_count)
                 n_toks = sum("TOK" in caption for caption in gpt_captions)
                 
                 if n_toks > int(0.8 * len(captions)) and (len(gpt_captions) == len(captions)):
-                    # Ensure every caption contains "TOK"
+                    # gpt-cleanup (mostly) worked, lets just ensure every caption contains "TOK" and finish
                     gpt_captions = ["TOK, " + caption if "TOK" not in caption else caption for caption in gpt_captions]
                     captions = gpt_captions
+                    gpt_cleanup_worked = True
                     break
                 else:
                     if len(gpt_captions) == len(captions):
@@ -358,13 +359,15 @@ def post_process_captions(captions, text, concept_mode, job_seed):
                     else:
                         print(f'GPT-4 returned the wrong number of prompts {len(gpt_captions)} instead of {len(captions)}, retrying...')
                     retry_count += 1
+                    gpt_cleanup_worked = False
+
             except Exception as e:
                 retry_count += 1
+                gpt_cleanup_worked = False
                 print(f"An error occurred after try {retry_count}: {e}")
-                time.sleep(1)
-        else:
-            gpt_concept_description, trigger_text = None, "TOK"
-    else:
+                time.sleep(0.5)
+
+    if not gpt_cleanup_worked:
         # simple concat of trigger text with rest of prompt:
         if len(text) == 0:
             print("WARNING: no captioning text was given and we're not doing chatgpt cleanup...")
@@ -378,8 +381,6 @@ def post_process_captions(captions, text, concept_mode, job_seed):
         else:
             trigger_text = text
             captions = [trigger_text + ", " + caption for caption in captions]
-
-        gpt_concept_description = None
 
     captions = [fix_prompt(caption) for caption in captions]
     return captions, trigger_text, gpt_concept_description
