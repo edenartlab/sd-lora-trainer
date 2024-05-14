@@ -96,7 +96,7 @@ class Predictor(BasePredictor):
         ),
         ti_lr: float = Input(
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
-            default=1e-3,
+            default=0.001,
         ),
         freeze_ti_after_completion_f: float = Input(
             description="Fraction of training steps after which to freeze textual inversion embeddings",
