@@ -152,6 +152,7 @@ class Predictor(BasePredictor):
         )
         
         train_generator = train(config=config)
+        print(f"Debug: {debug}")
 
         while True:
             try:
