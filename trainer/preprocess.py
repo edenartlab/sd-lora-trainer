@@ -521,7 +521,14 @@ def gpt4_v_caption_dataset(
         }
 
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-        return index, response.json()["choices"][0]["message"]["content"]
+        
+        try:
+            result = response.json()["choices"][0]["message"]["content"]
+        except:
+            print(response.json())
+            result = ""
+
+        return index, result
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as executor:
         future_to_index = {executor.submit(fetch_caption, i, img): i for i, img in enumerate(images) if captions[i] is None}

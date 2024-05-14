@@ -37,6 +37,8 @@ def replace_in_string(s, replacements):
     return s
 
 def fix_prompt(prompt: str):
+    if not prompt:
+        return prompt
     # Remove extra commas and spaces, and fix space before punctuation
     prompt = re.sub(r"\s+", " ", prompt)  # Replace multiple spaces with a single space
     prompt = re.sub(r",,", ",", prompt)  # Replace double commas with a single comma

@@ -86,10 +86,6 @@ class Predictor(BasePredictor):
             description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need intermediate checkpoints.",
             default=10000,
         ),
-        is_lora: bool = Input(
-            description="Whether to use LoRA training. If set to False, will use full fine tuning",
-            default=True,
-        ),
         unet_lr: float = Input(
             description="final learning rate of unet (after warmup)",
             default=0.001,
@@ -144,15 +140,13 @@ class Predictor(BasePredictor):
             train_batch_size=train_batch_size,
             max_train_steps=max_train_steps,
             checkpointing_steps=checkpointing_steps,
-            is_lora=is_lora,
-            prodigy_d_coef=prodigy_d_coef,
             ti_lr=ti_lr,
+            unet_lr=unet_lr,
             lora_rank=lora_rank,
             caption_model=caption_model,
             n_tokens=n_tokens,
             verbose=verbose,
             debug=debug,
-            text_encoder_lora_optimizer=text_encoder_lora_optimizer,
             freeze_ti_after_completion_f=freeze_ti_after_completion_f,
             token_warmup_steps=token_warmup_steps
         )
