@@ -242,6 +242,7 @@ def train(
             progress_bar.update(1)
             finegrained_epoch = epoch + step / len(train_dataloader)
             completion_f = finegrained_epoch / config.num_train_epochs
+
             # param_groups[1] goes from ti_lr to 0.0 over the course of training
             if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
                 if optimizers['textual_inversion'] is not None:
@@ -273,9 +274,6 @@ def train(
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
             captions = list(captions)
-            #vae_latent = vae_latent.to(pipe.device).to(weight_dtype)
-            #mask = mask.to(pipe.device).to(weight_dtype)
-
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
                 config, pipe, captions
             )
@@ -367,7 +365,7 @@ def train(
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > -1:
                 
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)

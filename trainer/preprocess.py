@@ -252,7 +252,7 @@ def cleanup_prompts_with_chatgpt(
             The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
-            Respond with the "Concept Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
+            Respond with "Concept Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
             """)
 
     elif concept_mode == "face":
@@ -265,7 +265,7 @@ def cleanup_prompts_with_chatgpt(
             The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
-            Respond with the "TOK Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
+            Respond with "TOK Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "TOK".
             """)
 
     elif concept_mode == "style":
@@ -278,7 +278,7 @@ def cleanup_prompts_with_chatgpt(
             The descriptions are:""")
         
         chat_gpt_prompt_2 = textwrap.dedent("""
-            Respond with the "Style Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "in the style of TOK".
+            Respond with "Style Description: ..." followed by a list (using "-") of all the revised descriptions, each mentioning "in the style of TOK".
             """)
 
     final_chatgpt_prompt = chat_gpt_prompt_1 + "\n- " + "\n- ".join(prompts) + "\n" + chat_gpt_prompt_2
@@ -305,7 +305,7 @@ def cleanup_prompts_with_chatgpt(
     # extract the final rephrased prompts from the response:
     prompts = []
     for line in gpt_completion.split("\n"):
-        if line.startswith("-"):
+        if line.startswith("-") or re.match(r'^\d+\.', line):
             prompts.append(line[2:])
 
     gpt_concept_description = extract_gpt_concept_description(gpt_completion, concept_mode)
@@ -349,6 +349,7 @@ def post_process_captions(captions, text, concept_mode, job_seed):
                 
                 if n_toks > int(0.8 * len(captions)) and (len(gpt_captions) == len(captions)):
                     # gpt-cleanup (mostly) worked, lets just ensure every caption contains "TOK" and finish
+                    print("Making sure TOK is added to every training prompt...")
                     gpt_captions = ["TOK, " + caption if "TOK" not in caption else caption for caption in gpt_captions]
                     captions = gpt_captions
                     gpt_cleanup_worked = True
@@ -885,6 +886,9 @@ def load_and_save_masks_and_captions(
     # save the dataframe to a CSV file
     df.to_csv(os.path.join(output_dir, "captions.csv"), index=False)
     print("---> Training data 100% ready to go!")
+
+    # do a final prompt cleaning pass to fix weird commas and spaces:
+    captions = [fix_prompt(caption) for caption in captions]
 
     # Update the training attributes with some info from the pre-processing:
     config.training_attributes["n_training_imgs"] = n_training_imgs

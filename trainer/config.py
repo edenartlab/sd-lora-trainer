@@ -49,7 +49,7 @@ class TrainingConfig(BaseModel):
     snr_gamma: float = 5.0
     lora_alpha_multiplier: float = 1.0
     lora_rank: int = 12
-    use_dora: bool = True
+    use_dora: bool = False
 
     left_right_flip_augmentation: bool = True
     augment_imgs_up_to_n: int = 20

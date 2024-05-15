@@ -102,10 +102,10 @@ class Predictor(BasePredictor):
             description="Rank of LoRA embeddings for the unet.",
             default=16,
         ),
-        caption_model: str = Input(
-            description="Which captioning model to use. ['gpt4-v', 'blip'] are supported right now",
-            default="blip",
-        ),
+        use_dora: bool = Input(
+            description="Use Dora instead of LoRa",
+            default=False,
+        )
         n_tokens: int = Input(
             description="How many new tokens to inject per concept",
             default=2,
@@ -143,7 +143,8 @@ class Predictor(BasePredictor):
             ti_lr=ti_lr,
             unet_lr=unet_lr,
             lora_rank=lora_rank,
-            caption_model=caption_model,
+            use_dora=use_dora,
+            caption_model="blip",
             n_tokens=n_tokens,
             verbose=verbose,
             debug=debug,
@@ -176,8 +177,9 @@ class Predictor(BasePredictor):
             
             # Add instructions README:
             tar.add("instructions_README.md", arcname="README.md")
-            tar.add("comfyui_workflow_adiff.json", arcname="comfyui_workflow_adiff.json")
             tar.add("comfyui_workflow_img.json", arcname="comfyui_workflow_img.json")
+            if sd_model_version == "sd15":
+                tar.add("comfyui_workflow_adiff.json", arcname="comfyui_workflow_adiff.json")
 
         attributes = {}
         attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
@@ -189,84 +191,4 @@ class Predictor(BasePredictor):
         if DEBUG_MODE or debug:
             yield cogPath(out_path)
         else:
-            # clear the output_directory to avoid running out of space on the machine:
-            #shutil.rmtree(output_dir)
             yield CogOutput(files=[cogPath(out_path)], name=name, thumbnails=[cogPath(validation_grid_img_path)], attributes=config.dict(), isFinal=True, progress=1.0)
-
-
-
-
-
-
-
-
-# IGNORE this:
-
-"""
-
-if XANDER_EXPERIMENT:
-    # overwrite some settings for experimentation:
-    lora_param_scaler = 0.1
-    l1_penalty = 0.2
-    prodigy_d_coef = 0.2
-    ti_lr = 1e-3
-    lora_rank = 24
-
-    lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/plantoid_5.zip"
-    concept_mode = "object"
-    mask_target_prompts = ""
-    left_right_flip_augmentation = True
-
-    output_dir1 = os.path.join(out_root_dir, run_name + "_xander")
-    input_dir1, n_imgs1, trigger_text1, segmentation_prompt1, captions1 = preprocess(
-        output_dir1,
-        concept_mode,
-        input_zip_path=lora_training_urls,
-        caption_text=caption_prefix,
-        mask_target_prompts=mask_target_prompts,
-        target_size=resolution,
-        crop_based_on_salience=crop_based_on_salience,
-        use_face_detection_instead=use_face_detection_instead,
-        temp=clipseg_temperature,
-        left_right_flip_augmentation=left_right_flip_augmentation,
-        augment_imgs_up_to_n = augment_imgs_up_to_n,
-        seed = seed,
-        caption_model = caption_model
-    )
-
-    lora_training_urls = "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene_5.zip"
-    concept_mode = "face"
-    mask_target_prompts = "face"
-    left_right_flip_augmentation = False
-
-    output_dir2 = os.path.join(out_root_dir, run_name + "_gene")
-    input_dir2, n_imgs2, trigger_text2, segmentation_prompt2, captions2 = preprocess(
-        output_dir2,
-        concept_mode,
-        input_zip_path=lora_training_urls,
-        caption_text=caption_prefix,
-        mask_target_prompts=mask_target_prompts,
-        target_size=resolution,
-        crop_based_on_salience=crop_based_on_salience,
-        use_face_detection_instead=use_face_detection_instead,
-        temp=clipseg_temperature,
-        left_right_flip_augmentation=left_right_flip_augmentation,
-        augment_imgs_up_to_n = augment_imgs_up_to_n,
-        seed = seed,
-    )
-    
-    # Merge the two preprocessing steps:
-    n_imgs = n_imgs1 + n_imgs2
-    captions = captions1 + captions2
-    trigger_text = trigger_text1
-    segmentation_prompt = segmentation_prompt1
-
-    # Create merged outdir:
-    output_dir = os.path.join(out_root_dir, run_name + "_combined")
-    input_dir  = os.path.join(output_dir, "images_out")
-    os.makedirs(input_dir, exist_ok=True)
-
-    # Merge the two preprocessed datasets:
-    merge_datasets(input_dir1, input_dir2, input_dir, token_dict.keys())
-
-"""
