@@ -50,7 +50,7 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip"
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene.zip"
 
     ],
     "concept_mode": ['face'],
@@ -63,21 +63,21 @@ hyperparameters = {
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [1,2,3],
-    "ti_lr": [0.001,0.003,0.001],
-    "ti_weight_decay": [0.001,0.01,0.0],
+    "ti_lr": [0.001,0.0005],
+    "ti_weight_decay": [0.001,0.0],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0,60],
+    "token_warmup_steps": [0,40],
     "tok_cov_reg_w": [2000,0],
     "cond_reg_w": [0.01e-5],
     "tok_cond_reg_w": [0.01e-5],
 
     "unet_prodigy_growth_factor": [1.05],
-    "unet_lr": [0.0],
-    "lora_alpha_multiplier": [0.0],
+    "unet_lr": [0.001],
+    "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [4],
-    "use_dora": ['false'],
+    "lora_rank": [16,32],
+    "use_dora": ['false', 'true'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],

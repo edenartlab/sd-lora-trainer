@@ -178,11 +178,7 @@ class ConditioningRegularizer:
 
 class DistributionLoss(torch.nn.Module):
     """
-        Initialized a new DistributionLoss with shape: torch.Size([49410, 768])
-        Initialized a new DistributionLoss with shape: torch.Size([49410, 1280])
-
     Class to simplify the calculation of the covariance loss between the trained token embeddings and the pretrained embeddings.
-
     """
     def __init__(self, pretrained_embeddings, dtype=torch.float32, outdir = None):
         super(DistributionLoss, self).__init__()
@@ -192,10 +188,6 @@ class DistributionLoss(torch.nn.Module):
         self.target_stds  = pretrained_embeddings.std(-1)
         self.target_stds_mean = self.target_stds.mean()
         self.target_stds_var  = self.target_stds.std()**2 / self.target_stds.mean()
-        
-        #self.target_norms = pretrained_embeddings.norm(dim=-1)
-        #self.std_histogram  = DifferentiableHistogram(self.target_stds)
-        #self.norm_histogram = DifferentiableHistogram(self.target_norms)
 
         if outdir:
             # Plot a histogram of the stds:
