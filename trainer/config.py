@@ -35,7 +35,7 @@ class TrainingConfig(BaseModel):
     ti_lr: float = 1e-3
     ti_lr_warmup_steps: int = 20   # slowly ramp up the learning rate to build some momentum
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
-    ti_weight_decay: float = 3e-4
+    ti_weight_decay: float = 0.0
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     
@@ -52,7 +52,7 @@ class TrainingConfig(BaseModel):
     use_dora: bool = False
 
     left_right_flip_augmentation: bool = True
-    augment_imgs_up_to_n: int = 20
+    augment_imgs_up_to_n: int = 40
     mask_target_prompts: Union[None, str] = None
     crop_based_on_salience: bool = True
     use_face_detection_instead: bool = False  # use a different model (not CLIPSeg) to generate face masks
@@ -89,7 +89,7 @@ class TrainingConfig(BaseModel):
     text_encoder_lora_lr: float = 1.0e-5
     txt_encoders_lr_warmup_steps: int = 200
     text_encoder_lora_weight_decay: float = 1.0e-5
-    text_encoder_lora_rank: int = 12
+    text_encoder_lora_rank: int = 16
 
     def __init__(self, **data):
         super().__init__(**data)

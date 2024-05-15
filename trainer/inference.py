@@ -185,8 +185,8 @@ def blend_conditions(
     embeds1,
     embeds2,
     lora_scale,
-    token_scale_power=0.4,  # adjusts the curve of the interpolation
-    min_token_scale=0.5,  # minimum token scale (corresponds to lora_scale = 0)
+    token_scale_power=0.4, # adjusts the curve of the interpolation
+    min_token_scale=0.5,   # minimum token scale (corresponds to lora_scale = 0)
     token_scale=None,
     verbose=1,
 ):
