@@ -81,43 +81,6 @@
       }
     },
     {
-      "id": 11,
-      "type": "Reroute",
-      "pos": [
-        222,
-        49
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 23
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "CLIP",
-          "links": [
-            15,
-            16
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
       "id": 12,
       "type": "Reroute",
       "pos": [
@@ -246,32 +209,6 @@
       ]
     },
     {
-      "id": 9,
-      "type": "SaveImage",
-      "pos": [
-        274,
-        -246
-      ],
-      "size": [
-        210,
-        270
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 9
-        }
-      ],
-      "properties": {},
-      "widgets_values": [
-        "ComfyUI"
-      ]
-    },
-    {
       "id": 4,
       "type": "CheckpointLoaderSimple",
       "pos": [
@@ -353,7 +290,70 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        "a photo of embedding:xander_ti_face_lora_sd15_19_05-09-50_embeddings.safetensors on the beach"
+        "a photo of embedding:xander_sd15_embedding on the beach "
+      ]
+    },
+    {
+      "id": 11,
+      "type": "Reroute",
+      "pos": [
+        220,
+        49
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "CLIP",
+          "links": [
+            15,
+            16
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        347,
+        -270
+      ],
+      "size": {
+        "0": 210,
+        "1": 270
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
       ]
     },
     {
@@ -363,10 +363,10 @@
         -72,
         -229
       ],
-      "size": [
-        254.95774175781264,
-        127.86700957031269
-      ],
+      "size": {
+        "0": 254.95774841308594,
+        "1": 127.86701202392578
+      },
       "flags": {},
       "order": 2,
       "mode": 0,
@@ -406,9 +406,9 @@
         "Node name for S&R": "LoraLoader"
       },
       "widgets_values": [
-        "xander_ti_face_lora_sd15_19_05-09-50.safetensors",
-        1,
-        1
+        "xander_sd15_lora.safetensors",
+        0.6,
+        0.6
       ]
     }
   ],
@@ -520,6 +520,14 @@
   ],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8264462809917354,
+      "offset": {
+        "0": 513.8734070325743,
+        "1": 351.4824273966635
+      }
+    }
+  },
   "version": 0.4
 }

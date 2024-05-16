@@ -112,7 +112,7 @@ class Predictor(BasePredictor):
         """
 
         debug = False
-        
+
         print("cog:predict starting new training job...")
         if not debug:
             yield CogOutput(name=name, progress=0.0)
@@ -162,9 +162,9 @@ class Predictor(BasePredictor):
             
             # Add instructions README:
             tar.add("instructions_README.md", arcname="README.md")
-            tar.add("comfyui_workflow_img.json", arcname="comfyui_workflow_img.json")
+            tar.add("comfyUI_workflow_lora_txt2img.json", arcname="comfyUI_workflow_lora_txt2img.json")
             if sd_model_version == "sd15":
-                tar.add("comfyui_workflow_adiff.json", arcname="comfyui_workflow_adiff.json")
+                tar.add("comfyUI_workflow_lora_adiff.json", arcname="comfyUI_workflow_lora_adiff.json")
 
         attributes = {}
         attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
