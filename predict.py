@@ -47,74 +47,59 @@ class Predictor(BasePredictor):
 
     def predict(
         self, 
-        lora_training_urls: str = Input(
-            description="Training images for new LORA concept (can be image urls or a .zip file of images)"
-        ),
-        concept_mode: str = Input(
-            description=" 'face' / 'style' / 'object' (default)",
-            default="style",
-        ),
-        sd_model_version: str = Input(
-            description=" 'sdxl' / 'sd15' ",
-            default="sdxl",
-        ),
         name: str = Input(
             description="Name of new LORA concept",
             default="unnamed"
+        ),
+        lora_training_urls: str = Input(
+            description="Training images for new LORA concept (can be image urls or an url to a .zip file of images)"
+        ),
+        concept_mode: str = Input(
+            description="What are you trying to learn?",
+            choices=["style", "face", "object"],
+            default="style",
+        ),
+        sd_model_version: str = Input(
+            description="SDXL gives much better LoRa's if you just need static images. If you want to make AnimateDiff animations, train an SD15 lora.",
+            choices=["sdxl", "sd15"],
+            default="sdxl",
+        ),
+        max_train_steps: int = Input(
+            description="Number of training steps. Increasing this usually leads to overfitting, only viable if you have > 100 training imgs. For faces you may want to reduce to eg 300",
+            ge=200, le=1000, default=400
+        ),
+        resolution: int = Input(
+            description="Square pixel resolution which your images will be resized to for training, highly recommended: 512 or 640",
+            ge=512, le=768, default=512
+        ),
+        train_batch_size: int = Input(
+            description="Batch size (per device) for training (dont increase unless running on a BIG GPU)",
+            ge=1, le=8, default=4
+        ),
+        unet_lr: float = Input(
+            description="final learning rate of unet (after warmup), increasing this usually leads to strong overfitting",
+            ge=0.0, le=0.003, default=0.001
+        ),
+        ti_lr: float = Input(
+            description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
+            ge=0.0, le=0.002, default=0.001
+        ),
+        lora_rank: int = Input(
+            description="Rank of LoRA embeddings for the unet.",
+            ge=1, le=64, default=16
+        ),
+        use_dora: bool = Input(
+            description="Use Dora instead of LoRa",
+            default=False,
+        ),
+        n_tokens: int = Input(
+            description="How many new tokens to train (highly recommended to leave this at 2)",
+            ge=1, le=3, default=2
         ),
         seed: int = Input(
             description="Random seed for reproducible training. Leave empty to use a random seed",
             default=None,
         ),
-        resolution: int = Input(
-            description="Square pixel resolution which your images will be resized to for training, recommended: 512 or 640",
-            default=512,
-        ),
-        train_batch_size: int = Input(
-            description="Batch size (per device) for training",
-            default=4,
-        ),
-        max_train_steps: int = Input(
-            description="Number of training steps.",
-            default=400,
-        ),
-        token_warmup_steps: int = Input(
-            description="Number of steps for token (textual_inversion) warmup.",
-            default=0,
-        ),
-        checkpointing_steps: int = Input(
-            description="Number of steps between saving checkpoints. Set to very very high number to disable checkpointing, because you don't need intermediate checkpoints.",
-            default=10000,
-        ),
-        unet_lr: float = Input(
-            description="final learning rate of unet (after warmup)",
-            default=0.001,
-        ),
-        ti_lr: float = Input(
-            description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
-            default=0.001,
-        ),
-        freeze_ti_after_completion_f: float = Input(
-            description="Fraction of training steps after which to freeze textual inversion embeddings",
-            default=1.0,
-        ),
-        lora_rank: int = Input(
-            description="Rank of LoRA embeddings for the unet.",
-            default=16,
-        ),
-        use_dora: bool = Input(
-            description="Use Dora instead of LoRa",
-            default=False,
-        )
-        n_tokens: int = Input(
-            description="How many new tokens to inject per concept",
-            default=2,
-        ),
-        verbose: bool = Input(description="verbose output", default=True),
-        debug: bool = Input(
-            description="For debugging locally only (dont activate this on replicate)",
-            default=False,
-        )
 
     ) -> Iterator[GENERATOR_OUTPUT_TYPE]:
 
@@ -126,6 +111,8 @@ class Predictor(BasePredictor):
         bs=6: 8.0 imgs/s,
         """
 
+        debug = False
+        
         print("cog:predict starting new training job...")
         if not debug:
             yield CogOutput(name=name, progress=0.0)
@@ -139,17 +126,15 @@ class Predictor(BasePredictor):
             resolution=resolution,
             train_batch_size=train_batch_size,
             max_train_steps=max_train_steps,
-            checkpointing_steps=checkpointing_steps,
+            checkpointing_steps=10000,
             ti_lr=ti_lr,
             unet_lr=unet_lr,
             lora_rank=lora_rank,
             use_dora=use_dora,
             caption_model="blip",
             n_tokens=n_tokens,
-            verbose=verbose,
+            verbose=True,
             debug=debug,
-            freeze_ti_after_completion_f=freeze_ti_after_completion_f,
-            token_warmup_steps=token_warmup_steps
         )
         
         train_generator = train(config=config)
