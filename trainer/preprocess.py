@@ -767,6 +767,10 @@ def load_and_save_masks_and_captions(
         captions = captions[:MAX_GPT_PROMPTS-1]
 
     # Use BLIP for autocaptioning:
+    if len(images) > 50 and caption_model ! = "blip":
+        print(f"Captioning a lot of ({len(images)}) images --> falling back to using blip!")
+        caption_model = "blip"
+
     print(f"Generating {len(images)} captions using mode: {concept_mode}...")
     captions = caption_dataset(images, captions, caption_model = caption_model)
 
