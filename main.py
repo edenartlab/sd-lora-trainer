@@ -465,25 +465,24 @@ def train(
             name=config.name,
             pretrained_model_version=config.pretrained_model["version"]
         )
-
-        del unet
-        del vae
-        del text_encoder_one
-        del text_encoder_two
-        del tokenizer_one
-        del tokenizer_two
-        del embedding_handler
-        del pipe
-        del train_dataloader
-        del train_dataset
-        gc.collect()
-        torch.cuda.empty_cache()
-
+        
         print("Running final inference round...")
         if config.debug:
             # Reload the entire pipe from disk + LoRa:
             pipe_to_use = None
             checkpoint_folder = output_save_dir
+            del unet
+            del vae
+            del text_encoder_one
+            del text_encoder_two
+            del tokenizer_one
+            del tokenizer_two
+            del embedding_handler
+            del pipe
+            del train_dataloader
+            del train_dataset
+            gc.collect()
+            torch.cuda.empty_cache()
         else:
             # Just render images with the active pipe (faster, easier):
             pipe_to_use = pipe
