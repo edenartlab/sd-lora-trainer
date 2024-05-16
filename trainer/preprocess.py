@@ -288,7 +288,7 @@ def cleanup_prompts_with_chatgpt(
     print(f"Calling chatgpt with seed {seed}...")
 
     response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",
             seed=seed,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -471,7 +471,7 @@ def gpt4_v_get_description(config, images):
     base64_image = prep_img_for_gpt_api(img,  max_size=(1024, 1024))
 
     payload = {
-        "model": "gpt-4-vision-preview",
+        "model": "gpt-4-turbo",
         "messages": [
             {
                 "role": "user",
@@ -508,7 +508,7 @@ def gpt4_v_caption_dataset(
         base64_image = prep_img_for_gpt_api(img,  max_size=(512, 512))
 
         payload = {
-            "model": "gpt-4-vision-preview",
+            "model": "gpt-4-turbo",
             "messages": [
                 {
                     "role": "user",
