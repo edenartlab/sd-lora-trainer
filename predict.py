@@ -66,27 +66,27 @@ class Predictor(BasePredictor):
         ),
         max_train_steps: int = Input(
             description="Number of training steps. Increasing this usually leads to overfitting, only viable if you have > 100 training imgs. For faces you may want to reduce to eg 300",
-            ge=200, le=1000, default=400
+            default=400
         ),
         resolution: int = Input(
             description="Square pixel resolution which your images will be resized to for training, highly recommended: 512 or 640",
-            ge=512, le=768, default=512
+            default=512
         ),
         train_batch_size: int = Input(
             description="Batch size (per device) for training (dont increase unless running on a BIG GPU)",
-            ge=1, le=8, default=4
+            default=4
         ),
         unet_lr: float = Input(
             description="final learning rate of unet (after warmup), increasing this usually leads to strong overfitting",
-            ge=0.0, le=0.003, default=0.001
+            default=0.001
         ),
         ti_lr: float = Input(
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
-            ge=0.0, le=0.002, default=0.001
+            default=0.001
         ),
         lora_rank: int = Input(
             description="Rank of LoRA embeddings for the unet.",
-            ge=1, le=64, default=16
+            default=16
         ),
         use_dora: bool = Input(
             description="Use Dora instead of LoRa",

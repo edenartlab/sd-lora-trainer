@@ -171,7 +171,7 @@ def train(
     gc.collect()
     torch.cuda.empty_cache()
 
-    print(f"# PTI : Loaded dataset, do_cache: {config.do_cache}")
+    print(f"# Trainer : Loaded dataset, do_cache: {config.do_cache}")
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=config.train_batch_size,
@@ -236,7 +236,7 @@ def train(
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
             train_dataset.bucket_manager.start_epoch()
-        progress_bar.set_description(f"# PTI :step: {global_step}, epoch: {epoch}")
+        progress_bar.set_description(f"# Trainer step: {global_step}, epoch: {epoch}")
 
         for step, batch in enumerate(train_dataloader):
             progress_bar.update(1)
