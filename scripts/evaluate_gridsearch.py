@@ -11,8 +11,8 @@ from sklearn.metrics import r2_score
 
 
 # Define paths
-render_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/XANDER_SD15_SWEEP/400"
-config_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/gridsearch_configs/sd15_face_sweep"
+render_dir = "/home/rednax/SSD2TB/Xander_Tools/sd15_face_sweep/lora_models"
+config_dir = "/home/rednax/SSD2TB/Xander_Tools/sd15_face_sweep/xander_adiff_lora"
 
 ignore_threshold_relative = 0.0  # ignore any datapoint with a score below this threshold
 
@@ -87,6 +87,9 @@ def plot_parameters(parameters):
         noise_strength_values = 0.02
         noise_strength_scores = 0.02
         
+        # Initialize variables for original categorical labels
+        original_labels = None
+        
         # Determine if values are numeric
         if values.dtype.kind in 'bifc':  # Numeric types
             # Add noise directly to values
@@ -94,6 +97,7 @@ def plot_parameters(parameters):
         else:
             # Encode string values to integers for plotting
             encoder = LabelEncoder()
+            original_labels = values.copy()
             values = encoder.fit_transform(values)
             jittered_values = values + np.random.normal(0, 0.1, values.shape)
 
@@ -121,7 +125,12 @@ def plot_parameters(parameters):
 
         # Set plot title and labels
         plt.title(f'Influence of {param} on the score')
-        plt.xlabel(param)
+        if original_labels is not None:
+            # Set x-axis labels to the original categorical labels
+            unique_values = np.unique(values)
+            plt.xticks(ticks=unique_values, labels=encoder.inverse_transform(unique_values), rotation=45, ha='right')
+        else:
+            plt.xlabel(param)
         plt.ylabel('Score')
         plt.legend()
         
