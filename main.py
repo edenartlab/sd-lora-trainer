@@ -213,10 +213,14 @@ def train(
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
-
-
+    
     # default value of cold (pre-warmup) optimizer lr:
-    base_lr = 0.5e-5
+    if config.sd_model_version == "sdxl":
+        # let textual_inversion do the work first!
+        base_lr = 0.5e-5
+    elif config.sd_model_version == "sd15":
+        # let lora training kick in soonish
+        base_lr = 1.0e-4
         
     #######################################################################################################
     

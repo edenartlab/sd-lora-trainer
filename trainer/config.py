@@ -74,7 +74,7 @@ class TrainingConfig(BaseModel):
     unet_learning_rate: float = 1.0
     lr_num_cycles: int = 1
     lr_power: float = 1.0
-    sample_imgs_lora_scale: float = 0.7    # Default lora scale for sampling the validation images
+    sample_imgs_lora_scale: float = 0.65    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False
