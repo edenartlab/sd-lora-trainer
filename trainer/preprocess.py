@@ -55,6 +55,8 @@ except:
     print("WARNING: Could not find OPENAI_API_KEY in .env, disabling gpt prompt generation.")
 
 MODEL_PATH = "./cache"
+
+# Put some boundaries to make the gpt pass work well: (very long text often confuses the model and also costs more money...)
 MIN_GPT_PROMPTS = 3
 MAX_GPT_PROMPTS = 50
 
@@ -766,8 +768,7 @@ def load_and_save_masks_and_captions(
         images = images[:MAX_GPT_PROMPTS-1]
         captions = captions[:MAX_GPT_PROMPTS-1]
 
-    # Use BLIP for autocaptioning:
-    if len(images) > 50 and caption_model ! = "blip":
+    if len(images) > 50 and caption_model != "blip":
         print(f"Captioning a lot of ({len(images)}) images --> falling back to using blip!")
         caption_model = "blip"
 

@@ -3,7 +3,7 @@
     "sd_model_version": "sd15",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/does.zip",
     "concept_mode": "style",
-    "seed": 0,
+    "seed": 1,
     "resolution": 640,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
@@ -14,7 +14,7 @@
     "n_tokens": 2,
     "ti_lr": 0.001,
     "ti_weight_decay": 0.0005,
-    
+
     "remove_ti_token_from_prompts": false,
     "text_encoder_lora_optimizer": null,
     "text_encoder_lora_lr": 1.0e-4,

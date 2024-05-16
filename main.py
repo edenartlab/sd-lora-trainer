@@ -479,22 +479,31 @@ def train(
         gc.collect()
         torch.cuda.empty_cache()
 
-        # pipe is None because we want to load from disk
         print("Running final inference round...")
+        if config.debug:
+            # Reload the entire pipe from disk + LoRa:
+            pipe_to_use = None
+            checkpoint_folder = output_save_dir
+        else:
+            # Just render images with the active pipe (faster, easier):
+            pipe_to_use = pipe
+            checkpoint_folder = None
+
         validation_prompts = render_images(
-            pipe = None, 
-            render_size=config.validation_img_size, 
-            lora_path=output_save_dir, 
-            train_step=global_step, 
-            seed=config.seed, 
-            is_lora=config.is_lora, 
-            pretrained_model=config.pretrained_model, 
-            lora_scale=config.sample_imgs_lora_scale,
-            n_imgs = config.n_sample_imgs, 
-            n_steps = 30, 
-            device = config.device,
-            checkpoint_folder=output_save_dir
-        )
+                pipe = pipe_to_use, 
+                render_size=config.validation_img_size, 
+                lora_path=output_save_dir, 
+                train_step=global_step, 
+                seed=config.seed, 
+                is_lora=config.is_lora, 
+                pretrained_model=config.pretrained_model, 
+                lora_scale=config.sample_imgs_lora_scale,
+                n_imgs = config.n_sample_imgs, 
+                n_steps = 30, 
+                device = config.device,
+                checkpoint_folder=checkpoint_folder
+            )
+
         img_grid_path = make_validation_img_grid(output_save_dir)
         shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
 
