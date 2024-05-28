@@ -1,6 +1,7 @@
 # Trainer
 
 Code for finetuning and training LoRa modules on top of Stable Diffusion.
+Uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
 ## Setup
 
@@ -22,7 +23,7 @@ sudo chmod +x /usr/local/bin/cog
 2. Build the image with `sudo cog build`
 3. Run a training run with `sudo sh cog_test_train.sh`
 
-## Evaluation
+## Automatic Checkpoint Evaluation
 
 Download the aesthetic predictor model checkpoint first from google drive. This should give you a file named: `aesthetic_score_best_model.pth` (99.2 MB)
 
