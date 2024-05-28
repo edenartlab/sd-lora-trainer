@@ -13,6 +13,11 @@ Uses a single training script and loss module that works for both **SDv15** and 
 </p>
 
 
+The trainer supports 3 default modes:
+- **style**: used for learning the aesthetic style of a collection of images.
+- **face**: used for learning a specific face (can be human, character, ...).
+- **object**: will learn a specific object or thing featured in the training images.
+
 ## Setup
 
 Install all dependencies using `pip install -r requirements.txt`
