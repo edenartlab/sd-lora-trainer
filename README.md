@@ -3,10 +3,18 @@
 Code for finetuning and training LoRa modules on top of Stable Diffusion.
 Uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
+<p align="center">
+  <img src="assets/xander_training_images.jpg" alt="Image 1" width="400"/>
+</p>
+<p align="center">
+  <img src="assets/xander_generated_images.jpg" alt="Image 2" width="400"/>
+</p>
+
 ## Setup
 
-Install all dependencies manually and run:
-`python main.py -c training_args.json`
+Install all dependencies using `pip install -r requirements.txt`
+and run:
+`python main.py -c training_args.json` to start a training job.
 
 Adjust the arguments inside `training_args.json` accordingly.
 
@@ -25,6 +33,7 @@ sudo chmod +x /usr/local/bin/cog
 
 ## Automatic Checkpoint Evaluation
 
+This script uses CLIP img/txt similarity scores to evaluate how good the LoRa is vs how overfit.
 Download the aesthetic predictor model checkpoint first from google drive. This should give you a file named: `aesthetic_score_best_model.pth` (99.2 MB)
 
 ```bash
@@ -48,6 +57,9 @@ python3 evaluate.py \
 
 
 ## TODO's
+
+Bugs:
+- pure textual inversion for SD15 does not seem to work well... (but it works amazingly well for SDXL...) ---> if anyone can figure this one out I'd be forever grateful!
 
 Algo:
 - Improve some of the chatgpt functionality:
@@ -74,5 +86,3 @@ but it then recovers. Can we avoid this collapse? Is the learning rate too high?
 - offset noise
 - AB test Dora vs Lora
 
-Bugs:
-- pure textual inversion for SD15 does not seem to work well... (but it works amazingly well for SDXL...)
