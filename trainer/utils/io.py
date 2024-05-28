@@ -382,7 +382,7 @@ def download_and_prep_training_data(data_location, data_dir):
         print("Downloading training data...")
         # we're assuming the data is prived as pipe seperated urls to .zip files
         for url in str(data_location).split('|'):
-            download(url, data_dir)
+            download(url.strip(), data_dir)
 
         # Loop over all files in the data directory:
         for filename in os.listdir(data_dir):
