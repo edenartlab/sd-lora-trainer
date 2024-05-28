@@ -4,11 +4,14 @@ Code for finetuning and training LoRa modules on top of Stable Diffusion.
 Uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
 <p align="center">
-  <img src="assets/xander_training_images.jpg" alt="Image 1" width="400"/>
+  <strong>Training images:</strong><br>
+  <img src="assets/xander_training_images.jpg" alt="Image 1" style="width:80%;"/>
 </p>
 <p align="center">
-  <img src="assets/xander_generated_images.jpg" alt="Image 2" width="400"/>
+  <strong>Generated imgs with trained LoRa:</strong><br>
+  <img src="assets/xander_generated_images.jpg" alt="Image 2" style="width:80%;"/>
 </p>
+
 
 ## Setup
 
