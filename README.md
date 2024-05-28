@@ -48,40 +48,30 @@ python3 evaluate.py \
 
 ## TODO's
 
-Code / Cleanup:
-- cleanup optimizers / optimizeable params code into optimizer.py
-- Make sure the saved LoRa's are compatible with ComfyUI / AUTO1111
-- Figure out how to swap out a lora_adapter module onto a base model without reloading the entire model pipe...
-
 Algo:
 - Improve some of the chatgpt functionality:
     - separate the "gpt_description" / "gpt_segmentation" prompt calls and make them run on a subset of prompts in case there's a lot of imgs / prompts (possibly use img_grids for some gpt4-v calls)
     - currently some sub-optimal stuff can happen in preprocess() when there's less than 3 or more than 45 imgs, try to improve this
 - Test if timesteps = torch.randint() can be improved: look at sdxl training code! (see https://github.com/huggingface/diffusers/blob/main/examples/advanced_diffusion_training/train_dreambooth_lora_sdxl_advanced.py#L1263, https://arxiv.org/pdf/2206.00364.pdf)
-- Add aspect_ratio bucketing into the dataloader so we can train on non-square images (take this from https://github.com/kohya-ss/sd-scripts)
+- Fix aspect_ratio bucketing in the dataloader (see https://github.com/kohya-ss/sd-scripts)
 - test if textual inversion training can also happen with prodigy_optimizer
-- add CLIP_similarity token warmup (txt = Done, img = TODO) or (aesthetic gradients: https://github.com/vicgalle/stable-diffusion-aesthetic-gradients/tree/main)
 - improve data augmentation, eg by adding outpainted, smaller versions of faces / objects
-- figure out why the initial onset of learning in the LoRa / Dora causes a temporary drop in img quality
 
 Small, minor tweaks:
 - preprocess.py: the imgs are first auto-captioned and then cropped, this is not ideal, swap this around!
 
 Bigger improvements:
 - add stronger token regularization (eg CelebBasis spanning basis):
-    - remove the fix_embedding_std() hack with gradient based std-matching penalty
-    - add covariance_loss to token_warmup phase
-    - grid-search the new CovarianceLoss() strength
-    - continue plotting the token_warmup_loss post warmup to visualize the distance to the chatgpt_description
 - Add multi-token training
 - implement perfusion ideas (key locking with superclass): https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
 
-Tuning Experiments once code is fully ready:
-- gridsearch over LoRa target_modules=["to_k", "to_q", "to_v", "to_out.0"] for both unet and txt-encoder
+Tuning Experiments:
 - try-out conditioning noise injection during training to increase robustness
-- re-test / tweak the adaptive learning rates (also test Prodigy vs Adam)
 - right now it looks like the diffusion model gets partially "destroyed" in the beginning of training (outputs from steps 100-200 look terrible), 
 but it then recovers. Can we avoid this collapse? Is the learning rate too high?
 - offset noise
 - AB test Dora vs Lora
+
+Bugs:
+- pure textual inversion for SD15 does not seem to work well... (but it works amazingly well for SDXL...)
