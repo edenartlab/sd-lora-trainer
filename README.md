@@ -1,7 +1,8 @@
 # Trainer
 
-Code for finetuning and training LoRa modules on top of Stable Diffusion.
-Uses a single training script and loss module that works for both **SDv15** and **SDXL**!
+This trainer was developed by the [**Eden** team](https://eden.art/)
+It's a highly optimized trainer that can be used for both full finetuning and training LoRa modules on top of Stable Diffusion.
+It uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
 <p align="center">
   <strong>Training images:</strong><br>
