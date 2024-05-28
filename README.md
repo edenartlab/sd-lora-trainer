@@ -21,15 +21,17 @@ The trainer supports 3 default modes:
 
 ## Setup
 
-Install all dependencies using `pip install -r requirements.txt`
-and run:
-`python main.py -c training_args.json` to start a training job.
+Install all dependencies using 
+`pip install -r requirements.txt`
+then you can simply run:
+`python main.py -c training_args.json` 
+to start a training job.
 
-Adjust the arguments inside `training_args.json` accordingly.
+Adjust the arguments inside `training_args.json` to setup a custom training job.
 
 --- 
 
-You can also run this through cog as a docker image:
+You can also run this through Replicate using cog (~docker image):
 1. Install Replicate 'cog':
 
 ```
