@@ -4,6 +4,8 @@ This trainer was developed by the [**Eden** team](https://eden.art/)
 It's a highly optimized trainer that can be used for both full finetuning and training LoRa modules on top of Stable Diffusion.
 It uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
+The outputs of this trainer are fully compatible with ComfyUI and AUTO111.
+
 <p align="center">
   <strong>Training images:</strong><br>
   <img src="assets/xander_training_images.jpg" alt="Image 1" style="width:80%;"/>
