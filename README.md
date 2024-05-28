@@ -22,8 +22,11 @@ The trainer supports 3 default modes:
 ## Setup
 
 Install all dependencies using 
+
 `pip install -r requirements.txt`
+
 then you can simply run:
+
 `python main.py -c training_args.json` 
 to start a training job.
 
