@@ -18,7 +18,7 @@ aesthetic_score_best_model.pth
 
 # experiment folders:
 conditioning_spaces/
-xander*.sh
 training_args_x_*.json
-xander*
+xander_configs/
 debug/*
+
