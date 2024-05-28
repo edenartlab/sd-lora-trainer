@@ -35,11 +35,11 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "xander_adiff_lora"
+exp_name             = "grimes"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
-min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 3   # min_n_params that have to be different from any previous experiment to be scheduled
 
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
@@ -48,26 +48,26 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sd15"],
+    "sd_model_version": ["sd15", "sdxl"],
     "lora_training_urls": [
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip"
+        "/home/rednax/Documents/datasets/grimes"
 
     ],
     "concept_mode": ['face'],
     "seed": [0],
     "resolution": [512],
-    "train_batch_size": [4,6],
+    "train_batch_size": [4],
     "n_sample_imgs": [6],
     "max_train_steps": [400,800],
     "checkpointing_steps": [100],
     "gradient_accumulation_steps": [1],
 
-    "n_tokens": [1,2,3],
+    "n_tokens": [2],
     "ti_lr": [0.001,0.0005],
     "ti_weight_decay": [0.001,0.0],
     "l1_penalty": [0.0],
     "token_warmup_steps": [0,60],
-    "tok_cov_reg_w": [2000,0],
+    "tok_cov_reg_w": [2000],
     "cond_reg_w": [0.01e-5],
     "tok_cond_reg_w": [0.01e-5],
 

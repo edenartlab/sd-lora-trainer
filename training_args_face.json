@@ -1,10 +1,10 @@
 {
-    "output_dir": "lora_models/xander_sd15_default_lr",
-    "sd_model_version": "sd15",
-    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_big.zip",
+    "output_dir": "lora_models/grimes",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "/home/rednax/Documents/datasets/grimes",
     "concept_mode": "face",
-    "seed": 2,
-    "resolution": 640,
+    "seed": 1,
+    "resolution": 512,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
     "max_train_steps": 400,
@@ -25,7 +25,7 @@
     "unet_lr": 0.001,
     "lora_alpha_multiplier": 1.0,
     "lora_rank": 16,
-    "use_dora": true,
+    "use_dora": false,
     "caption_model": "gpt4-v",
     "debug": true
 }
