@@ -435,6 +435,7 @@ def train(
             
             if global_step % (config.max_train_steps//20) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
+                print_system_info()
                 print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
                 yield np.min((progress, 1.0))
 

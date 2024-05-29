@@ -87,6 +87,33 @@ def pick_best_gpu_id():
         print(f'Falling back to GPU 0')
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         return 0
+    
+
+import psutil
+def print_system_info():
+    try:
+        # Print GPU memory information
+        gpu_ids = [i for i in range(torch.cuda.device_count())]
+        for gpu_id in gpu_ids:
+            free_memory, total_memory = torch.cuda.mem_get_info(device=gpu_id)
+            print(f"GPU {gpu_id}: {free_memory // 1024 // 1024} of {total_memory // 1024 // 1024} Mb free")
+
+        # Print disk space information
+        disk_usage = psutil.disk_usage('/')
+        free_disk = disk_usage.free // (1024 * 1024)
+        percent_disk_used = disk_usage.percent
+        print(f"Free disk space: {free_disk} MB with {percent_disk_used}% used")
+
+        # Print RAM information
+        virtual_mem = psutil.virtual_memory()
+        current_ram = virtual_mem.used // (1024 * 1024)
+        percent_ram_used = virtual_mem.percent
+        print(f"Current used RAM: {current_ram} MB with {percent_ram_used}% used")
+    
+    except Exception as e:
+        print(f'Error in gathering system info: {str(e)}')
+
+    return
 
 
 def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1, max_val=1, ymax_f = 0.75, color = 'blue'):
