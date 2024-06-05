@@ -24,6 +24,7 @@ class Eden_LoRa_trainer:
         return {
             "required": {
                     "training_images_folder_path": ("STRING", {"default": "."}),
+                    "lora_name": ("STRING", {"default": ""}),
                     "sd_model_version": (["sdxl", "sd15"], ),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),
                     "resolution": ("INT", {"default": 512, "min": 256, "max": 768}),
@@ -42,6 +43,7 @@ class Eden_LoRa_trainer:
     FUNCTION = "train_lora"
 
     def train_lora(self, training_images_folder_path,
+            name = lora_name,
             concept_mode = "style",
             sd_model_version = "sdxl",
             seed = 0,
@@ -59,7 +61,7 @@ class Eden_LoRa_trainer:
 
         config = TrainingConfig(
             name="test",
-            lora_training_urls=folder,
+            lora_training_urls=training_images_folder_path,
             concept_mode=concept_mode,
             sd_model_version=sd_model_version,
             seed=seed,
@@ -77,17 +79,17 @@ class Eden_LoRa_trainer:
             debug=True,
         )
         
-        train_generator = train(config=config)
-
-        while True:
-            try:
-                progress_f = next(train_generator)
-            except StopIteration as e:
-                config, output_save_dir = e.value  # Capture the return value
-                break
+        with torch.inference_mode(False):
+            train_generator = train(config=config)
+            while True:
+                try:
+                    progress_f = next(train_generator)
+                except StopIteration as e:
+                    config, output_save_dir = e.value  # Capture the return value
+                    break
 
         validation_grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
-        out_path = f"{clean_filename(name)}_eden_concept_lora_{int(time.time())}.tar"
+        out_path = f"{clean_filename(lora_name)}_eden_concept_lora_{int(time.time())}.tar"
         directory = cogPath(output_save_dir)
 
         with tarfile.open(out_path, "w") as tar:
