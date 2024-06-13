@@ -368,7 +368,7 @@ def train(
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > -1:
+            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
                 
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)

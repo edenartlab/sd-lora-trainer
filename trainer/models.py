@@ -6,20 +6,14 @@ from diffusers import AutoencoderKL, DDPMScheduler, EulerDiscreteScheduler, UNet
 
 ############################################################################################################
 
-#SDXL_MODEL_CACHE = "./models/juggernaut_v6.safetensors"
-#SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors"
+SDXL_MODEL_CACHE = "./models/juggernaut_v6.safetensors"
+SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors"
 
-SDXL_MODEL_CACHE = "./models/sd_xl_base_1.0_0.9vae.safetensors"
-SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/sd_xl_base_1.0_0.9vae.safetensors"
-
-#SDXL_MODEL_CACHE = "./models/Juggernaut-X-RunDiffusion-NSFW.safetensors"
-#SDXL_URL         = "https://huggingface.co/RunDiffusion/Juggernaut-X-v10/resolve/main/Juggernaut-X-RunDiffusion-NSFW.safetensors"
+#SDXL_MODEL_CACHE = "./models/sd_xl_base_1.0_0.9vae.safetensors"
+#SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/comfyui/models2/checkpoints/sd_xl_base_1.0_0.9vae.safetensors"
 
 SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
 SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
-
-#SD15_MODEL_CACHE = "./models/DreamShaper_6.31_BakedVae.safetensors"
-#SD15_URL         = "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_6.31_BakedVae.safetensors"
 
 #SD15_MODEL_CACHE = "./models/photon_v1.safetensors"
 #SD15_URL         = "https://civitai.com/api/download/models/90072"
