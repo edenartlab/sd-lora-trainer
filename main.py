@@ -12,7 +12,6 @@ import torch
 import torch.utils.checkpoint
 from tqdm import tqdm
 
-import prodigyopt
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 #from diffusers.training_utils import cast_training_params
 

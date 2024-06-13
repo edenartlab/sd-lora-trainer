@@ -35,6 +35,39 @@ def get_unet_optimizer(
     print(f"Created {optimizer_name} optimizer for unet!")
     return optimizer_unet
 
+# Taken (and slightly modified) from B-LoRA repo https://github.com/yardenfren1996/B-LoRA/blob/main/blora_utils.py
+def is_belong_to_blocks(key, blocks):
+    try:
+        for g in blocks:
+            if g in key:
+                return True
+        return False
+    except Exception as e:
+        raise type(e)(f"failed to is_belong_to_block, due to: {e}")
+    
+def get_unet_lora_target_modules(unet, use_blora, target_blocks=None):
+    if use_blora:
+        content_b_lora_blocks = "unet.up_blocks.0.attentions.0"
+        style_b_lora_blocks = "unet.up_blocks.0.attentions.1"
+        target_blocks = [content_b_lora_blocks, style_b_lora_blocks]
+    try:
+        blocks = [(".").join(blk.split(".")[1:]) for blk in target_blocks]
+
+        attns = [
+            attn_processor_name.rsplit(".", 1)[0]
+            for attn_processor_name, _ in unet.attn_processors.items()
+            if is_belong_to_blocks(attn_processor_name, blocks)
+        ]
+
+        target_modules = [f"{attn}.{mat}" for mat in ["to_k", "to_q", "to_v", "to_out.0", "conv2"] for attn in attns]
+        return target_modules
+    except Exception as e:
+        raise type(e)(
+            f"failed to get_target_modules, due to: {e}. "
+            f"Please check the modules specified in --lora_unet_blocks are correct"
+        )
+
+
 def get_unet_lora_parameters(
     lora_rank,
     lora_alpha_multiplier: float,
@@ -43,12 +76,15 @@ def get_unet_lora_parameters(
     unet,
     pipe,
 ):
+    
+    #target_modules = get_unet_lora_target_modules(unet, use_blora=True)
+    target_modules = ["to_k", "to_q", "to_v", "to_out.0", "conv2"]
+
     unet_lora_config = LoraConfig(
         r=lora_rank,
         lora_alpha=lora_rank * lora_alpha_multiplier,
         init_lora_weights="gaussian",
-        target_modules=["to_k", "to_q", "to_v", "to_out.0", "conv2"],
-        #target_modules=["conv1", "conv2", "norm1", "norm2", "proj_in"],  # TODO grid-search params for sd15
+        target_modules=target_modules,
         use_dora=use_dora,
     )
 

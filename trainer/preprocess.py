@@ -777,7 +777,10 @@ def load_and_save_masks_and_captions(
 
     # Cleanup prompts using chatgpt:
     captions = [fix_prompt(caption) for caption in captions]
-    captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
+    trigger_text = ""
+    gpt_concept_description = None
+    if not config.remove_ti_token_from_prompts:
+        captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
 
     aug_imgs, aug_caps = [],[]
     # if we still have a very small amount of imgs, do some basic augmentation:
@@ -854,12 +857,7 @@ def load_and_save_masks_and_captions(
             os.remove(os.path.join(output_dir, file))
 
     os.makedirs(output_dir, exist_ok=True)
-
-    # Make sure we've correctly inserted the TOK into every caption:
-    captions = ["TOK, " + caption if "TOK" not in caption else caption for caption in captions]
-    for caption in captions:
-        print(caption)
-
+    
     if config.remove_ti_token_from_prompts:
         print('------------------ WARNING -------------------')
         print("Removing 'TOK, ' from captions...")
@@ -871,6 +869,12 @@ def load_and_save_masks_and_captions(
             replace_str = ""
         captions = [caption.replace("TOK, ", replace_str + ", ") for caption in captions]
         captions = [caption.replace("TOK", replace_str) for caption in captions]
+    else:
+        captions = ["TOK, " + caption if "TOK" not in caption else caption for caption in captions]
+
+    print("Final captions:")
+    for caption in captions:
+        print(caption)
 
     # iterate through the images, masks, and captions and add a row to the dataframe for each
     print("Saving final training dataset...")
