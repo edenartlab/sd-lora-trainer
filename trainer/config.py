@@ -11,7 +11,7 @@ class TrainingConfig(BaseModel):
     concept_mode: Literal["face", "style", "object"]
     caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
     caption_model: Literal["gpt4-v", "blip"] = "blip"
-    sd_model_version: Literal["sdxl", "sd15"]
+    sd_model_version: Literal["sdxl", "sd15", "sd3"]
     pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 512

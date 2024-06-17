@@ -9,6 +9,7 @@ from typing import List, Optional, Dict
 from safetensors.torch import save_file, safe_open
 import matplotlib.pyplot as plt
 from trainer.utils.utils import seed_everything, plot_torch_hist, plot_loss
+from transformers import T5EncoderModel
 
 class TokenEmbeddingsHandler:
     def __init__(self, text_encoders, tokenizers):
@@ -31,7 +32,10 @@ class TokenEmbeddingsHandler:
                 continue
             
             # Directly accessing and modifying the original weights tensor
-            text_encoder.text_model.embeddings.token_embedding.weight.requires_grad_(True)
+            if isinstance(text_encoder, T5EncoderModel):
+                text_encoder.encoder.embed_tokens.weight.requires_grad_(True)
+            else:
+                text_encoder.text_model.embeddings.token_embedding.weight.requires_grad_(True)
             print(f"All embeddings in text_encoder_{idx} are now set to be trainable.")
 
     def get_trainable_embeddings(self):
@@ -192,9 +196,19 @@ class TokenEmbeddingsHandler:
             self.non_train_ids = all_indices[inu]
 
             # random initialization of new tokens
-            std_token_embedding = (
-                text_encoder.text_model.embeddings.token_embedding.weight.data.std(dim=1).mean()
-            )
+            """
+            handle both T5EncoderModel and other text encoders
+
+            T5EncoderModel is present in sd3
+            """
+            if isinstance(text_encoder, T5EncoderModel):
+                std_token_embedding = (
+                    text_encoder.encoder.embed_tokens.weight.data.std(dim=1).mean()
+                )
+            else:
+                std_token_embedding = (
+                    text_encoder.text_model.embeddings.token_embedding.weight.data.std(dim=1).mean()
+                )
             self.embeddings_settings[f"std_token_embedding_{idx}"] = std_token_embedding
 
             if starting_toks is not None:
@@ -207,14 +221,28 @@ class TokenEmbeddingsHandler:
                     self.train_ids] = text_encoder.text_model.embeddings.token_embedding.weight.data[self.starting_ids].clone()
             else:
                 std_multiplier = 1.0
-                init_embeddings = torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype)
+
+                if isinstance(text_encoder, T5EncoderModel):
+                    init_embeddings = torch.randn(len(self.train_ids), text_encoder.config.hidden_size).to(device=self.device).to(dtype=self.dtype)
+                else:
+                    init_embeddings = torch.randn(len(self.train_ids), text_encoder.text_model.config.hidden_size).to(device=self.device).to(dtype=self.dtype)
+
                 current_std = init_embeddings.std(dim=1).mean()
                 init_embeddings = init_embeddings * std_multiplier * std_token_embedding / current_std
-                text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids] = init_embeddings.clone()
 
-            self.embeddings_settings[
-                f"original_embeddings_{idx}"
-            ] = text_encoder.text_model.embeddings.token_embedding.weight.data.clone()
+                if isinstance(text_encoder, T5EncoderModel):
+                    text_encoder.encoder.embed_tokens.weight.data[self.train_ids] = init_embeddings.clone()
+                else:
+                    text_encoder.text_model.embeddings.token_embedding.weight.data[self.train_ids] = init_embeddings.clone()
+
+            if isinstance(text_encoder, T5EncoderModel):
+                self.embeddings_settings[
+                    f"original_embeddings_{idx}"
+                ] = text_encoder.encoder.embed_tokens.weight.data.clone()
+            else:
+                self.embeddings_settings[
+                    f"original_embeddings_{idx}"
+                ] = text_encoder.text_model.embeddings.token_embedding.weight.data.clone()
 
             inu = torch.ones((len(tokenizer),), dtype=torch.bool)
             inu[self.train_ids] = False

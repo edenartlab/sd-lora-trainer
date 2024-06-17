@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
 from trainer.inference import get_conditioning_signals
+from transformers import T5EncoderModel
 
 def compute_snr(noise_scheduler, timesteps):
     """
@@ -104,7 +105,14 @@ class ConditioningRegularizer:
     def __init__(self, config, embedding_handler):
         self.config = config
         self.embedding_handler = embedding_handler
-        self.target_norm = 34.5 if config.sd_model_version == 'sdxl' else 27.8
+        self.target_norms = {
+            "sdxl": 34.5,
+            "sd15": 27.8,
+            "sd3": 34.5
+        }
+        print(f'\033[91m[trainer.loss.ConditioningRegularizer] WARNING: Using a magic number: 34.5 for the target norm of sd3. We do not know if this is the ideal value. This might cause bugs or even break training completely.\033[0m')
+
+        self.target_norm = self.target_norms[config.sd_model_version]
         self.reg_captions = ["a photo of TOK", "TOK", "a photo of TOK next to TOK", "TOK and TOK"]
         self.token_replacement = config.token_dict.get("TOK", "TOK")  # Fallback to "TOK" if not in dict
 
@@ -114,7 +122,11 @@ class ConditioningRegularizer:
             if tokenizer is None:
                 idx += 1
                 continue
-            pretrained_token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data
+
+            if isinstance(text_encoder,  T5EncoderModel):
+                pretrained_token_embeddings =  text_encoder.encoder.embed_tokens.weight.data
+            else:
+                pretrained_token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight.data
             self.distribution_regularizers[f'txt_encoder_{idx}'] = DistributionLoss(pretrained_token_embeddings, outdir = self.config.output_dir if config.debug else None)
             idx += 1
 
