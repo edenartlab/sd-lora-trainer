@@ -28,6 +28,9 @@ from diffusers import (
 
 ## shared components with the other trainer (sdxl/sd15)
 from trainer.embedding_handler import TokenEmbeddingsHandler
+from trainer.loss import (
+    ConditioningRegularizer
+)
 
 def load_sd3_tokenizers():
     # Load the tokenizers
@@ -177,14 +180,36 @@ def main():
     # initialize token embedding handler
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
-        text_encoders = [text_encoder_one, text_encoder_two], 
-        tokenizers = [tokenizer_one, tokenizer_two]
+        text_encoders = [text_encoder_one, text_encoder_two, text_encoder_three], 
+        tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
     )
 
     embedding_handler.initialize_new_tokens(
         inserting_toks=["<s0>","<s1>"],
         starting_toks=None, 
         seed=0
+    )
+    # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
+
+    from trainer.config import TrainingConfig
+    config= TrainingConfig(
+        lora_training_urls = "none",
+        concept_mode = "object",
+        sd_model_version = "sd3",
+        training_attributes = {
+            "gpt_description": "A banana with a face"
+        },
+        token_warmup_steps = 0
+    )
+
+    embedding_handler.make_embeddings_trainable()
+    embedding_handler.token_regularizer = ConditioningRegularizer(
+        config, 
+        embedding_handler
+    )
+    embedding_handler.pre_optimize_token_embeddings(
+        config, 
+        pipe = pipeline
     )
 
 if __name__ == "__main__":
