@@ -631,5 +631,5 @@ if __name__ == "__main__":
     main(config=config, wandb_log=args.wandb_log)
 
 """
-python3 main_sd3.py training_args_banny.json
+python3 main_sd3.py training_args_banny.json  --wandb-log
 """
