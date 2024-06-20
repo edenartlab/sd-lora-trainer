@@ -241,18 +241,6 @@ def main(config: TrainingConfig):
     )
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
 
-    
-    # config= TrainingConfig(
-    #     lora_training_urls = "none",
-    #     concept_mode = "object",
-    #     sd_model_version = "sd3",
-    #     training_attributes = {
-    #         "gpt_description": "A banana with a face"
-    #     },
-    #     token_warmup_steps = 0,
-    #     is_lora = True,
-    #     lora_rank = 4
-    # )
     """
     override some config params because we're recycling an sdxl config here
     """
