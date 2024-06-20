@@ -10,7 +10,7 @@ todos:
 [x] - init new tokens: ["<s0>","<s1>"]
 [] - [optional] init lora params for text encoders
 [x] - get textual inversion params and it's corresponding optimizer
-[] - either do full finetuning of unet or init lora params
+[x] - either do full finetuning of transformer or init lora params
 [] - init PreprocessedDataset object
 [] - init OptimizerCollection containing all optimizers
 [] - [debug step] visualize a random token embedding
@@ -39,6 +39,8 @@ from trainer.optimizer import (
     get_unet_lora_parameters,
     get_unet_optimizer
 )
+from trainer.optimizer import count_trainable_params
+from peft import LoraConfig, get_peft_model
 
 def load_sd3_tokenizers():
     # Load the tokenizers
@@ -208,7 +210,9 @@ def main():
         training_attributes = {
             "gpt_description": "A banana with a face"
         },
-        token_warmup_steps = 0
+        token_warmup_steps = 0,
+        is_lora = True,
+        lora_rank = 4
     )
 
     embedding_handler.make_embeddings_trainable()
@@ -230,6 +234,27 @@ def main():
         textual_inversion_weight_decay=config.ti_weight_decay,
         optimizer_name=config.ti_optimizer ## hardcoded
     )
+
+    # either go full finetuning or lora on transformer
+    if not config.is_lora: # This code pathway has not been tested in a long while
+        print(f"Doing full fine-tuning on the U-Net")
+        transformer.requires_grad_(True)
+        transformer_trainable_params = transformer.parameters()
+    else:
+        transformer_lora_config = LoraConfig(
+            r=config.lora_rank,
+            lora_alpha=config.lora_rank,
+            init_lora_weights="gaussian",
+            target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+        )
+        transformer = get_peft_model(model = transformer, peft_config = transformer_lora_config)
+        transformer_trainable_params = [
+            x for x in transformer.parameters() if x.requires_grad
+        ]
+    
+    print(f"config.is_lora: {config.is_lora} params: {count_trainable_params(transformer)}")
+    
+    
 
 if __name__ == "__main__":
     main()
