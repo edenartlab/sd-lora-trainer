@@ -385,7 +385,7 @@ def main(config: TrainingConfig, wandb_log = False):
     """
     config.is_lora = True
     config.token_warmup_steps = 0
-    config.lora_rank = 4
+    config.lora_rank = 8
     config.sd_model_version = "sd3"
     weighting_scheme = "sigma_sqrt"
 
