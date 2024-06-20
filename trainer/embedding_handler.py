@@ -53,10 +53,22 @@ class TokenEmbeddingsHandler:
                 continue
 
             # Ensure indices are a tensor. Use pre-existing dtype and device to match the model's.
-            indices_tensor = torch.tensor(indices, dtype=torch.long, device=text_encoder.text_model.embeddings.token_embedding.weight.device)
+            if isinstance(text_encoder, T5EncoderModel):
+                indices_tensor = torch.tensor(
+                    indices, 
+                    dtype=torch.long, 
+                    device=text_encoder.encoder.embed_tokens.weight.device
+                )
 
-            # Directly access the embedding weights without detaching
-            token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight[indices_tensor]
+                # Directly access the embedding weights without detaching
+                token_embeddings = text_encoder.encoder.embed_tokens.weight[indices_tensor]
+
+            else:
+                indices_tensor = torch.tensor(indices, dtype=torch.long, device=text_encoder.text_model.embeddings.token_embedding.weight.device)
+
+                # Directly access the embedding weights without detaching
+                token_embeddings = text_encoder.text_model.embeddings.token_embedding.weight[indices_tensor]
+
             embeddings[f'txt_encoder_{idx}'] = token_embeddings
 
             # Get all corresponding tokens for these embeddings
