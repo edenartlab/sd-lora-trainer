@@ -21,7 +21,7 @@ todos:
     - [] [optional] update learning rate based if not using the prodigy optimizer
     - [x] get either training batch (bucketed or not)
     - [x] training loop without forward or backward pass
-    - [] denoising step from sd3 trainig code
+    - [] denoising step from sd3 training code
     - [] loss go down
 [] - Save checkpoint during and after training
 """
