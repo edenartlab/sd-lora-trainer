@@ -6,6 +6,7 @@ import PIL
 from PIL import Image
 from torch.utils.data import Dataset
 from typing import Tuple, Dict, List
+from tqdm import tqdm
 
 def prepare_image(
     pil_image: PIL.Image.Image, w: int = 512, h: int = 512, pipe=None,
@@ -68,7 +69,7 @@ class PreprocessedDataset(Dataset):
             self.masks = []
             self.do_cache = True
 
-            for idx in range(len(self.data)):
+            for idx in tqdm(range(len(self.data))):
                 if len(self.data) < 25:
                     print(self.captions[idx])
                 vae_latent, mask = self._process(idx)
