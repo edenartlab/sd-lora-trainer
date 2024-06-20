@@ -25,7 +25,7 @@ todos:
     - [] loss go down
 [] - Save checkpoint during and after training
 """
-import os
+import math
 import copy
 from transformers import (
     CLIPTokenizer, T5TokenizerFast, PretrainedConfig
@@ -204,7 +204,134 @@ def get_transformer_optimizer(
     print(f"Created {optimizer_name} optimizer for transformer!")
     return optimizer
 
+def get_sigmas(timesteps, noise_scheduler, device, n_dim=4, dtype=torch.float32):
+    sigmas = noise_scheduler.sigmas.to(device=device, dtype=dtype)
+    schedule_timesteps = noise_scheduler.timesteps.to(device)
+    timesteps = timesteps.to(device)
+    step_indices = [(schedule_timesteps == t).nonzero().item() for t in timesteps]
+
+    sigma = sigmas[step_indices].flatten()
+    while len(sigma.shape) < n_dim:
+        sigma = sigma.unsqueeze(-1)
+    return sigma
+
+def _encode_prompt_with_t5(
+    text_encoder,
+    tokenizer,
+    prompt=None,
+    num_images_per_prompt=1,
+    device=None,
+):
+    prompt = [prompt] if isinstance(prompt, str) else prompt
+    batch_size = len(prompt)
+
+    text_inputs = tokenizer(
+        prompt,
+        padding="max_length",
+        max_length=77,
+        truncation=True,
+        add_special_tokens=True,
+        return_tensors="pt",
+    )
+    text_input_ids = text_inputs.input_ids
+    prompt_embeds = text_encoder(text_input_ids.to(device))[0]
+
+    dtype = text_encoder.dtype
+    prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
+
+    _, seq_len, _ = prompt_embeds.shape
+
+    # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
+    prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
+    prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
+
+    return prompt_embeds
+
+
+def _encode_prompt_with_clip(
+    text_encoder,
+    tokenizer,
+    prompt: str,
+    device=None,
+    num_images_per_prompt: int = 1,
+):
+    prompt = [prompt] if isinstance(prompt, str) else prompt
+    batch_size = len(prompt)
+
+    text_inputs = tokenizer(
+        prompt,
+        padding="max_length",
+        max_length=77,
+        truncation=True,
+        return_tensors="pt",
+    )
+
+    text_input_ids = text_inputs.input_ids
+    prompt_embeds = text_encoder(text_input_ids.to(device), output_hidden_states=True)
+
+    pooled_prompt_embeds = prompt_embeds[0]
+    prompt_embeds = prompt_embeds.hidden_states[-2]
+    prompt_embeds = prompt_embeds.to(dtype=text_encoder.dtype, device=device)
+
+    _, seq_len, _ = prompt_embeds.shape
+    # duplicate text embeddings for each generation per prompt, using mps friendly method
+    prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
+    prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
+
+    return prompt_embeds, pooled_prompt_embeds
+
+def encode_prompt(
+    text_encoders,
+    tokenizers,
+    prompt: str,
+    device=None,
+    num_images_per_prompt: int = 1,
+):
+    prompt = [prompt] if isinstance(prompt, str) else prompt
+
+    clip_tokenizers = tokenizers[:2]
+    clip_text_encoders = text_encoders[:2]
+
+    clip_prompt_embeds_list = []
+    clip_pooled_prompt_embeds_list = []
+    for tokenizer, text_encoder in zip(clip_tokenizers, clip_text_encoders):
+        prompt_embeds, pooled_prompt_embeds = _encode_prompt_with_clip(
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
+            prompt=prompt,
+            device=device if device is not None else text_encoder.device,
+            num_images_per_prompt=num_images_per_prompt,
+        )
+        clip_prompt_embeds_list.append(prompt_embeds)
+        clip_pooled_prompt_embeds_list.append(pooled_prompt_embeds)
+
+    clip_prompt_embeds = torch.cat(clip_prompt_embeds_list, dim=-1)
+    pooled_prompt_embeds = torch.cat(clip_pooled_prompt_embeds_list, dim=-1)
+
+    t5_prompt_embed = _encode_prompt_with_t5(
+        text_encoders[-1],
+        tokenizers[-1],
+        prompt=prompt,
+        num_images_per_prompt=num_images_per_prompt,
+        device=device if device is not None else text_encoders[-1].device,
+    )
+
+    clip_prompt_embeds = torch.nn.functional.pad(
+        clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
+    )
+    prompt_embeds = torch.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
+
+    return prompt_embeds, pooled_prompt_embeds
+
+def compute_text_embeddings(prompt, text_encoders, tokenizers, device):
+    with torch.no_grad():
+        prompt_embeds, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt)
+        prompt_embeds = prompt_embeds.to(device)
+        pooled_prompt_embeds = pooled_prompt_embeds.to(device)
+    return prompt_embeds, pooled_prompt_embeds
+
 def main(config: TrainingConfig):
+    device = "cuda:0"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     
@@ -219,7 +346,7 @@ def main(config: TrainingConfig):
     noise_scheduler = load_sd3_noise_scheduler()
 
     # 4. extract transformer
-    transformer = load_sd3_transformer()
+    transformer = load_sd3_transformer().to(device)
 
     # 5. load vae
     vae = load_sd3_vae()
@@ -257,6 +384,7 @@ def main(config: TrainingConfig):
     config.token_warmup_steps = 0
     config.lora_rank = 4
     config.sd_model_version = "sd3"
+    weighting_scheme = "sigma_sqrt"
 
     config, input_dir = preprocess(
         config,
@@ -368,7 +496,56 @@ def main(config: TrainingConfig):
             else:
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
-            
+            model_input = vae_latent
+            prompts = captions
+            prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+                prompt = prompts, 
+                text_encoders = text_encoders, 
+                tokenizers = [
+                    tokenizer_one, tokenizer_two, tokenizer_three
+                ],
+                device=device
+            )
+            # Sample noise that we'll add to the latents
+            noise = torch.randn_like(model_input)
+            bsz = model_input.shape[0]
+
+            # Sample a random timestep for each image
+            """
+            https://github.com/huggingface/diffusers/pull/8528/files#diff-e9278acb04a0c99638275caa05ddbbe608ad5115f053fcb78d794251b4fdc560
+            """
+            # indices = torch.randint(0, noise_scheduler_copy.config.num_train_timesteps, (bsz,))
+            # for weighting schemes where we sample timesteps non-uniformly
+            if weighting_scheme == "logit_normal":
+                # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
+                u = torch.normal(mean=args.logit_mean, std=args.logit_std, size=(bsz,), device="cpu")
+                u = torch.nn.functional.sigmoid(u)
+            elif weighting_scheme == "mode":
+                u = torch.rand(size=(bsz,), device="cpu")
+                u = 1 - u - args.mode_scale * (torch.cos(math.pi * u / 2) ** 2 - 1 + u)
+            else:
+                u = torch.rand(size=(bsz,), device="cpu")
+
+            indices = (u * noise_scheduler.config.num_train_timesteps).long()
+            timesteps = noise_scheduler.timesteps[indices].to(device=model_input.device)
+
+            # Add noise according to flow matching.
+            sigmas = get_sigmas(
+                timesteps=timesteps,
+                noise_scheduler=noise_scheduler,
+                device = device,
+                n_dim=model_input.ndim, 
+                dtype=model_input.dtype
+            )
+            noisy_model_input = sigmas * noise.to(sigmas.device) + (1.0 - sigmas) * model_input.to(sigmas.device)
+            # Predict the noise residual
+            model_pred = transformer(
+                hidden_states=noisy_model_input.to(device),
+                timestep=timesteps.to(device),
+                encoder_hidden_states=prompt_embeds.to(device),
+                pooled_projections=pooled_prompt_embeds.to(device),
+                return_dict=False,
+            )[0]
             ## do forward pass
             ## do backward pass
             ## optimizer step
