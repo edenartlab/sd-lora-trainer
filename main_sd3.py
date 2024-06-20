@@ -8,22 +8,23 @@ todos:
     - [x] noise scheduler
 [x] - initial token embeddings handler with their respective tokenizers
 [x] - init new tokens: ["<s0>","<s1>"]
-[] - [optional] init lora params for text encoders
+[] - [later] init lora params for text encoders
 [x] - get textual inversion params and it's corresponding optimizer
 [x] - either do full finetuning of transformer or init lora params
 [x] - init optimizer for transformer trainable parameters
 [x] - init PreprocessedDataset object
-[] - [optional] init OptimizerCollection containing all optimizers
+[] - [later] init OptimizerCollection containing all optimizers
 [] - [debug step] visualize a random token embedding
 [] - do training
     - [x] init train dataloader
-    - [] [optional] aspect ratio bucketed batch
-    - [] [optional] update learning rate based if not using the prodigy optimizer
+    - [] [later] aspect ratio bucketed batch
+    - [] [later] update learning rate based if not using the prodigy optimizer
     - [x] get either training batch (bucketed or not)
     - [x] training loop without forward or backward pass
     - [x] denoising step from sd3 training code
-    - [] clip grad norms after loss backward
-    - [] loss go down
+    - [] [later] clip grad norms after loss backward
+    - [x] wandb log loss
+    - [x] loss go down
 [] - Save checkpoint during and after training
 """
 import math
@@ -60,6 +61,7 @@ from trainer.dataset import PreprocessedDataset
 import argparse
 from trainer.config import TrainingConfig
 from tqdm import tqdm
+import wandb
 
 def load_sd3_tokenizers():
     # Load the tokenizers
@@ -331,7 +333,7 @@ def compute_text_embeddings(prompt, text_encoders, tokenizers, device):
         pooled_prompt_embeds = pooled_prompt_embeds.to(device)
     return prompt_embeds, pooled_prompt_embeds
 
-def main(config: TrainingConfig):
+def main(config: TrainingConfig, wandb_log = False):
     device = "cuda:0"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
@@ -486,6 +488,11 @@ def main(config: TrainingConfig):
         desc = "Training model"
     )
 
+    if wandb_log:
+        wandb.init(
+            project = "eden-concept-trainer-sd3",
+            config = config.dict()
+        )
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
             train_dataset.bucket_manager.start_epoch()
@@ -589,9 +596,18 @@ def main(config: TrainingConfig):
 
             progress_bar.set_postfix(
                 {
-                    "loss": {round(loss.item(), 6)}
+                    "loss": round(loss.item(), 6)
                 }
             )
+
+            if wandb_log:
+                wandb.log(
+                    {
+                        "loss": loss.item(),
+                        "global_step": global_step
+                    }
+                )
+
             global_step += 1
             if global_step > config.max_train_steps:
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
@@ -604,9 +620,14 @@ def main(config: TrainingConfig):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
     parser.add_argument('config_filename', type=str, help='Input JSON configuration file')
+    parser.add_argument(
+        '--wandb-log', 
+        action="store_true", 
+        help='enable this arg if you want to log losses to wandb'
+    )
     args = parser.parse_args()
     config = TrainingConfig.from_json(file_path=args.config_filename)
-    main(config=config)
+    main(config=config, wandb_log=args.wandb_log)
 
 """
 python3 main_sd3.py training_args_banny.json
