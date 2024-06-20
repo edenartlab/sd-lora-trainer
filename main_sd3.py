@@ -17,9 +17,12 @@ todos:
 [] - [debug step] visualize a random token embedding
 [] - do training
     - [x] init train dataloader
-    - [] at the start of each epoch, update the aspect ratio bucketing thingy
+    - [] [optional] aspect ratio bucketed batch
     - [] [optional] update learning rate based if not using the prodigy optimizer
-    - [] get either normal or aspect ratio bucketed batch
+    - [x] get either training batch (bucketed or not)
+    - [x] training loop without forward or backward pass
+    - [] denoising step from sd3 trainig code
+    - [] loss go down
 [] - Save checkpoint during and after training
 """
 import os
@@ -55,7 +58,7 @@ from trainer.preprocess import preprocess
 from trainer.dataset import PreprocessedDataset
 import argparse
 from trainer.config import TrainingConfig
-
+from tqdm import tqdm
 
 def load_sd3_tokenizers():
     # Load the tokenizers
@@ -341,6 +344,43 @@ def main(config: TrainingConfig):
         shuffle=True,
         num_workers=config.dataloader_num_workers,
     )
+    global_step = 0
+    num_train_steps = min(
+        len(train_dataloader) * config.num_train_epochs,
+        config.max_train_steps
+    )
+    print(f'Will train for {num_train_steps} steps')
+    progress_bar = tqdm(range(global_step, num_train_steps), position=0, leave=True)
+    for epoch in range(config.num_train_epochs):
+        if config.aspect_ratio_bucketing:
+            train_dataset.bucket_manager.start_epoch()
+        progress_bar.set_description(f"# Trainer step: {global_step}, epoch: {epoch}")
+
+        for step, batch in enumerate(train_dataloader):
+            progress_bar.update(1)
+            finegrained_epoch = epoch + step / len(train_dataloader)
+            completion_f = finegrained_epoch / config.num_train_epochs
+
+            ## TODO: custom LR scaling based on optimizer
+
+            if not config.aspect_ratio_bucketing:
+                captions, vae_latent, mask = batch
+            else:
+                captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
+
+            
+            ## do forward pass
+            ## do backward pass
+            ## optimizer step
+
+            global_step += 1
+            if global_step > config.max_train_steps:
+                print(f"Reached max steps ({config.max_train_steps}), stopping training!")
+                break
+        
+        if global_step > config.max_train_steps:
+            print("Reached max steps, stopping training!")
+            break
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
