@@ -21,7 +21,8 @@ todos:
     - [] [optional] update learning rate based if not using the prodigy optimizer
     - [x] get either training batch (bucketed or not)
     - [x] training loop without forward or backward pass
-    - [] denoising step from sd3 training code
+    - [x] denoising step from sd3 training code
+    - [] clip grad norms after loss backward
     - [] loss go down
 [] - Save checkpoint during and after training
 """
@@ -478,7 +479,13 @@ def main(config: TrainingConfig):
         config.max_train_steps
     )
     print(f'Will train for {num_train_steps} steps')
-    progress_bar = tqdm(range(global_step, num_train_steps), position=0, leave=True)
+    progress_bar = tqdm(
+        range(global_step, num_train_steps), 
+        position=0, 
+        leave=True, 
+        desc = "Training model"
+    )
+
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
             train_dataset.bucket_manager.start_epoch()
@@ -546,10 +553,45 @@ def main(config: TrainingConfig):
                 pooled_projections=pooled_prompt_embeds.to(device),
                 return_dict=False,
             )[0]
-            ## do forward pass
-            ## do backward pass
-            ## optimizer step
+            model_pred = model_pred * (-sigmas) + noisy_model_input
 
+            # TODO (kashif, sayakpaul): weighting sceme needs to be experimented with :)
+            if weighting_scheme == "sigma_sqrt":
+                weighting = (sigmas**-2.0).float()
+            elif weighting_scheme == "logit_normal":
+                # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
+                u = torch.normal(mean=args.logit_mean, std=args.logit_std, size=(bsz,), device=device)
+                weighting = torch.nn.functional.sigmoid(u)
+            elif weighting_scheme == "mode":
+                # See sec 3.1 in the SD3 paper (20).
+                u = torch.rand(size=(bsz,), device=device)
+                weighting = 1 - u - args.mode_scale * (torch.cos(math.pi * u / 2) ** 2 - 1 + u)
+
+            # simplified flow matching aka 0-rectified flow matching loss
+            # target = model_input - noise
+            target = model_input
+
+            # Compute regular loss.
+            loss = torch.mean(
+                (weighting.float().to(model_pred.device) * (model_pred.float() - target.float().to(model_pred.device)) ** 2).reshape(target.shape[0], -1),
+                1,
+            )
+            loss = loss.mean()
+
+            loss.backward()
+            # TODO: clip gradient norms
+            
+            optimizer_transformer.step()
+            optimizer_ti.step()
+
+            optimizer_transformer.zero_grad()
+            optimizer_ti.zero_grad()
+
+            progress_bar.set_postfix(
+                {
+                    "loss": {round(loss.item(), 6)}
+                }
+            )
             global_step += 1
             if global_step > config.max_train_steps:
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
