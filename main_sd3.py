@@ -13,10 +13,16 @@ todos:
 [x] - either do full finetuning of transformer or init lora params
 [x] - init optimizer for transformer trainable parameters
 [x] - init PreprocessedDataset object
-[] - init OptimizerCollection containing all optimizers
+[] - [optional] init OptimizerCollection containing all optimizers
 [] - [debug step] visualize a random token embedding
-[] - do training. Save checkpoint during and after training
+[] - do training
+    - [x] init train dataloader
+    - [] at the start of each epoch, update the aspect ratio bucketing thingy
+    - [] [optional] update learning rate based if not using the prodigy optimizer
+    - [] get either normal or aspect ratio bucketed batch
+[] - Save checkpoint during and after training
 """
+import os
 import copy
 from transformers import (
     CLIPTokenizer, T5TokenizerFast, PretrainedConfig
@@ -325,9 +331,24 @@ def main(config: TrainingConfig):
         train_batch_size=config.train_batch_size
     )
     print(f"train_dataset contains: {len(train_dataset)} samples")
+
+    ## not working right now because the number of tokens in tokenizers[0] does not match the number of tokens in the other tokenizers. Need to fix later in needed.
+    # embedding_handler.visualize_random_token_embeddings(os.path.join(config.output_dir, 'ti_embeddings'), n = 10)
+
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=config.train_batch_size,
+        shuffle=True,
+        num_workers=config.dataloader_num_workers,
+    )
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
     parser.add_argument('config_filename', type=str, help='Input JSON configuration file')
     args = parser.parse_args()
     config = TrainingConfig.from_json(file_path=args.config_filename)
     main(config=config)
+
+"""
+python3 main_sd3.py training_args_banny.json
+"""
