@@ -26,6 +26,7 @@ todos:
     - [x] wandb log loss
     - [x] loss go down
 [] - Save checkpoint during and after training
+[] - inference + visualize examples
 """
 import math
 import copy
