@@ -3,6 +3,11 @@ import torch
 import prodigyopt
 from typing import Iterable
 
+def count_trainable_params(model):
+    return sum([
+        x.numel() for x in model.parameters() if x.requires_grad
+    ])
+    
 def get_unet_optimizer(
     prodigy_d_coef: float,
     prodigy_growth_factor: float,
