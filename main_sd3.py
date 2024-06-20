@@ -1,14 +1,15 @@
 """
 todos:
-[] - load pretrained:
+[x] - load pretrained:
     - [x] pipe
     - [x] tokenizers
     - [x] unet
     - [x] vae
     - [x] noise scheduler
 [x] - initial token embeddings handler with their respective tokenizers
+[x] - init new tokens: ["<s0>","<s1>"]
 [] - [optional] init lora params for text encoders
-[] - get textual inversion params and it's corresponding optimizer
+[x] - get textual inversion params and it's corresponding optimizer
 [] - either do full finetuning of unet or init lora params
 [] - init PreprocessedDataset object
 [] - init OptimizerCollection containing all optimizers
@@ -30,6 +31,13 @@ from diffusers import (
 from trainer.embedding_handler import TokenEmbeddingsHandler
 from trainer.loss import (
     ConditioningRegularizer
+)
+from trainer.optimizer import (
+    OptimizerCollection, 
+    get_optimizer_and_peft_models_text_encoder_lora, 
+    get_textual_inversion_optimizer,
+    get_unet_lora_parameters,
+    get_unet_optimizer
 )
 
 def load_sd3_tokenizers():
@@ -177,10 +185,11 @@ def main():
         ]
     )
 
+    text_encoders = [text_encoder_one, text_encoder_two, text_encoder_three]
     # initialize token embedding handler
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
-        text_encoders = [text_encoder_one, text_encoder_two, text_encoder_three], 
+        text_encoders = text_encoders, 
         tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
     )
 
@@ -207,9 +216,19 @@ def main():
         config, 
         embedding_handler
     )
+
     embedding_handler.pre_optimize_token_embeddings(
         config, 
         pipe = pipeline
+    )
+    ## TODO: [optional] init lora params for text encoders
+
+    # get textual inversion params and it's optimizer
+    optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
+        text_encoders=text_encoders,
+        textual_inversion_lr=config.ti_lr,
+        textual_inversion_weight_decay=config.ti_weight_decay,
+        optimizer_name=config.ti_optimizer ## hardcoded
     )
 
 if __name__ == "__main__":
