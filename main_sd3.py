@@ -63,6 +63,7 @@ import argparse
 from trainer.config import TrainingConfig
 from tqdm import tqdm
 import wandb
+from peft.utils import get_peft_model_state_dict
 
 def load_sd3_tokenizers():
     # Load the tokenizers
@@ -587,7 +588,6 @@ def main(config: TrainingConfig, wandb_log = False):
             loss = loss.mean()
 
             loss.backward()
-            # TODO: clip gradient norms
             
             optimizer_transformer.step()
             optimizer_ti.step()
@@ -617,6 +617,16 @@ def main(config: TrainingConfig, wandb_log = False):
         if global_step > config.max_train_steps:
             print("Reached max steps, stopping training!")
             break
+    
+    print(f"Training complete. Saving checkpoint...")
+    embedding_handler.save_embeddings(
+        "sd3_embeddings.safetensors",
+        txt_encoder_keys = ["1", "2", "3"]
+    )
+    transformer_lora_layers_to_save = get_peft_model_state_dict(transformer)
+    StableDiffusion3Pipeline.save_lora_weights(
+        "./sd3-concept", transformer_lora_layers=transformer_lora_layers_to_save
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
