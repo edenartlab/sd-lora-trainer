@@ -454,14 +454,27 @@ class TokenEmbeddingsHandler:
         for idx, text_encoder in enumerate(self.text_encoders):
             if text_encoder is None:
                 continue
-            assert text_encoder.text_model.embeddings.token_embedding.weight.data.shape[
-                0
-            ] == len(self.tokenizers[0]), "Tokenizers should be the same."
-            new_token_embeddings = (
-                text_encoder.text_model.embeddings.token_embedding.weight.data[
-                    self.train_ids
-                ]
-            )
+
+            if isinstance(text_encoder, T5EncoderModel):
+
+                assert text_encoder.encoder.embed_tokens.weight.data.shape[
+                    0
+                ] == len(self.tokenizers[idx]), "Tokenizers should be the same."
+                new_token_embeddings = (
+                    text_encoder.encoder.embed_tokens.weight.data[
+                        self.train_ids
+                    ]
+                )
+            else:
+                assert text_encoder.text_model.embeddings.token_embedding.weight.data.shape[
+                    0
+                ] == len(self.tokenizers[0]), "Tokenizers should be the same."
+                new_token_embeddings = (
+                    text_encoder.text_model.embeddings.token_embedding.weight.data[
+                        self.train_ids
+                    ]
+                )
+
             tensors[txt_encoder_keys[idx]] = new_token_embeddings
 
         save_file(tensors, file_path)
@@ -514,9 +527,15 @@ class TokenEmbeddingsHandler:
 
         self.train_ids = tokenizer.convert_tokens_to_ids(self.inserting_toks)
         assert self.train_ids is not None, "New tokens could not be converted to IDs."
-        text_encoder.text_model.embeddings.token_embedding.weight.data[
-            self.train_ids
-        ] = loaded_embeddings.to(device=self.device).to(dtype=self.dtype)
+
+        if isinstance(text_encoder, T5EncoderModel):
+            text_encoder.encoder.embed_tokens.weight.data[
+                self.train_ids
+            ] = loaded_embeddings.to(device=self.device).to(dtype=self.dtype)
+        else:
+            text_encoder.text_model.embeddings.token_embedding.weight.data[
+                self.train_ids
+            ] = loaded_embeddings.to(device=self.device).to(dtype=self.dtype)
 
     def load_embeddings(self, file_path: str, txt_encoder_keys = ["clip_l", "clip_g"]):
         if not os.path.exists(file_path):
