@@ -36,7 +36,9 @@ pipe = pipe.to("cuda")
 from trainer.embedding_handler import TokenEmbeddingsHandler
 
 from main_sd3 import compute_text_embeddings, load_sd3_text_encoders, load_sd3_tokenizers
-prompts = ["hello <s0><s1>"]
+prompts = [
+    '<s0><s1>, a cartoon of bananaman taking DMT'
+]
 
 text_encoders = load_sd3_text_encoders()
 tokenizers = load_sd3_tokenizers()
