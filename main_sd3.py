@@ -25,8 +25,9 @@ todos:
     - [] [later] clip grad norms after loss backward
     - [x] wandb log loss
     - [x] loss go down
-[] - Save checkpoint during and after training
-[] - inference + visualize examples
+[x] - Save checkpoint after training
+[] - save checkpoint during training
+[x] - inference + visualize examples
 """
 import math
 import copy
