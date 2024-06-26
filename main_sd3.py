@@ -22,7 +22,7 @@ todos:
     - [x] get either training batch (bucketed or not)
     - [x] training loop without forward or backward pass
     - [x] denoising step from sd3 training code
-    - [] [later] clip grad norms after loss backward
+    - [x] [later] clip grad norms after loss backward
     - [x] wandb log loss
     - [x] loss go down
 [x] - Save checkpoint after training
@@ -513,6 +513,7 @@ def main(config: TrainingConfig, wandb_log = False):
             else:
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
+            print(f"Step: {global_step}\n Example prompt: {captions[0]}")
             model_input = vae_latent
             prompts = captions
             prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
@@ -589,7 +590,10 @@ def main(config: TrainingConfig, wandb_log = False):
             loss = loss.mean()
 
             loss.backward()
-            
+    
+            torch.nn.utils.clip_grad_norm_(transformer_trainable_params, max_norm=1)
+            torch.nn.utils.clip_grad_norm_(textual_inversion_params, max_norm=1)
+
             optimizer_transformer.step()
             optimizer_ti.step()
 
