@@ -338,6 +338,17 @@ def compute_text_embeddings(prompt, text_encoders, tokenizers, device):
         pooled_prompt_embeds = pooled_prompt_embeds.to(device)
     return prompt_embeds, pooled_prompt_embeds
 
+def compute_gradient_norms(trainable_params: list):
+    gradient_norms = []
+    for param in trainable_params:
+        if param.grad is not None:
+            gradient_norm = param.grad.norm().item()
+            gradient_norms.append(
+                gradient_norm
+            )
+    assert len(gradient_norms)> 0
+    return gradient_norms
+
 def main(config: TrainingConfig, wandb_log = False):
     device = "cuda:0"
     # 1. Load tokenizers
@@ -444,7 +455,7 @@ def main(config: TrainingConfig, wandb_log = False):
         )
         transformer = get_peft_model(model = transformer, peft_config = transformer_lora_config)
         transformer_trainable_params = [
-            x for x in transformer.parameters() if x.requires_grad
+            x for x in transformer.parameters() if x.requires_grad == True
         ]
     
     print(f"config.is_lora: {config.is_lora} params: {count_trainable_params(transformer)}")
@@ -504,19 +515,23 @@ def main(config: TrainingConfig, wandb_log = False):
         progress_bar.set_description(f"# Trainer step: {global_step}, epoch: {epoch}")
 
         for step, batch in enumerate(train_dataloader):
+            optimizer_transformer.zero_grad()
+            optimizer_ti.zero_grad()
             progress_bar.update(1)
             finegrained_epoch = epoch + step / len(train_dataloader)
             completion_f = finegrained_epoch / config.num_train_epochs
 
-            # param_groups[1] goes from ti_lr to 0.0 over the course of training
+            """
+            Scale learning rate of textual inversion params
+            """
             if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
-                    optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
-                    # warmup the ti-lr:
-                    if config.ti_lr_warmup_steps > 0:
-                        warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
-                        optimizer_ti.param_groups[0]['lr'] *= warmup_f
-                    if config.freeze_ti_after_completion_f <= completion_f:
-                       optimizer_ti.param_groups[0]['lr'] *= 0
+                optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                # warmup the ti-lr:
+                if config.ti_lr_warmup_steps > 0:
+                    warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
+                    optimizer_ti.param_groups[0]['lr'] *= warmup_f
+                if config.freeze_ti_after_completion_f <= completion_f:
+                    optimizer_ti.param_groups[0]['lr'] *= 0
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
@@ -607,13 +622,17 @@ def main(config: TrainingConfig, wandb_log = False):
             optimizer_transformer.step()
             optimizer_ti.step()
 
-            optimizer_transformer.zero_grad()
-            optimizer_ti.zero_grad()
-
             progress_bar.set_postfix(
                 {
                     "loss": round(loss.item(), 6)
                 }
+            )
+
+            transformer_grad_norms = compute_gradient_norms(
+                trainable_params=transformer_trainable_params
+            )
+            textual_inversion_grad_norms = compute_gradient_norms(
+                trainable_params=textual_inversion_params
             )
 
             if wandb_log:
@@ -622,6 +641,15 @@ def main(config: TrainingConfig, wandb_log = False):
                     "global_step": global_step,
                 }
                 data["textual_inversion_lr"] =  optimizer_ti.param_groups[0]['lr']
+                # data["transformer_grad_norms"] = transformer_grad_norms
+                
+                data["transformer_grad_norms"] = wandb.Histogram(
+                    transformer_grad_norms,
+                )
+                data["textual_inversion_grad_norms"] = wandb.Histogram(
+                    textual_inversion_grad_norms,
+                )
+
                 wandb.log(
                     data
                 )
