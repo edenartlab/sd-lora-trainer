@@ -638,8 +638,7 @@ def main(config: TrainingConfig, wandb_log = False):
                     "global_step": global_step,
                 }
                 data["textual_inversion_lr"] =  optimizer_ti.param_groups[0]['lr']
-                # data["transformer_grad_norms"] = transformer_grad_norms
-                
+                data["transformer_lr"] = optimizer_transformer.param_groups[0]['lr'] 
                 data["transformer_grad_norms"] = wandb.Histogram(
                     transformer_grad_norms,
                 )
