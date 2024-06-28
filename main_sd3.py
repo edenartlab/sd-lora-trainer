@@ -26,6 +26,7 @@ todos:
     - [x] [later] clip grad norms after loss backward
     - [x] wandb log loss
     - [x] loss go down
+    - [x] apply mask to denoising loss
 [x] - Save checkpoint after training
 [] - save checkpoint during training
 [x] - inference + visualize examples
@@ -538,9 +539,22 @@ def main(config: TrainingConfig, wandb_log = False):
             else:
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
-            print(f"Step: {global_step}\n TI lr: {optimizer_ti.param_groups[0]['lr']} Example prompt: {captions[0]}")
             model_input = vae_latent
             prompts = captions
+            """
+            some hardcoding on the captions just to see whether it works
+            """
+            prompts = [
+                x.replace("<s0><s1>, ", "") for x in prompts
+            ]
+            prompts = [
+                x.replace("bananaman", "<s0><s1>") for x in prompts
+            ]
+            """
+            done with hardcoding
+            """
+            print(f"Step: {global_step}\n Example prompt: {prompts[0]}")
+
             prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                 prompt = prompts, 
                 text_encoders = text_encoders, 
@@ -608,8 +622,18 @@ def main(config: TrainingConfig, wandb_log = False):
             target = model_input
 
             # Compute regular loss.
+            loss_term = (
+                    weighting.float().to(model_pred.device) * (model_pred.float() - target.float().to(model_pred.device)) ** 2
+                )
+            """
+            apply mask
+            """
+            assert loss_term.shape == mask.shape
+
+            loss_term = loss_term * mask.to(loss_term.device)
+
             loss = torch.mean(
-                (weighting.float().to(model_pred.device) * (model_pred.float() - target.float().to(model_pred.device)) ** 2).reshape(target.shape[0], -1),
+                loss_term.reshape(target.shape[0], -1),
                 1,
             )
             loss = loss.mean()
