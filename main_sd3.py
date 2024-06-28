@@ -440,7 +440,7 @@ def main(config: TrainingConfig, wandb_log = False):
         textual_inversion_weight_decay=config.ti_weight_decay,
         optimizer_name=config.ti_optimizer ## hardcoded
     )
-
+    
     # either go full finetuning or lora on transformer
     if not config.is_lora: # This code pathway has not been tested in a long while
         print(f"Doing full fine-tuning on the U-Net")
@@ -631,9 +631,6 @@ def main(config: TrainingConfig, wandb_log = False):
             transformer_grad_norms = compute_gradient_norms(
                 trainable_params=transformer_trainable_params
             )
-            textual_inversion_grad_norms = compute_gradient_norms(
-                trainable_params=textual_inversion_params
-            )
 
             if wandb_log:
                 data = {
@@ -645,9 +642,6 @@ def main(config: TrainingConfig, wandb_log = False):
                 
                 data["transformer_grad_norms"] = wandb.Histogram(
                     transformer_grad_norms,
-                )
-                data["textual_inversion_grad_norms"] = wandb.Histogram(
-                    textual_inversion_grad_norms,
                 )
 
                 wandb.log(
