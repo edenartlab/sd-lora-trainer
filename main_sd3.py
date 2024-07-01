@@ -435,12 +435,12 @@ def main(config: TrainingConfig, wandb_log = False):
     ## TODO: [optional] init lora params for text encoders
 
     # get textual inversion params and it's optimizer
-    optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
-        text_encoders=text_encoders,
-        textual_inversion_lr=config.ti_lr,
-        textual_inversion_weight_decay=config.ti_weight_decay,
-        optimizer_name=config.ti_optimizer ## hardcoded
-    )
+    # optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
+    #     text_encoders=text_encoders,
+    #     textual_inversion_lr=config.ti_lr,
+    #     textual_inversion_weight_decay=config.ti_weight_decay,
+    #     optimizer_name=config.ti_optimizer ## hardcoded
+    # )
     
     # either go full finetuning or lora on transformer
     if not config.is_lora: # This code pathway has not been tested in a long while
@@ -517,7 +517,7 @@ def main(config: TrainingConfig, wandb_log = False):
 
         for step, batch in enumerate(train_dataloader):
             optimizer_transformer.zero_grad()
-            optimizer_ti.zero_grad()
+            # optimizer_ti.zero_grad()
             progress_bar.update(1)
             finegrained_epoch = epoch + step / len(train_dataloader)
             completion_f = finegrained_epoch / config.num_train_epochs
@@ -526,13 +526,14 @@ def main(config: TrainingConfig, wandb_log = False):
             Scale learning rate of textual inversion params
             """
             if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
-                optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                # optimizer_ti.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
                 # warmup the ti-lr:
                 if config.ti_lr_warmup_steps > 0:
                     warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
-                    optimizer_ti.param_groups[0]['lr'] *= warmup_f
+                    # optimizer_ti.param_groups[0]['lr'] *= warmup_f
                 if config.freeze_ti_after_completion_f <= completion_f:
-                    optimizer_ti.param_groups[0]['lr'] *= 0
+                    pass
+                    # optimizer_ti.param_groups[0]['lr'] *= 0
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
@@ -641,10 +642,10 @@ def main(config: TrainingConfig, wandb_log = False):
             loss.backward()
     
             torch.nn.utils.clip_grad_norm_(transformer_trainable_params, max_norm=1)
-            torch.nn.utils.clip_grad_norm_(textual_inversion_params, max_norm=1)
+            # torch.nn.utils.clip_grad_norm_(textual_inversion_params, max_norm=1)
 
             optimizer_transformer.step()
-            optimizer_ti.step()
+            # optimizer_ti.step()
 
             progress_bar.set_postfix(
                 {
@@ -661,7 +662,7 @@ def main(config: TrainingConfig, wandb_log = False):
                     "loss": loss.item(),
                     "global_step": global_step,
                 }
-                data["textual_inversion_lr"] =  optimizer_ti.param_groups[0]['lr']
+                # data["textual_inversion_lr"] =  optimizer_ti.param_groups[0]['lr']
                 data["transformer_lr"] = optimizer_transformer.param_groups[0]['lr'] 
                 data["transformer_grad_norms"] = wandb.Histogram(
                     transformer_grad_norms,
