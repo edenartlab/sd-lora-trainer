@@ -685,13 +685,13 @@ def main(config: TrainingConfig, wandb_log = False):
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
                 break
 
-            if global_step % 5 == 0:
+            if global_step % 25 == 0:
                 inference_device = "cuda:1"
                 torch.cuda.empty_cache()
                 pipeline = pipeline.to(inference_device)
                 pipeline.transformer = transformer.to(inference_device)
                 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-                    prompt = ['<s0><s1>, hanging out on mars'], 
+                    prompt = ["<s0><s1>, there is a cartoon banana that is eating popcorn while holding a knife"], 
                     text_encoders = text_encoders, 
                     tokenizers = tokenizers,
                     device=inference_device
