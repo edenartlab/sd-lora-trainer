@@ -356,20 +356,25 @@ def main(config: TrainingConfig, wandb_log = False):
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
     # 2. Load text encoders
-    text_encoder_one, text_encoder_two, text_encoder_three = load_sd3_text_encoders()
+    # text_encoder_one, text_encoder_two, text_encoder_three = load_sd3_text_encoders()
 
     pipeline = StableDiffusion3Pipeline.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers"
+        "stabilityai/stable-diffusion-3-medium-diffusers",
+        torch_dtype=torch.bfloat16
     )
+
+    text_encoder_one, text_encoder_two, text_encoder_three = pipeline.text_encoder.to(device), pipeline.text_encoder_2.to(device), pipeline.text_encoder_3.to(device)
+
 
     # 3. load noise scheduler
     noise_scheduler = load_sd3_noise_scheduler()
 
     # 4. extract transformer
-    transformer = load_sd3_transformer().to(device)
+    # transformer = load_sd3_transformer().to(device)
+    transformer = pipeline.transformer.to(device)
 
     # 5. load vae
-    vae = load_sd3_vae()
+    vae = pipeline.vae.to(device)
 
     # 6. freeze all grads
     freeze_all_gradients(
@@ -425,16 +430,16 @@ def main(config: TrainingConfig, wandb_log = False):
         seed = config.seed,
     )
 
-    embedding_handler.make_embeddings_trainable()
-    embedding_handler.token_regularizer = ConditioningRegularizer(
-        config, 
-        embedding_handler
-    )
+    # embedding_handler.make_embeddings_trainable()
+    # embedding_handler.token_regularizer = ConditioningRegularizer(
+    #     config, 
+    #     embedding_handler
+    # )
 
-    embedding_handler.pre_optimize_token_embeddings(
-        config, 
-        pipe = pipeline
-    )
+    # embedding_handler.pre_optimize_token_embeddings(
+    #     config, 
+    #     pipe = pipeline
+    # )
     ## TODO: [optional] init lora params for text encoders
 
     # get textual inversion params and it's optimizer
@@ -477,7 +482,7 @@ def main(config: TrainingConfig, wandb_log = False):
     train_dataset = PreprocessedDataset(
         input_dir,
         pipeline,
-        vae.float(),
+        vae,
         size = config.train_img_size,
         do_cache=config.do_cache,
         substitute_caption_map=config.token_dict,
@@ -680,22 +685,29 @@ def main(config: TrainingConfig, wandb_log = False):
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
                 break
 
-            if global_step % 10 == 0:
+            if global_step % 5 == 0:
+                inference_device = "cuda:1"
+                torch.cuda.empty_cache()
+                pipeline = pipeline.to(inference_device)
+                pipeline.transformer = transformer.to(inference_device)
                 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                     prompt = ['<s0><s1>, hanging out on mars'], 
                     text_encoders = text_encoders, 
                     tokenizers = tokenizers,
-                    device=device
+                    device=inference_device
                 )
 
                 image = pipeline(
-                    prompt_embeds = prompt_embeds.half().to(device),
-                    pooled_prompt_embeds = pooled_prompt_embeds.half().to(device),
+                    prompt_embeds = prompt_embeds,
+                    pooled_prompt_embeds = pooled_prompt_embeds,
                     negative_prompt="",
                     num_inference_steps=28,
                     guidance_scale=7.0,
                 ).images[0]
-                image.save(f"train_samples/{global_step}.jpg")
+                filename = f"train_samples/{global_step}.jpg"
+                image.save(filename)
+                print(f"Saved: {filename}")
+                pipeline = pipeline.to(device)
         
         if global_step > config.max_train_steps:
             print("Reached max steps, stopping training!")
@@ -725,4 +737,5 @@ if __name__ == "__main__":
 
 """
 python3 main_sd3.py training_args_banny.json  --wandb-log
+python3 main_sd3.py training_args_style_sdxl.json
 """
