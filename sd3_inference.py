@@ -37,27 +37,29 @@ from trainer.embedding_handler import TokenEmbeddingsHandler
 
 from main_sd3 import compute_text_embeddings, load_sd3_text_encoders, load_sd3_tokenizers
 prompts = [
-    '<s0><s1>, a cartoon of bananaman taking DMT'
+    # 'in the style of <s0><s1>, airplane'
+    # "<s0><s1>, there is a cartoon banana that is smoking weed on mars"
+    "A man taking a selfie in space"
 ]
 
 text_encoders = load_sd3_text_encoders()
 tokenizers = load_sd3_tokenizers()
 
-embedding_handler = TokenEmbeddingsHandler(
-    text_encoders = text_encoders, 
-    tokenizers = tokenizers
-)
+# embedding_handler = TokenEmbeddingsHandler(
+#     text_encoders = text_encoders, 
+#     tokenizers = tokenizers
+# )
 
-embedding_handler.initialize_new_tokens(
-    inserting_toks=["<s0>","<s1>"],
-    starting_toks=None, 
-    seed=0
-)
+# embedding_handler.initialize_new_tokens(
+#     inserting_toks=["<s0>","<s1>"],
+#     starting_toks=None, 
+#     seed=0
+# )
 
-embedding_handler.load_embeddings(
-    file_path = "sd3_embeddings.safetensors",
-    txt_encoder_keys = ["1", "2", "3"]
-)
+# embedding_handler.load_embeddings(
+#     file_path = "sd3_embeddings.safetensors",
+#     txt_encoder_keys = ["1", "2", "3"]
+# )
 
 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
     prompt = prompts, 
@@ -74,4 +76,4 @@ image = pipe(
     guidance_scale=7.0,
 ).images[0]
 image.save("Sample.jpg")
-print(f"Done!")
+print(f"Done!") 
