@@ -354,7 +354,7 @@ def main(config: TrainingConfig, wandb_log = False):
     device = "cuda:0"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
-    
+    tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
     # 2. Load text encoders
     text_encoder_one, text_encoder_two, text_encoder_three = load_sd3_text_encoders()
 
@@ -404,7 +404,10 @@ def main(config: TrainingConfig, wandb_log = False):
     config.token_warmup_steps = 0
     config.lora_rank = 8
     config.sd_model_version = "sd3"
+    # change default weighting scheme https://github.com/huggingface/diffusers/commit/a1d55e14baa051a8ec0c02949c0c27c1e6b21379
     weighting_scheme = "sigma_sqrt"
+    logit_mean = 0.0
+    logit_std = 1.0
 
     config, input_dir = preprocess(
         config,
@@ -545,12 +548,12 @@ def main(config: TrainingConfig, wandb_log = False):
             """
             some hardcoding on the captions just to see whether it works
             """
-            prompts = [
-                x.replace("<s0><s1>, ", "") for x in prompts
-            ]
-            prompts = [
-                x.replace("bananaman", "<s0><s1>") for x in prompts
-            ]
+            # prompts = [
+            #     x.replace("<s0><s1>, ", "") for x in prompts
+            # ]
+            # prompts = [
+            #     x.replace("bananaman", "<s0><s1>") for x in prompts
+            # ]
             """
             done with hardcoding
             """
@@ -576,7 +579,7 @@ def main(config: TrainingConfig, wandb_log = False):
             # for weighting schemes where we sample timesteps non-uniformly
             if weighting_scheme == "logit_normal":
                 # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-                u = torch.normal(mean=args.logit_mean, std=args.logit_std, size=(bsz,), device="cpu")
+                u = torch.normal(mean=logit_mean, std=logit_std, size=(bsz,), device="cpu")
                 u = torch.nn.functional.sigmoid(u)
             elif weighting_scheme == "mode":
                 u = torch.rand(size=(bsz,), device="cpu")
@@ -611,7 +614,7 @@ def main(config: TrainingConfig, wandb_log = False):
                 weighting = (sigmas**-2.0).float()
             elif weighting_scheme == "logit_normal":
                 # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-                u = torch.normal(mean=args.logit_mean, std=args.logit_std, size=(bsz,), device=device)
+                u = torch.normal(mean=logit_mean, std=logit_std, size=(bsz,), device=device)
                 weighting = torch.nn.functional.sigmoid(u)
             elif weighting_scheme == "mode":
                 # See sec 3.1 in the SD3 paper (20).
@@ -676,6 +679,23 @@ def main(config: TrainingConfig, wandb_log = False):
             if global_step > config.max_train_steps:
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
                 break
+
+            if global_step % 10 == 0:
+                prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+                    prompt = ['<s0><s1>, hanging out on mars'], 
+                    text_encoders = text_encoders, 
+                    tokenizers = tokenizers,
+                    device=device
+                )
+
+                image = pipeline(
+                    prompt_embeds = prompt_embeds.half().to(device),
+                    pooled_prompt_embeds = pooled_prompt_embeds.half().to(device),
+                    negative_prompt="",
+                    num_inference_steps=28,
+                    guidance_scale=7.0,
+                ).images[0]
+                image.save(f"train_samples/{global_step}.jpg")
         
         if global_step > config.max_train_steps:
             print("Reached max steps, stopping training!")
