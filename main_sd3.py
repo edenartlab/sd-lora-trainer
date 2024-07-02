@@ -390,16 +390,16 @@ def main(config: TrainingConfig, wandb_log = False):
     text_encoders = [text_encoder_one, text_encoder_two, text_encoder_three]
     # initialize token embedding handler
     # Initialize new tokens for training.
-    embedding_handler = TokenEmbeddingsHandler(
-        text_encoders = text_encoders, 
-        tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
-    )
+    # embedding_handler = TokenEmbeddingsHandler(
+    #     text_encoders = text_encoders, 
+    #     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
+    # )
 
-    embedding_handler.initialize_new_tokens(
-        inserting_toks=["<s0>","<s1>"],
-        starting_toks=None, 
-        seed=0
-    )
+    # embedding_handler.initialize_new_tokens(
+    #     inserting_toks=["<s0>","<s1>"],
+    #     starting_toks=None, 
+    #     seed=0
+    # )
     # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
 
     """
@@ -413,7 +413,8 @@ def main(config: TrainingConfig, wandb_log = False):
     weighting_scheme = "sigma_sqrt"
     logit_mean = 0.0
     logit_std = 1.0
-
+    config.token_dict = {}
+    # raise AssertionError(config.caption_prefix)
     config, input_dir = preprocess(
         config,
         working_directory=config.output_dir,
@@ -553,9 +554,9 @@ def main(config: TrainingConfig, wandb_log = False):
             """
             some hardcoding on the captions just to see whether it works
             """
-            # prompts = [
-            #     x.replace("<s0><s1>, ", "") for x in prompts
-            # ]
+            prompts = [
+                x.replace("tok, ", "") for x in prompts
+            ]
             # prompts = [
             #     x.replace("bananaman", "<s0><s1>") for x in prompts
             # ]
@@ -685,13 +686,13 @@ def main(config: TrainingConfig, wandb_log = False):
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
                 break
 
-            if global_step % 25 == 0:
+            if global_step % 50 == 0:
                 inference_device = "cuda:1"
                 torch.cuda.empty_cache()
                 pipeline = pipeline.to(inference_device)
                 pipeline.transformer = transformer.to(inference_device)
                 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-                    prompt = ["<s0><s1>, there is a cartoon banana that is eating popcorn while holding a knife"], 
+                    prompt = ["A man is eating popcorn while holding a knife"], 
                     text_encoders = text_encoders, 
                     tokenizers = tokenizers,
                     device=inference_device
@@ -703,6 +704,7 @@ def main(config: TrainingConfig, wandb_log = False):
                     negative_prompt="",
                     num_inference_steps=28,
                     guidance_scale=7.0,
+                    generator = torch.Generator(device="cuda").manual_seed(0)
                 ).images[0]
                 filename = f"train_samples/{global_step}.jpg"
                 image.save(filename)
@@ -714,10 +716,10 @@ def main(config: TrainingConfig, wandb_log = False):
             break
     
     print(f"Training complete. Saving checkpoint...")
-    embedding_handler.save_embeddings(
-        "sd3_embeddings.safetensors",
-        txt_encoder_keys = ["1", "2", "3"]
-    )
+    # embedding_handler.save_embeddings(
+    #     "sd3_embeddings.safetensors",
+    #     txt_encoder_keys = ["1", "2", "3"]
+    # )
     transformer_lora_layers_to_save = get_peft_model_state_dict(transformer)
     StableDiffusion3Pipeline.save_lora_weights(
         "./sd3-concept", transformer_lora_layers=transformer_lora_layers_to_save
