@@ -287,9 +287,21 @@ def compute_gradient_norms(trainable_params: list):
     assert len(gradient_norms)> 0
     return gradient_norms
 
+def save_transformer_lora_checkpoint(transformer, folder):
+    os.system(
+        f"mkdir -p {folder}"
+    )
+    transformer_lora_layers_to_save = get_peft_model_state_dict(transformer)
+    StableDiffusion3Pipeline.save_lora_weights(
+        folder, 
+        transformer_lora_layers=transformer_lora_layers_to_save
+    )
+    print(f"Saved transformer lora checkpoint here:{folder}")
+
 def main(config: TrainingConfig, wandb_log = False):
     
     device = "cuda:0"
+    inference_device = "cuda:1"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
@@ -373,24 +385,11 @@ def main(config: TrainingConfig, wandb_log = False):
         config.output_dir,
         "checkpoints"
     )
-    transformer_checkpoint_folder = os.path.join(
-        checkpoints_folder,
-        "transformer"
-    )
-
-    ## run inference and save images during training
-    train_samples_folder = os.path.join(
-        config.output_dir,
-        "generated_samples"
-    )
+    
     inference_prompts = [
         "A man is eating popcorn while holding a knife", 
         "A man is taking a selfie in space"
     ]
-    print(f"Making folder: {train_samples_folder}")
-    os.system(
-        f"mkdir -p {train_samples_folder}"
-    )
 
     # embedding_handler.make_embeddings_trainable()
     # embedding_handler.token_regularizer = ConditioningRegularizer(
@@ -523,8 +522,6 @@ def main(config: TrainingConfig, wandb_log = False):
             """
             done with hardcoding
             """
-            print(f"Step: {global_step}\n Example prompt: {prompts[0]}")
-
             prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                 prompt = prompts, 
                 text_encoders = text_encoders, 
@@ -625,6 +622,8 @@ def main(config: TrainingConfig, wandb_log = False):
             transformer_grad_norms = compute_gradient_norms(
                 trainable_params=transformer_trainable_params
             )
+            global_step += 1
+
 
             if wandb_log:
                 data = {
@@ -641,13 +640,22 @@ def main(config: TrainingConfig, wandb_log = False):
                     data
                 )
 
-            global_step += 1
             if global_step > config.max_train_steps:
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
                 break
 
             if global_step % config.checkpointing_steps == 0:
-                inference_device = "cuda:1"
+                """
+                Save intermediate checkpoint
+                """                
+                save_transformer_lora_checkpoint(
+                    transformer=transformer,
+                    folder=os.path.join(checkpoints_folder,f"global_step_{global_step}", f"transformer")
+                )
+
+                """
+                Run inference on a few prompts
+                """
                 torch.cuda.empty_cache()
                 pipeline = pipeline.to(inference_device)
                 pipeline.transformer = transformer.to(inference_device)
@@ -665,9 +673,18 @@ def main(config: TrainingConfig, wandb_log = False):
                     negative_prompt="",
                     num_inference_steps=28,
                     guidance_scale=7.0,
-                    generator = torch.Generator(device="cuda").manual_seed(0)
+                    generator = torch.Generator(device="cuda").manual_seed(0),
                 )
 
+                ## run inference and save images during training
+                train_samples_folder = os.path.join(
+                    checkpoints_folder,
+                    f"global_step_{global_step}",
+                    f"generated_samples"
+                )
+                os.system(
+                    f"mkdir -p {train_samples_folder}"
+                )
                 for index in range(len(result.images)):
                     filename = os.path.join(
                         train_samples_folder,
@@ -687,19 +704,13 @@ def main(config: TrainingConfig, wandb_log = False):
     #     txt_encoder_keys = ["1", "2", "3"]
     # )
 
-    
-
-    os.system(f"mkdir -p {transformer_checkpoint_folder}")  
-
     """
     Save transformer lora checkpoint
     """
-    transformer_lora_layers_to_save = get_peft_model_state_dict(transformer)
-    StableDiffusion3Pipeline.save_lora_weights(
-        transformer_checkpoint_folder, 
-        transformer_lora_layers=transformer_lora_layers_to_save
+    save_transformer_lora_checkpoint(
+        transformer=transformer,
+        folder=os.path.join(checkpoints_folder,f"global_step_{global_step}", f"transformer")
     )
-    print(f"Saved transformer lora checkpoint here:{transformer_checkpoint_folder}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
