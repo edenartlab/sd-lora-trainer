@@ -32,6 +32,7 @@ todos:
 [x] - inference + visualize examples
 [] - use hf accelerate
 """
+import os
 import math
 import copy
 from transformers import (
@@ -106,53 +107,6 @@ def import_model_class_from_model_name_or_path(
         return T5EncoderModel
     else:
         raise ValueError(f"{model_class} is not supported.")
-    
-def load_text_encoders(
-    class_one, 
-    class_two, 
-    class_three, 
-    variant = None
-):
-    """
-    "Variant of the model files of the pretrained model identifier from huggingface.co/models, 'e.g.' fp16",
-    """
-    text_encoder_one = class_one.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers", subfolder="text_encoder", 
-        revision=None, 
-        variant=variant
-    )
-    text_encoder_two = class_two.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers", subfolder="text_encoder_2", 
-        revision=None, 
-        variant=variant
-    )
-    text_encoder_three = class_three.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers", subfolder="text_encoder_3", 
-        revision=None, 
-        variant=variant
-    )
-    return text_encoder_one, text_encoder_two, text_encoder_three
-
-def load_sd3_text_encoders():
-    text_encoder_cls_one = import_model_class_from_model_name_or_path(
-        "stabilityai/stable-diffusion-3-medium-diffusers", 
-        revision = None
-    )
-    text_encoder_cls_two = import_model_class_from_model_name_or_path(
-        "stabilityai/stable-diffusion-3-medium-diffusers", 
-        revision = None, 
-        subfolder="text_encoder_2"
-    )
-    text_encoder_cls_three = import_model_class_from_model_name_or_path(
-        "stabilityai/stable-diffusion-3-medium-diffusers", 
-        revision = None, 
-        subfolder="text_encoder_3"
-    )
-    return load_text_encoders(
-        class_one = text_encoder_cls_one, 
-        class_two=text_encoder_cls_two, 
-        class_three=text_encoder_cls_three
-    )
 
 def load_sd3_noise_scheduler():
     noise_scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
@@ -161,23 +115,6 @@ def load_sd3_noise_scheduler():
     )
     noise_scheduler_copy = copy.deepcopy(noise_scheduler)
     return noise_scheduler_copy
-
-def load_sd3_transformer():
-    transformer = SD3Transformer2DModel.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers", subfolder="transformer", 
-        revision=None, 
-        variant=None
-    )
-    return transformer
-
-def load_sd3_vae():
-    vae = AutoencoderKL.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers",
-        subfolder="vae",
-        revision=None, 
-        variant=None
-    )
-    return vae
 
 def freeze_all_gradients(models: list):
     for model in models:
@@ -351,6 +288,7 @@ def compute_gradient_norms(trainable_params: list):
     return gradient_norms
 
 def main(config: TrainingConfig, wandb_log = False):
+    
     device = "cuda:0"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
@@ -431,6 +369,29 @@ def main(config: TrainingConfig, wandb_log = False):
         seed = config.seed,
     )
 
+    checkpoints_folder = os.path.join(
+        config.output_dir,
+        "checkpoints"
+    )
+    transformer_checkpoint_folder = os.path.join(
+        checkpoints_folder,
+        "transformer"
+    )
+
+    ## run inference and save images during training
+    train_samples_folder = os.path.join(
+        config.output_dir,
+        "generated_samples"
+    )
+    inference_prompts = [
+        "A man is eating popcorn while holding a knife", 
+        "A man is taking a selfie in space"
+    ]
+    print(f"Making folder: {train_samples_folder}")
+    os.system(
+        f"mkdir -p {train_samples_folder}"
+    )
+
     # embedding_handler.make_embeddings_trainable()
     # embedding_handler.token_regularizer = ConditioningRegularizer(
     #     config, 
@@ -453,7 +414,6 @@ def main(config: TrainingConfig, wandb_log = False):
     
     # either go full finetuning or lora on transformer
     if not config.is_lora: # This code pathway has not been tested in a long while
-        print(f"Doing full fine-tuning on the U-Net")
         transformer.requires_grad_(True)
         transformer_trainable_params = transformer.parameters()
     else:
@@ -686,29 +646,35 @@ def main(config: TrainingConfig, wandb_log = False):
                 print(f"Reached max steps ({config.max_train_steps}), stopping training!")
                 break
 
-            if global_step % 50 == 0:
+            if global_step % config.checkpointing_steps == 0:
                 inference_device = "cuda:1"
                 torch.cuda.empty_cache()
                 pipeline = pipeline.to(inference_device)
                 pipeline.transformer = transformer.to(inference_device)
+                
                 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-                    prompt = ["A man is eating popcorn while holding a knife"], 
+                    prompt = inference_prompts, 
                     text_encoders = text_encoders, 
                     tokenizers = tokenizers,
                     device=inference_device
                 )
 
-                image = pipeline(
+                result = pipeline(
                     prompt_embeds = prompt_embeds,
                     pooled_prompt_embeds = pooled_prompt_embeds,
                     negative_prompt="",
                     num_inference_steps=28,
                     guidance_scale=7.0,
                     generator = torch.Generator(device="cuda").manual_seed(0)
-                ).images[0]
-                filename = f"train_samples/{global_step}.jpg"
-                image.save(filename)
-                print(f"Saved: {filename}")
+                )
+
+                for index in range(len(result.images)):
+                    filename = os.path.join(
+                        train_samples_folder,
+                        f"global_step_{global_step}_index_{index}.jpg"
+                    )
+                    result.images[index].save(filename)
+                    print(f"Saved: {filename}")
                 pipeline = pipeline.to(device)
         
         if global_step > config.max_train_steps:
@@ -720,10 +686,20 @@ def main(config: TrainingConfig, wandb_log = False):
     #     "sd3_embeddings.safetensors",
     #     txt_encoder_keys = ["1", "2", "3"]
     # )
+
+    
+
+    os.system(f"mkdir -p {transformer_checkpoint_folder}")  
+
+    """
+    Save transformer lora checkpoint
+    """
     transformer_lora_layers_to_save = get_peft_model_state_dict(transformer)
     StableDiffusion3Pipeline.save_lora_weights(
-        "./sd3-concept", transformer_lora_layers=transformer_lora_layers_to_save
+        transformer_checkpoint_folder, 
+        transformer_lora_layers=transformer_lora_layers_to_save
     )
+    print(f"Saved transformer lora checkpoint here:{transformer_checkpoint_folder}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a concept')
@@ -739,5 +715,5 @@ if __name__ == "__main__":
 
 """
 python3 main_sd3.py training_args_banny.json  --wandb-log
-python3 main_sd3.py training_args_style_sdxl.json
+python3 main_sd3.py training_args_face.json
 """
