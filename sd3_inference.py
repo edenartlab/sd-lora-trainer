@@ -16,7 +16,7 @@ pipe = StableDiffusion3Pipeline.from_pretrained(
 )
 
 # Load the LoRA weights from file
-lora_weights_path = "sd3-concept/pytorch_lora_weights.safetensors"
+lora_weights_path = "lora_models/xander_sd15_final--03_03-40-49-sd15_face_lora_512_1.0_blip_5000/checkpoints/global_step_2600/transformer/pytorch_lora_weights.safetensors"
 transformer_lora_config = LoraConfig(
     r=8,
     lora_alpha=8,
@@ -35,14 +35,13 @@ pipe = pipe.to("cuda")
 
 from trainer.embedding_handler import TokenEmbeddingsHandler
 
-from main_sd3 import compute_text_embeddings, load_sd3_text_encoders, load_sd3_tokenizers
+from main_sd3 import compute_text_embeddings, load_sd3_tokenizers
 prompts = [
     # 'in the style of <s0><s1>, airplane'
     # "<s0><s1>, there is a cartoon banana that is smoking weed on mars"
-    "A man taking a selfie in space"
+    "A man eating Waffles in Portugal"
 ]
 
-text_encoders = load_sd3_text_encoders()
 tokenizers = load_sd3_tokenizers()
 
 # embedding_handler = TokenEmbeddingsHandler(
@@ -63,7 +62,7 @@ tokenizers = load_sd3_tokenizers()
 
 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
     prompt = prompts, 
-    text_encoders = text_encoders, 
+    text_encoders = [pipe.text_encoder, pipe.text_encoder_2, pipe.text_encoder_3], 
     tokenizers = tokenizers,
     device="cuda:0"
 )
@@ -74,6 +73,7 @@ image = pipe(
     negative_prompt="",
     num_inference_steps=28,
     guidance_scale=7.0,
+    generator = torch.Generator(device="cuda").manual_seed(0)
 ).images[0]
 image.save("Sample.jpg")
 print(f"Done!") 
