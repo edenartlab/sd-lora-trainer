@@ -5,11 +5,11 @@
     "concept_mode": "face",
     "seed": 0,
     "resolution": 512,
-    "train_batch_size": 4,
+    "train_batch_size": 7,
     "n_sample_imgs": 6,
-    "max_train_steps": 600,
+    "max_train_steps": 5000,
     "token_warmup_steps": 0,
-    "checkpointing_steps": 100,
+    "checkpointing_steps": 50,
     "gradient_accumulation_steps": 1,
 
     "sample_imgs_lora_scale": 0.8,
@@ -26,6 +26,6 @@
     "lora_alpha_multiplier": 1.0,
     "lora_rank": 16,
     "use_dora": false,
-    "caption_model": "gpt4-v",
+    "caption_model": "blip",
     "debug": true
 }
