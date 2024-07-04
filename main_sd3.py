@@ -70,6 +70,9 @@ from tqdm import tqdm
 import wandb
 from peft.utils import get_peft_model_state_dict
 
+TRAIN_TRANSFORMER = False
+TRAIN_TEXTUAL_INVERSION = True
+
 def load_sd3_tokenizers():
     # Load the tokenizers
     tokenizer_one = CLIPTokenizer.from_pretrained(
@@ -298,6 +301,24 @@ def save_transformer_lora_checkpoint(transformer, folder):
     )
     print(f"Saved transformer lora checkpoint here:{folder}")
 
+class AllOptimizers:
+    def __init__(
+        self,
+        optimizer_dict
+    ):  
+        assert isinstance(optimizer_dict, dict)
+        self.optimizers = optimizer_dict
+    
+    def zero_grad(self):
+        for key in self.optimizers.keys():
+            if self.optimizers[key] is not None:
+                self.optimizers[key].zero_grad()
+
+    def step(self):
+        for key in self.optimizers.keys():
+            if self.optimizers[key] is not None:
+                self.optimizers[key].step()
+
 def main(config: TrainingConfig, wandb_log = False):
     
     device = "cuda:0"
@@ -331,26 +352,27 @@ def main(config: TrainingConfig, wandb_log = False):
         models = [
             transformer,
             vae,
-            text_encoder_one,
-            text_encoder_two,
-            text_encoder_three,
+            # text_encoder_one,
+            # text_encoder_two,
+            # text_encoder_three,
         ]
     )
 
     text_encoders = [text_encoder_one, text_encoder_two, text_encoder_three]
-    # initialize token embedding handler
-    # Initialize new tokens for training.
-    # embedding_handler = TokenEmbeddingsHandler(
-    #     text_encoders = text_encoders, 
-    #     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
-    # )
 
-    # embedding_handler.initialize_new_tokens(
-    #     inserting_toks=["<s0>","<s1>"],
-    #     starting_toks=None, 
-    #     seed=0
-    # )
-    # Experimental TODO: warmup the token embeddings using CLIP-similarity optimization
+    # initialize token embedding handler
+
+    if TRAIN_TEXTUAL_INVERSION:
+        embedding_handler = TokenEmbeddingsHandler(
+            text_encoders = text_encoders, 
+            tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
+        )
+
+        embedding_handler.initialize_new_tokens(
+            inserting_toks=["<s0>","<s1>"],
+            starting_toks=None, 
+            seed=0
+        )
 
     """
     override some config params because we're recycling an sdxl config here
@@ -363,7 +385,7 @@ def main(config: TrainingConfig, wandb_log = False):
     weighting_scheme = "sigma_sqrt"
     logit_mean = 0.0
     logit_std = 1.0
-    config.token_dict = {}
+    # config.token_dict = {}
     # raise AssertionError(config.caption_prefix)
     config, input_dir = preprocess(
         config,
@@ -387,31 +409,35 @@ def main(config: TrainingConfig, wandb_log = False):
     )
     
     inference_prompts = [
-        "A man is eating popcorn while holding a knife", 
-        "A man is taking a selfie in space"
+        "<s0><s1>, A man is eating popcorn while holding a knife", 
+        "<s0><s1>, A man is taking a selfie in space",
+        "<s0><s1>, Gentleman with a moustache dressed up as santa",
     ]
 
-    # embedding_handler.make_embeddings_trainable()
-    # embedding_handler.token_regularizer = ConditioningRegularizer(
-    #     config, 
-    #     embedding_handler
-    # )
+    if TRAIN_TEXTUAL_INVERSION:
+        embedding_handler.make_embeddings_trainable()
+        embedding_handler.token_regularizer = ConditioningRegularizer(
+            config, 
+            embedding_handler
+        )
 
-    # embedding_handler.pre_optimize_token_embeddings(
-    #     config, 
-    #     pipe = pipeline
-    # )
-    ## TODO: [optional] init lora params for text encoders
+        # embedding_handler.pre_optimize_token_embeddings(
+        #     config, 
+        #     pipe = pipeline
+        # )
 
-    # get textual inversion params and it's optimizer
-    # optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
-    #     text_encoders=text_encoders,
-    #     textual_inversion_lr=config.ti_lr,
-    #     textual_inversion_weight_decay=config.ti_weight_decay,
-    #     optimizer_name=config.ti_optimizer ## hardcoded
-    # )
+        # get textual inversion params and it's optimizer
+        optimizer_textual_inversion, textual_inversion_params = get_textual_inversion_optimizer(
+            text_encoders=text_encoders,
+            textual_inversion_lr=config.ti_lr,
+            textual_inversion_weight_decay=config.ti_weight_decay,
+            optimizer_name=config.ti_optimizer ## hardcoded
+        )
+    else:
+        optimizer_textual_inversion = None
     
     # either go full finetuning or lora on transformer
+
     if not config.is_lora: # This code pathway has not been tested in a long while
         transformer.requires_grad_(True)
         transformer_trainable_params = transformer.parameters()
@@ -427,18 +453,31 @@ def main(config: TrainingConfig, wandb_log = False):
             x for x in transformer.parameters() if x.requires_grad == True
         ]
     
-    print(f"config.is_lora: {config.is_lora} params: {count_trainable_params(transformer)}")
     
-    optimizer_transformer = get_transformer_optimizer(
-        prodigy_d_coef=config.prodigy_d_coef,
-        prodigy_growth_factor=config.unet_prodigy_growth_factor,
-        lora_weight_decay=config.lora_weight_decay,
-        use_dora=config.use_dora,
-        transformer_trainable_params=transformer_trainable_params,
-        optimizer_name=config.unet_optimizer_type
-    )
-    print(f"Optimizer: {optimizer_transformer}")
+    if TRAIN_TRANSFORMER:
+        optimizer_transformer = get_transformer_optimizer(
+            prodigy_d_coef=config.prodigy_d_coef,
+            prodigy_growth_factor=config.unet_prodigy_growth_factor,
+            lora_weight_decay=config.lora_weight_decay,
+            use_dora=config.use_dora,
+            transformer_trainable_params=transformer_trainable_params,
+            optimizer_name=config.unet_optimizer_type
+        )
+    else:
+        optimizer_transformer = None
 
+    if TRAIN_TRANSFORMER:
+        print(f"Transformer trainable params: {count_trainable_params(transformer)}")
+
+    if TRAIN_TEXTUAL_INVERSION:
+        print(f"Textual inversion trainable params: {sum([x.numel() for x in textual_inversion_params])}")
+
+    optimizer = AllOptimizers(
+        optimizer_dict={
+            "transformer": optimizer_transformer,
+            "textual_inversion": optimizer_textual_inversion
+        }
+    )
     train_dataset = PreprocessedDataset(
         input_dir,
         pipeline,
@@ -484,7 +523,7 @@ def main(config: TrainingConfig, wandb_log = False):
         progress_bar.set_description(f"# Trainer step: {global_step}, epoch: {epoch}")
 
         for step, batch in enumerate(train_dataloader):
-            optimizer_transformer.zero_grad()
+            optimizer.zero_grad()
             # optimizer_ti.zero_grad()
             progress_bar.update(1)
             finegrained_epoch = epoch + step / len(train_dataloader)
@@ -513,15 +552,16 @@ def main(config: TrainingConfig, wandb_log = False):
             """
             some hardcoding on the captions just to see whether it works
             """
-            prompts = [
-                x.replace("tok, ", "") for x in prompts
-            ]
+            # prompts = [
+            #     x.replace("tok, ", "") for x in prompts
+            # ]
             # prompts = [
             #     x.replace("bananaman", "<s0><s1>") for x in prompts
             # ]
             """
             done with hardcoding
             """
+            print(f"Global step: {global_step} Example prompt: {prompts[0]}")
             prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                 prompt = prompts, 
                 text_encoders = text_encoders, 
@@ -606,12 +646,14 @@ def main(config: TrainingConfig, wandb_log = False):
             loss = loss.mean()
 
             loss.backward()
-    
-            torch.nn.utils.clip_grad_norm_(transformer_trainable_params, max_norm=1)
-            # torch.nn.utils.clip_grad_norm_(textual_inversion_params, max_norm=1)
 
-            optimizer_transformer.step()
-            # optimizer_ti.step()
+            if TRAIN_TRANSFORMER:
+                torch.nn.utils.clip_grad_norm_(transformer_trainable_params, max_norm=1)
+            
+            if TRAIN_TEXTUAL_INVERSION:
+                torch.nn.utils.clip_grad_norm_(textual_inversion_params, max_norm=1)
+
+            optimizer.step()
 
             progress_bar.set_postfix(
                 {
