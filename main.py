@@ -216,9 +216,9 @@ def train(
     # default value of cold (pre-warmup) optimizer lr:
     if config.sd_model_version == "sdxl":
         # let textual_inversion do the work first!
-        base_lr = 0.5e-5
+        base_lr = 1.0e-5
     elif config.sd_model_version == "sd15":
-        # let lora training kick in soonish
+        # let lora training kick in soonish (pure ti for sd15 is not working super well in my tests)
         base_lr = 1.0e-4
         
     #######################################################################################################
