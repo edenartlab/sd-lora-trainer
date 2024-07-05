@@ -29,7 +29,7 @@ Install all dependencies using
 
 then you can simply run:
 
-`python main.py -c training_args.json` 
+`python main.py train_configs/training_args.json` 
 to start a training job.
 
 Adjust the arguments inside `training_args.json` to setup a custom training job.
