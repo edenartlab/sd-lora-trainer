@@ -124,6 +124,13 @@ def plot_torch_hist(parameters, step, checkpoint_dir, name, bins=100, min_val=-1
 
         # Flatten and concatenate all parameters into a single tensor
         all_params = torch.cat([p.data.view(-1) for p in parameters])
+
+        # count number of parameters:
+        n_params = len(all_params)
+
+        if n_params == 0 or n_params > 1e9:
+            return
+
         norm = torch.norm(all_params)
 
         # Convert to CPU for plotting

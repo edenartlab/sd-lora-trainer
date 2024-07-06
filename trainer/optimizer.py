@@ -13,6 +13,7 @@ def get_unet_optimizer(
 ):
     ## unet_trainable_params can be unet.parameters() or a list of lora params
     
+    # These learning rates will get overwritten in main.py:
     if optimizer_name == "adamw":
         optimizer_unet = torch.optim.AdamW(unet_trainable_params, lr = 1e-4, weight_decay=lora_weight_decay if not use_dora else 0.0)
     elif optimizer_name == "AdamW8bit":

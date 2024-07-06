@@ -145,7 +145,7 @@ def save_checkpoint(
             output_dir, "special_params.json"
         )
     )
-
+    
     if is_lora:
         assert len(unet_lora_parameters) > 0, f"Expected len(unet_lora_parameters) to be greater than zero if is_lora is True"
         

@@ -48,43 +48,46 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sd15", "sdxl"],
+    "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/grimes"
+        "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple_large",
+        "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple"
 
     ],
-    "concept_mode": ['face'],
+    "concept_mode": ['style'],
+    "sample_imgs_lora_scale": [0.9],
+    "disable_ti": ['false', 'true'],
     "seed": [0],
     "resolution": [512],
     "train_batch_size": [4],
-    "n_sample_imgs": [6],
-    "max_train_steps": [400,800],
-    "checkpointing_steps": [100],
+    "n_sample_imgs": [8],
+    "max_train_steps": [1200],
+    "checkpointing_steps": [200],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [2],
-    "ti_lr": [0.001,0.0005],
-    "ti_weight_decay": [0.001,0.0],
+    "ti_lr": [0.001],
+    "ti_weight_decay": [0.001],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0,60],
+    "token_warmup_steps": [0],
     "tok_cov_reg_w": [2000],
-    "cond_reg_w": [0.01e-5],
-    "tok_cond_reg_w": [0.01e-5],
 
-    "unet_prodigy_growth_factor": [1.05],
-    "unet_lr": [0.001],
+    "unet_lr": [0.001, 0.0001],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [16,32],
-    "use_dora": ['false', 'true'],
+    "lora_rank": [16],
+    "use_dora": ['false'],
+
+    "unet_optimizer_type": ['AdamW8bit'],
+    "is_lora": ['false'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
     "caption_model": ["blip", "gpt4-v"],
-    "augment_imgs_up_to_n": [20,40],
+    "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']
 }

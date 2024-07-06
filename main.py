@@ -219,8 +219,11 @@ def train(
     
     # default value of cold (pre-warmup) optimizer lr:
     if config.sd_model_version == "sdxl":
-        # let textual_inversion do the work first!
-        base_lr = 1.0e-5
+        if config.is_lora:
+            # let textual_inversion do the work first!
+            base_lr = 1.0e-5
+        else:
+            base_lr = 1.0e-4
     elif config.sd_model_version == "sd15":
         # let lora training kick in soonish (pure ti for sd15 is not working super well in my tests)
         base_lr = 1.0e-4
@@ -400,7 +403,9 @@ def train(
                         plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
                 embedding_handler.print_token_info()
-                plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
+                print("plotting...")
+                if config.is_lora: # plotting this hist for full unet parameters can run OOM
+                    plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
                 plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
                 target_std_dict = {f"text_encoder_{idx}_target": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
                 plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
@@ -408,6 +413,7 @@ def train(
                 plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
                 
+                print("Getting ready to render validation images...")
                 validation_prompts = render_images(
                     pipe = pipe, 
                     render_size = config.validation_img_size, 
