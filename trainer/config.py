@@ -62,7 +62,7 @@ class TrainingConfig(BaseModel):
     output_dir: str = "lora_models/unnamed"
     debug: bool = False
     allow_tf32: bool = True
-    remove_ti_token_from_prompts: bool = False
+    disable_ti: bool = False
     weight_type: Literal["fp16", "bf16", "fp32"] = "bf16"
     n_tokens: int = 2
     inserting_list_tokens: List[str] = ["<s0>","<s1>"]

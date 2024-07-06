@@ -112,12 +112,16 @@ def train(
 
 
     embedding_handler.make_embeddings_trainable()
-    optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
-        text_encoders=text_encoders,
-        textual_inversion_lr=config.ti_lr,
-        textual_inversion_weight_decay=config.ti_weight_decay,
-        optimizer_name=config.ti_optimizer ## hardcoded
-    )
+    if not config.disable_ti:
+        optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
+            text_encoders=text_encoders,
+            textual_inversion_lr=config.ti_lr,
+            textual_inversion_weight_decay=config.ti_weight_decay,
+            optimizer_name=config.ti_optimizer ## hardcoded
+        )
+    else:
+        optimizer_ti = None
+        textual_inversion_params = None
 
     if not config.is_lora: # This code pathway has not been tested in a long while
         print(f"Doing full fine-tuning on the U-Net")
@@ -128,7 +132,6 @@ def train(
     else:
         # Do lora-training instead.
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
-
         # target_blocks=["block"] for original IP-Adapter
         # target_blocks=["up_blocks.0.attentions.1"] for style blocks only
         # target_blocks = ["up_blocks.0.attentions.1", "down_blocks.2.attentions.1"] # for style+layout blocks
@@ -349,12 +352,6 @@ def train(
                             grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
 
                 optimizer_collection.step()
-
-                # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
-                if optimizer_collection.get_lr('textual_inversion') > 0.0:
-                    #embedding_handler.fix_embedding_std(config.off_ratio_power)
-                    pass
-
                 optimizer_collection.zero_grad()
 
             #############################################################################################################

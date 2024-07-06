@@ -779,7 +779,7 @@ def load_and_save_masks_and_captions(
     captions = [fix_prompt(caption) for caption in captions]
     trigger_text = ""
     gpt_concept_description = None
-    if not config.remove_ti_token_from_prompts:
+    if not config.disable_ti:
         captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
 
     aug_imgs, aug_caps = [],[]
@@ -858,10 +858,10 @@ def load_and_save_masks_and_captions(
 
     os.makedirs(output_dir, exist_ok=True)
     
-    if config.remove_ti_token_from_prompts:
+    if config.disable_ti:
         print('------------------ WARNING -------------------')
         print("Removing 'TOK, ' from captions...")
-        print("This will completely break textual_inversion!!")
+        print("This will completely disable textual_inversion!!")
         print('------------------ WARNING -------------------')
         if gpt_concept_description:
             replace_str = gpt_concept_description
