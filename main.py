@@ -123,6 +123,7 @@ def train(
         print(f"Doing full fine-tuning on the U-Net")
         unet.requires_grad_(True)
         unet_lora_parameters = None
+        optimizer_text_encoder_lora = None
         unet_trainable_params = unet.parameters()
     else:
         # Do lora-training instead.
@@ -319,7 +320,7 @@ def train(
                 loss += 0.0 * concept_description_loss
                 losses['concept_description_loss'].append(concept_description_loss.item())
 
-            if config.l1_penalty > 0.0:
+            if config.l1_penalty > 0.0 and unet_lora_parameters:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss += config.l1_penalty * l1_norm

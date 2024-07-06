@@ -1,16 +1,15 @@
 {
-    "output_dir": "lora_models/test_xander",
-    "sd_model_version": "sd15",
-    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
-    "concept_mode": "face",
-    "sample_imgs_lora_scale": 0.8,
+    "output_dir": "lora_models/beeple",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple_small",
+    "concept_mode": "style",
     "seed": 0,
     "resolution": 512,
-    "train_batch_size": 4,
-    "n_sample_imgs": 6,
-    "max_train_steps": 800,
+    "train_batch_size": 2,
+    "n_sample_imgs": 4,
+    "max_train_steps": 400,
     "token_warmup_steps": 0,
-    "checkpointing_steps": 200,
+    "checkpointing_steps": 100,
     "ti_lr": 0.001,
     "ti_weight_decay": 0.0005,
 
@@ -21,8 +20,10 @@
     "text_encoder_lora_rank": 12,
 
     "unet_lr": 0.001,
-    "lora_rank": 16,
+    "lora_rank": 4,
     "use_dora": false,
+    "is_lora": false,
+    "unet_optimizer_type": "AdamW8bit",
     "caption_model": "blip",
     "debug": true
 }

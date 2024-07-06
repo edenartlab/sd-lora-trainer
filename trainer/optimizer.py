@@ -15,7 +15,9 @@ def get_unet_optimizer(
     
     if optimizer_name == "adamw":
         optimizer_unet = torch.optim.AdamW(unet_trainable_params, lr = 1e-4, weight_decay=lora_weight_decay if not use_dora else 0.0)
-    
+    elif optimizer_name == "AdamW8bit":
+        import bitsandbytes as bnb
+        optimizer_unet = bnb.optim.AdamW8bit(unet_trainable_params, lr = 1e-4, weight_decay=lora_weight_decay)
     elif optimizer_name == "prodigy":
         # Note: the specific settings of Prodigy seem to matter A LOT
         optimizer_unet = prodigyopt.Prodigy(
