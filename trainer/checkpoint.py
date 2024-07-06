@@ -187,6 +187,7 @@ def save_checkpoint(
             output_filename=os.path.join(output_dir, f"{name}.safetensors")
         )
     else:
+        # Save the entire, finetuned unet weights:
         unet.save_pretrained(save_directory = output_dir)
 
 def load_checkpoint(
