@@ -235,6 +235,8 @@ def encode_prompt(
     prompt: str,
     device=None,
     num_images_per_prompt: int = 1,
+    textual_inversion_prompt_embeds = None,
+    textual_inversion_prompt_embeds_2 =None
 ):
     prompt = [prompt] if isinstance(prompt, str) else prompt
 
@@ -251,20 +253,28 @@ def encode_prompt(
             device=device if device is not None else text_encoder.device,
             num_images_per_prompt=num_images_per_prompt,
         )
-        clip_prompt_embeds_list.append(prompt_embeds)
+        if (textual_inversion_prompt_embeds is not None) and (textual_inversion_prompt_embeds_2 is not None):
+            pass
+        else:
+            clip_prompt_embeds_list.append(prompt_embeds)
         clip_pooled_prompt_embeds_list.append(pooled_prompt_embeds)
-
+    
+    if (textual_inversion_prompt_embeds is not None) and (textual_inversion_prompt_embeds_2 is not None):
+        clip_prompt_embeds_list = [
+            textual_inversion_prompt_embeds,
+            textual_inversion_prompt_embeds_2
+        ]
     clip_prompt_embeds = torch.cat(clip_prompt_embeds_list, dim=-1)
     pooled_prompt_embeds = torch.cat(clip_pooled_prompt_embeds_list, dim=-1)
 
-    t5_prompt_embed = _encode_prompt_with_t5(
-        text_encoders[-1],
-        tokenizers[-1],
-        prompt=prompt,
-        num_images_per_prompt=num_images_per_prompt,
-        device=device if device is not None else text_encoders[-1].device,
-    )
-
+    with torch.no_grad():
+        t5_prompt_embed = _encode_prompt_with_t5(
+            text_encoders[-1],
+            tokenizers[-1],
+            prompt=prompt,
+            num_images_per_prompt=num_images_per_prompt,
+            device=device if device is not None else text_encoders[-1].device,
+        )
     clip_prompt_embeds = torch.nn.functional.pad(
         clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
     )
@@ -272,11 +282,11 @@ def encode_prompt(
 
     return prompt_embeds, pooled_prompt_embeds
 
-def compute_text_embeddings(prompt, text_encoders, tokenizers, device):
-    with torch.no_grad():
-        prompt_embeds, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt)
-        prompt_embeds = prompt_embeds.to(device)
-        pooled_prompt_embeds = pooled_prompt_embeds.to(device)
+def compute_text_embeddings(prompt, text_encoders, tokenizers, device, textual_inversion_prompt_embeds, textual_inversion_prompt_embeds_2):
+    # with torch.no_grad():
+    prompt_embeds, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt, textual_inversion_prompt_embeds=textual_inversion_prompt_embeds, textual_inversion_prompt_embeds_2=textual_inversion_prompt_embeds_2)
+    prompt_embeds = prompt_embeds.to(device)
+    pooled_prompt_embeds = pooled_prompt_embeds.to(device)
     return prompt_embeds, pooled_prompt_embeds
 
 def compute_gradient_norms(trainable_params: list):
@@ -319,10 +329,160 @@ class AllOptimizers:
             if self.optimizers[key] is not None:
                 self.optimizers[key].step()
 
+def find_surrounding_text(input_string, trigger_text):
+    start_index = input_string.find(trigger_text)
+    if start_index == -1:
+        return None, None
+
+    end_index = start_index + len(trigger_text)
+
+    text_before = input_string[:start_index] if start_index > 0 else None
+    text_after = input_string[end_index:] if end_index < len(input_string) else None
+
+    return text_before, text_after
+
+class TextualInversion:
+    def __init__(
+        self,
+        embedding_module: callable,
+        tokenizer: callable,
+        trigger_text: str = "TOK",
+        num_tokens: int = 2,
+        device = "cuda:0",
+        embedding_size: int = None,
+    ):
+        self.embedding_module = embedding_module
+        self.tokenizer = tokenizer
+        self.trigger_text = trigger_text
+        self.num_tokens = num_tokens
+        self.device = device
+        self.embedding_size = embedding_size
+        assert self.num_tokens>0
+        print("embedding_module", embedding_module)
+        print(f"tokenizer", tokenizer)
+        if embedding_size is not None:
+            assert embedding_size>0
+            self.embedding_size = embedding_size
+        else:
+            foo = self.tokenize_and_embed(
+                text = "hello world"
+            )
+            self.embedding_size = foo.shape[-1]
+            print(f"Auto-determined embedding_size to be: {self.embedding_size}")
+
+        embed_tensor = torch.randn(self.num_tokens, self.embedding_size).to(self.device)
+        embed_tensor.requires_grad = True
+        self.params = torch.nn.Parameter(embed_tensor)
+
+    def tokenize_and_embed(self, text: str, padded = False):
+
+        if padded:
+            token_ids = self.tokenizer.encode(
+                text, 
+                return_tensors = "pt",
+                padding="max_length",
+                max_length=77,
+                truncation=True,
+            ).to(self.device)
+        else:
+            token_ids = self.tokenizer.encode(
+                text, 
+                return_tensors = "pt",
+            ).to(self.device)
+        return self.embedding_module(token_ids)
+
+    def compute_text_embeddings(self, text: str, padded_length = None):
+
+        if self.trigger_text in text:
+            text_before, text_after = find_surrounding_text(
+                input_string=text, 
+                trigger_text=self.trigger_text
+            )
+
+            all_embeddings = []
+
+            if text_before is not None:
+                # [:, :-1, :] means skip the END token
+                all_embeddings.append(self.tokenize_and_embed(text_before, padded = False)[:, :-1, :].to(self.params.device))
+            
+            all_embeddings.append(self.params.unsqueeze(0))
+
+            if text_after is not None:
+                # [:, 1:, :] means skip the START token
+                all_embeddings.append(self.tokenize_and_embed(text_after, padded = False)[:, 1:, :].to(self.params.device))
+            all_embeddings = torch.cat(all_embeddings, dim = 1)
+
+            if padded_length is None:
+                return all_embeddings
+            else:
+                current_length = all_embeddings.shape[1]
+                if current_length < padded_length:
+                    padding_embeds = torch.cat(
+                        [
+                            all_embeddings[:,-1:,:]
+                            for i in range(padded_length-current_length)
+                        ],
+                        dim = 1
+                    )
+                    padded_embeddings = torch.cat(
+                        [
+                            all_embeddings,
+                            padding_embeds
+                        ],
+                        dim = 1
+                    )
+                    assert padded_embeddings.shape[1] == padded_length
+                    return padded_embeddings
+        else:
+            return self.tokenize_and_embed(text)
+
+def get_textual_inversion_prompt_embeds(
+    textual_inversion: TextualInversion,
+    textual_inversion_2: TextualInversion,
+    prompts: list,
+    text_encoders: list,
+    tokenizers: list,
+    device: str
+):
+    textual_inversion_prompt_embeds_list =  [
+        textual_inversion.compute_text_embeddings(
+            text = prompt, 
+            padded_length=77
+        )
+        for prompt in prompts
+    ]
+    textual_inversion_prompt_embeds = torch.cat(
+        textual_inversion_prompt_embeds_list,
+        dim = 0
+    )
+    textual_inversion_prompt_embeds_list_2 = [
+        textual_inversion_2.compute_text_embeddings(
+            text = prompt,
+            padded_length = 77
+        )
+        for prompt in prompts
+    ]
+    textual_inversion_prompt_embeds_2 = torch.cat(
+        textual_inversion_prompt_embeds_list_2,
+        dim = 0
+    )
+
+    prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+        prompt = prompts, 
+        text_encoders = text_encoders, 
+        tokenizers = tokenizers,
+        device=device,
+        textual_inversion_prompt_embeds=textual_inversion_prompt_embeds,
+        textual_inversion_prompt_embeds_2=textual_inversion_prompt_embeds_2
+    )
+    prompt_embeds = prompt_embeds.to(dtype=pooled_prompt_embeds.dtype)
+    return prompt_embeds, pooled_prompt_embeds
+
+
 def main(config: TrainingConfig, wandb_log = False):
     
     device = "cuda:0"
-    inference_device = "cuda:1"
+    inference_device = "cuda:0"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
@@ -336,6 +496,31 @@ def main(config: TrainingConfig, wandb_log = False):
 
     text_encoder_one, text_encoder_two, text_encoder_three = pipeline.text_encoder.to(device), pipeline.text_encoder_2.to(device), pipeline.text_encoder_3.to(device)
 
+    if TRAIN_TEXTUAL_INVERSION:
+        """
+        Revamping textual inversion
+        """
+        textual_inversion = TextualInversion(
+            embedding_module=pipeline.text_encoder.text_model.embeddings,
+            tokenizer=pipeline.tokenizer,
+            trigger_text = "<s0><s1>, ",
+            num_tokens = 2
+        )
+        textual_inversion_2 = TextualInversion(
+            embedding_module=pipeline.text_encoder_2.text_model.embeddings,
+            tokenizer=pipeline.tokenizer_2,
+            trigger_text = "<s0><s1>, ",
+            num_tokens = 2
+        )
+        textual_inversion_params = [textual_inversion.params, textual_inversion_2.params]
+        optimizer_textual_inversion = torch.optim.SGD(
+            textual_inversion_params,
+            lr = 1e-3,
+            weight_decay = 0.0
+        )
+        # embeds = textual_inversion.compute_text_embeddings(text = "ATOKA")
+        # embeds_2 = textual_inversion_2.compute_text_embeddings(text = "ATOKA")
+        # raise AssertionError("Success", embeds.shape, embeds_2.shape)
 
     # 3. load noise scheduler
     noise_scheduler = load_sd3_noise_scheduler()
@@ -359,20 +544,6 @@ def main(config: TrainingConfig, wandb_log = False):
     )
 
     text_encoders = [text_encoder_one, text_encoder_two, text_encoder_three]
-
-    # initialize token embedding handler
-
-    if TRAIN_TEXTUAL_INVERSION:
-        embedding_handler = TokenEmbeddingsHandler(
-            text_encoders = text_encoders, 
-            tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
-        )
-
-        embedding_handler.initialize_new_tokens(
-            inserting_toks=["<s0>","<s1>"],
-            starting_toks=None, 
-            seed=0
-        )
 
     """
     override some config params because we're recycling an sdxl config here
@@ -415,24 +586,7 @@ def main(config: TrainingConfig, wandb_log = False):
     ]
 
     if TRAIN_TEXTUAL_INVERSION:
-        embedding_handler.make_embeddings_trainable()
-        embedding_handler.token_regularizer = ConditioningRegularizer(
-            config, 
-            embedding_handler
-        )
-
-        # embedding_handler.pre_optimize_token_embeddings(
-        #     config, 
-        #     pipe = pipeline
-        # )
-
-        # get textual inversion params and it's optimizer
-        optimizer_textual_inversion, textual_inversion_params = get_textual_inversion_optimizer(
-            text_encoders=text_encoders,
-            textual_inversion_lr=config.ti_lr,
-            textual_inversion_weight_decay=config.ti_weight_decay,
-            optimizer_name=config.ti_optimizer ## hardcoded
-        )
+        pass
     else:
         optimizer_textual_inversion = None
     
@@ -562,14 +716,26 @@ def main(config: TrainingConfig, wandb_log = False):
             done with hardcoding
             """
             print(f"Global step: {global_step} Example prompt: {prompts[0]}")
-            prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-                prompt = prompts, 
-                text_encoders = text_encoders, 
-                tokenizers = [
-                    tokenizer_one, tokenizer_two, tokenizer_three
-                ],
-                device=device
-            )
+
+            if not TRAIN_TEXTUAL_INVERSION:
+                prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+                    prompt = prompts, 
+                    text_encoders = text_encoders, 
+                    tokenizers = [
+                        tokenizer_one, tokenizer_two, tokenizer_three
+                    ],
+                    device=device
+                )
+            else:
+                prompt_embeds, pooled_prompt_embeds = get_textual_inversion_prompt_embeds(
+                    textual_inversion=textual_inversion,
+                    textual_inversion_2=textual_inversion_2,
+                    prompts = prompts,
+                    text_encoders=text_encoders,
+                    tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three],
+                    device=device
+                )
+
             # Sample noise that we'll add to the latents
             noise = torch.randn_like(model_input)
             bsz = model_input.shape[0]
@@ -651,7 +817,9 @@ def main(config: TrainingConfig, wandb_log = False):
                 torch.nn.utils.clip_grad_norm_(transformer_trainable_params, max_norm=1)
             
             if TRAIN_TEXTUAL_INVERSION:
-                torch.nn.utils.clip_grad_norm_(textual_inversion_params, max_norm=1)
+                print(
+                    f"Textual Inversion grad norms: {textual_inversion.params.grad.norm()} | {textual_inversion_2.params.grad.norm()}"
+                )
 
             optimizer.step()
 
@@ -702,12 +870,24 @@ def main(config: TrainingConfig, wandb_log = False):
                 pipeline = pipeline.to(inference_device)
                 pipeline.transformer = transformer.to(inference_device)
                 
-                prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-                    prompt = inference_prompts, 
-                    text_encoders = text_encoders, 
-                    tokenizers = tokenizers,
-                    device=inference_device
-                )
+                if TRAIN_TEXTUAL_INVERSION:
+                    prompt_embeds, pooled_prompt_embeds = get_textual_inversion_prompt_embeds(
+                        textual_inversion=textual_inversion,
+                        textual_inversion_2=textual_inversion_2,
+                        prompts = prompts,
+                        text_encoders=text_encoders,
+                        tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three],
+                        device=device
+                    )
+                    prompt_embeds = prompt_embeds.to(inference_device)
+                    pooled_prompt_embeds = pooled_prompt_embeds.to(inference_device)
+                else:
+                    prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+                        prompt = inference_prompts, 
+                        text_encoders = text_encoders, 
+                        tokenizers = tokenizers,
+                        device=inference_device
+                    )
 
                 result = pipeline(
                     prompt_embeds = prompt_embeds,
@@ -734,7 +914,7 @@ def main(config: TrainingConfig, wandb_log = False):
                     )
                     result.images[index].save(filename)
                     print(f"Saved: {filename}")
-                pipeline = pipeline.to(device)
+                # pipeline = pipeline.to(device)
         
         if global_step > config.max_train_steps:
             print("Reached max steps, stopping training!")
