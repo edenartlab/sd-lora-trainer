@@ -583,8 +583,8 @@ def main(config: TrainingConfig, wandb_log = False):
     )
     
     inference_prompts = [
-        "<s0><s1>, A man is eating popcorn while holding a knife", 
-        "<s0><s1>, A man is taking a selfie in space",
+        # "<s0><s1>, A man is eating popcorn while holding a knife", 
+        # "<s0><s1>, A man is taking a selfie in space",
         "<s0><s1>, Gentleman with a moustache dressed up as santa",
     ]
 
@@ -880,7 +880,7 @@ def main(config: TrainingConfig, wandb_log = False):
                     prompt_embeds, pooled_prompt_embeds = get_textual_inversion_prompt_embeds(
                         textual_inversion=textual_inversion,
                         textual_inversion_2=textual_inversion_2,
-                        prompts = prompts,
+                        prompts = inference_prompts,
                         text_encoders=text_encoders,
                         tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three],
                         device=device
@@ -900,7 +900,6 @@ def main(config: TrainingConfig, wandb_log = False):
                     )
                 torch.cuda.empty_cache()
                 # pipeline.transformer = transformer.to(inference_device)
-
                 result = pipeline(
                     prompt_embeds = prompt_embeds,
                     pooled_prompt_embeds = pooled_prompt_embeds,
