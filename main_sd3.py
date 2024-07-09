@@ -482,7 +482,7 @@ def get_textual_inversion_prompt_embeds(
 def main(config: TrainingConfig, wandb_log = False):
     
     device = "cuda:0"
-    inference_device = "cuda:0"
+    inference_device = "cuda:1"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
@@ -539,7 +539,7 @@ def main(config: TrainingConfig, wandb_log = False):
             vae,
             # text_encoder_one,
             # text_encoder_two,
-            # text_encoder_three,
+            text_encoder_three,
         ]
     )
 
@@ -580,8 +580,8 @@ def main(config: TrainingConfig, wandb_log = False):
     )
     
     inference_prompts = [
-        "<s0><s1>, A man is eating popcorn while holding a knife", 
-        "<s0><s1>, A man is taking a selfie in space",
+        # "<s0><s1>, A man is eating popcorn while holding a knife", 
+        # "<s0><s1>, A man is taking a selfie in space",
         "<s0><s1>, Gentleman with a moustache dressed up as santa",
     ]
 
@@ -867,8 +867,6 @@ def main(config: TrainingConfig, wandb_log = False):
                 Run inference on a few prompts
                 """
                 torch.cuda.empty_cache()
-                pipeline = pipeline.to(inference_device)
-                pipeline.transformer = transformer.to(inference_device)
                 
                 if TRAIN_TEXTUAL_INVERSION:
                     prompt_embeds, pooled_prompt_embeds = get_textual_inversion_prompt_embeds(
@@ -881,13 +879,19 @@ def main(config: TrainingConfig, wandb_log = False):
                     )
                     prompt_embeds = prompt_embeds.to(inference_device)
                     pooled_prompt_embeds = pooled_prompt_embeds.to(inference_device)
+                    pipeline = pipeline.to(inference_device)
+
                 else:
+                    pipeline = pipeline.to(inference_device)
+
                     prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                         prompt = inference_prompts, 
                         text_encoders = text_encoders, 
                         tokenizers = tokenizers,
                         device=inference_device
                     )
+                torch.cuda.empty_cache()
+                # pipeline.transformer = transformer.to(inference_device)
 
                 result = pipeline(
                     prompt_embeds = prompt_embeds,
@@ -895,7 +899,7 @@ def main(config: TrainingConfig, wandb_log = False):
                     negative_prompt="",
                     num_inference_steps=28,
                     guidance_scale=7.0,
-                    generator = torch.Generator(device="cuda").manual_seed(0),
+                    generator = torch.Generator(device=inference_device).manual_seed(0),
                 )
 
                 ## run inference and save images during training
@@ -914,7 +918,9 @@ def main(config: TrainingConfig, wandb_log = False):
                     )
                     result.images[index].save(filename)
                     print(f"Saved: {filename}")
-                # pipeline = pipeline.to(device)
+
+                torch.cuda.empty_cache()
+                pipeline = pipeline.to(device)
         
         if global_step > config.max_train_steps:
             print("Reached max steps, stopping training!")
