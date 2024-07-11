@@ -449,15 +449,13 @@ def get_textual_inversion_prompt_embeds(
     return prompt_embeds, pooled_prompt_embeds
 
 
-def main(config: TrainingConfig, wandb_log = False):
+def main(config: TrainingConfig, wandb_log = False, output_dir = None):
     
     device = "cuda:0"
     inference_device = "cuda:1"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
-    # 2. Load text encoders
-    # text_encoder_one, text_encoder_two, text_encoder_three = load_sd3_text_encoders()
 
     pipeline = StableDiffusion3Pipeline.from_pretrained(
         "stabilityai/stable-diffusion-3-medium-diffusers",
@@ -490,9 +488,6 @@ def main(config: TrainingConfig, wandb_log = False):
             lr = 1e-4,
             weight_decay = 0.0
         )
-        # embeds = textual_inversion.compute_text_embeddings(text = "ATOKA")
-        # embeds_2 = textual_inversion_2.compute_text_embeddings(text = "ATOKA")
-        # raise AssertionError("Success", embeds.shape, embeds_2.shape)
 
     # 3. load noise scheduler
     noise_scheduler = load_sd3_noise_scheduler()
@@ -521,16 +516,22 @@ def main(config: TrainingConfig, wandb_log = False):
     override some config params because we're recycling an sdxl config here
     """
     config.ti_lr_warmup_steps = 200
-    config.is_lora = True
+    # config.is_lora = True
     config.token_warmup_steps = 0
-    config.lora_rank = 8
+    # config.lora_rank = 8
     config.sd_model_version = "sd3"
     # change default weighting scheme https://github.com/huggingface/diffusers/commit/a1d55e14baa051a8ec0c02949c0c27c1e6b21379
     weighting_scheme = "sigma_sqrt"
     logit_mean = 0.0
     logit_std = 1.0
+
+    """
+    for the sweep
+    """
+    if output_dir is not None:
+        config.output_dir = output_dir
+
     # config.token_dict = {}
-    # raise AssertionError(config.caption_prefix)
     config, input_dir = preprocess(
         config,
         working_directory=config.output_dir,
@@ -590,7 +591,7 @@ def main(config: TrainingConfig, wandb_log = False):
             use_dora=config.use_dora,
             transformer_trainable_params=transformer_trainable_params,
             optimizer_name="adamw_8bit",
-            lr = 1e-3
+            lr = config.unet_learning_rate
         )
     else:
         optimizer_transformer = None
@@ -690,7 +691,7 @@ def main(config: TrainingConfig, wandb_log = False):
             """
             done with hardcoding
             """
-            print(f"Global step: {global_step} Example prompt: {prompts[0]}")
+            # print(f"Global step: {global_step} Example prompt: {prompts[0]}")
 
             if not TRAIN_TEXTUAL_INVERSION:
                 prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
@@ -796,7 +797,7 @@ def main(config: TrainingConfig, wandb_log = False):
 
             if global_step % config.gradient_accumulation_steps == 0:
                 optimizer.step()
-                print(f"Performed an optimization step")
+                # print(f"Performed an optimization step")
 
             progress_bar.set_postfix(
                 {
@@ -930,7 +931,23 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     config = TrainingConfig.from_json(file_path=args.config_filename)
-    main(config=config, wandb_log=args.wandb_log)
+    sweep_output_dir = os.path.join(
+        "sd3_sweep_outputs",
+        os.path.basename(args.config_filename).replace(".json", "")
+    )
+    main(
+        config=config, 
+        wandb_log=args.wandb_log,
+        # for sweep
+        output_dir=sweep_output_dir
+    )
+    ## cleanup after training run is complete
+    os.system(
+        f"rm -rf {sweep_output_dir}/images_in"
+    )
+    os.system(
+        f"rm -rf {sweep_output_dir}/images_out"
+    )
 
 """
 python3 main_sd3.py training_args_banny.json  --wandb-log

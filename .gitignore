@@ -22,3 +22,5 @@ training_args_x_*.json
 xander_configs/
 debug/*
 wandb/
+sd3_sweep_outputs/
+sd3_face_sweep_configs/
