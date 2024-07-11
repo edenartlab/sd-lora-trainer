@@ -841,10 +841,11 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
                 """
                 Save intermediate checkpoint
                 """                
-                save_transformer_lora_checkpoint(
-                    transformer=transformer,
-                    folder=os.path.join(checkpoints_folder,f"global_step_{global_step}", f"transformer")
-                )
+                # save_transformer_lora_checkpoint(
+                #     transformer=transformer,
+                #     folder=os.path.join(checkpoints_folder,f"global_step_{global_step}", f"transformer")
+                # )
+                # temporarily commented out since we don't want to save checkpoints and fill up the storage
 
                 """
                 Run inference on a few prompts

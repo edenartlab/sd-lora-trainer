@@ -52,9 +52,9 @@ default_config = {
     "resolution": 512,
     "train_batch_size": 2,
     "n_sample_imgs": 6,
-    "max_train_steps": 100,
+    "max_train_steps": 1000,
     "token_warmup_steps": 200,
-    "checkpointing_steps": 1000000000, ## no need to save any checkpoints
+    "checkpointing_steps": 1000, ## no need to save any checkpoints
     "gradient_accumulation_steps": 2,
     "sample_imgs_lora_scale": 0.8,
     "n_tokens": 2,
@@ -68,7 +68,7 @@ default_config = {
     "lora_rank": 16,
     "use_dora": False,
     "caption_model": "blip",
-    "debug": True
+    "debug": True,
 }
 
 keys, values = zip(*sweep_params.items())
@@ -88,6 +88,7 @@ for index, c in enumerate(combinations):
         if key == "train_batch_size":
             config["gradient_accumulation_steps"] = c[key] / config["train_batch_size"]
             config["max_train_steps"] = config["max_train_steps"] * config["gradient_accumulation_steps"]
+            config["checkpointing_steps"] = config["checkpointing_steps"] * config["gradient_accumulation_steps"]
         else:
             config[key] = c[key]
         # print(f"{index} - Setting {key} to {c[key]}")
