@@ -1,37 +1,3 @@
-"""
-todos:
-[x] - load pretrained:
-    - [x] pipe
-    - [x] tokenizers
-    - [x] unet
-    - [x] vae
-    - [x] noise scheduler
-[x] - initial token embeddings handler with their respective tokenizers
-[x] - init new tokens: ["<s0>","<s1>"]
-[] - [later] init lora params for text encoders
-[x] - get textual inversion params and it's corresponding optimizer
-[x] - either do full finetuning of transformer or init lora params
-[x] - init optimizer for transformer trainable parameters
-[x] - init PreprocessedDataset object
-[] - [later] init OptimizerCollection containing all optimizers
-[] - [debug step] visualize a random token embedding
-[] - do training
-    - [x] init train dataloader
-    - [] [later] aspect ratio bucketed batch
-    - [] [later] update learning rate based if not using the prodigy optimizer
-    - [x] dynamic learning rate for textual inversion
-    - [x] get either training batch (bucketed or not)
-    - [x] training loop without forward or backward pass
-    - [x] denoising step from sd3 training code
-    - [x] [later] clip grad norms after loss backward
-    - [x] wandb log loss
-    - [x] loss go down
-    - [x] apply mask to denoising loss
-[x] - Save checkpoint after training
-[] - save checkpoint during training
-[x] - inference + visualize examples
-[] - use hf accelerate
-"""
 import os
 import math
 import copy
@@ -623,7 +589,8 @@ def main(config: TrainingConfig, wandb_log = False):
             lora_weight_decay=config.lora_weight_decay,
             use_dora=config.use_dora,
             transformer_trainable_params=transformer_trainable_params,
-            optimizer_name="adamw_8bit"
+            optimizer_name="adamw_8bit",
+            lr = 1e-3
         )
     else:
         optimizer_transformer = None
