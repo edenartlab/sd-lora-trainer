@@ -60,9 +60,10 @@ from trainer.config import TrainingConfig
 from tqdm import tqdm
 import wandb
 from peft.utils import get_peft_model_state_dict
+import bitsandbytes as bnb
 
 TRAIN_TRANSFORMER = True
-TRAIN_TEXTUAL_INVERSION = True
+TRAIN_TEXTUAL_INVERSION = False
 
 def load_sd3_tokenizers():
     # Load the tokenizers
@@ -120,17 +121,20 @@ def get_transformer_optimizer(
     lora_weight_decay: float,
     use_dora: bool,
     transformer_trainable_params: Iterable,
-    optimizer_name="prodigy"
+    optimizer_name="prodigy",
+    lr = 1e-4
 ):
     if optimizer_name == "adamw":
-        optimizer = torch.optim.AdamW(transformer_trainable_params, lr = 1e-4, weight_decay=lora_weight_decay if not use_dora else 0.0)
+        optimizer = torch.optim.AdamW(transformer_trainable_params, lr = lr, weight_decay=lora_weight_decay if not use_dora else 0.0)
     
+    elif optimizer_name == "adamw_8bit":
+         optimizer = bnb.optim.AdamW8bit(transformer_trainable_params, lr = lr, weight_decay=lora_weight_decay)
     elif optimizer_name == "prodigy":
         # Note: the specific settings of Prodigy seem to matter A LOT
         optimizer = prodigyopt.Prodigy(
             transformer_trainable_params,
             d_coef = prodigy_d_coef,
-            lr=1.0,
+            lr=1.0, ## the lr arg is ignored for the prodigy optimizer
             decouple=True,
             use_bias_correction=True,
             safeguard_warmup=True,
@@ -273,7 +277,7 @@ def encode_prompt(
 
     return prompt_embeds, pooled_prompt_embeds
 
-def compute_text_embeddings(prompt, text_encoders, tokenizers, device, textual_inversion_prompt_embeds, textual_inversion_prompt_embeds_2):
+def compute_text_embeddings(prompt, text_encoders, tokenizers, device, textual_inversion_prompt_embeds = None, textual_inversion_prompt_embeds_2 = None):
     # with torch.no_grad():
     prompt_embeds, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt, textual_inversion_prompt_embeds=textual_inversion_prompt_embeds, textual_inversion_prompt_embeds_2=textual_inversion_prompt_embeds_2)
     prompt_embeds = prompt_embeds.to(device)
@@ -585,7 +589,8 @@ def main(config: TrainingConfig, wandb_log = False):
     inference_prompts = [
         # "<s0><s1>, A man is eating popcorn while holding a knife", 
         # "<s0><s1>, A man is taking a selfie in space",
-        "<s0><s1>, Gentleman with a moustache dressed up as santa",
+        # "<s0><s1>, Gentleman with a moustache dressed up as santa",
+        'in the style of <s0><s1>, there is a picture of a cab in new york', ## style prompt
     ]
 
     if TRAIN_TEXTUAL_INVERSION:
@@ -618,7 +623,7 @@ def main(config: TrainingConfig, wandb_log = False):
             lora_weight_decay=config.lora_weight_decay,
             use_dora=config.use_dora,
             transformer_trainable_params=transformer_trainable_params,
-            optimizer_name=config.unet_optimizer_type
+            optimizer_name="adamw_8bit"
         )
     else:
         optimizer_transformer = None
@@ -689,14 +694,15 @@ def main(config: TrainingConfig, wandb_log = False):
             """
             Scale learning rate of textual inversion params
             """
-            if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
-                optimizer_textual_inversion.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
-                # warmup the ti-lr:
-                if config.ti_lr_warmup_steps > 0:
-                    warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
-                    optimizer_textual_inversion.param_groups[0]['lr'] *= warmup_f
-                if config.freeze_ti_after_completion_f <= completion_f:
-                    optimizer_textual_inversion.param_groups[0]['lr'] *= 0
+            if TRAIN_TEXTUAL_INVERSION:
+                if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
+                    optimizer_textual_inversion.param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
+                    # warmup the ti-lr:
+                    if config.ti_lr_warmup_steps > 0:
+                        warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
+                        optimizer_textual_inversion.param_groups[0]['lr'] *= warmup_f
+                    if config.freeze_ti_after_completion_f <= completion_f:
+                        optimizer_textual_inversion.param_groups[0]['lr'] *= 0
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
