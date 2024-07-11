@@ -554,10 +554,11 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
     )
     
     inference_prompts = [
-        # "<s0><s1>, A man is eating popcorn while holding a knife", 
-        # "<s0><s1>, A man is taking a selfie in space",
-        # "<s0><s1>, Gentleman with a moustache dressed up as santa",
-        'in the style of <s0><s1>, there is a picture of a cab in new york', ## style prompt
+        "<s0><s1>, A man is eating popcorn while holding a knife", 
+        "<s0><s1>, A man is taking a selfie in space",
+        "<s0><s1>, Gentleman with a moustache dressed up as santa",
+        "<s0><s1>, An 8 bit pixel art portrait of a man",
+        "<s0><s1>, A man as a character within skyrim",
     ]
 
     if TRAIN_TEXTUAL_INVERSION:
