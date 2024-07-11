@@ -31,8 +31,8 @@ class TrainingConfig(BaseModel):
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
-
-    ti_lr: float = 1e-3
+    # if ti_lr is None, then we completely skip textual inversion
+    ti_lr: Union[float, None] = 1e-3
     ti_lr_warmup_steps: int = 20   # slowly ramp up the learning rate to build some momentum
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
     ti_weight_decay: float = 0.0

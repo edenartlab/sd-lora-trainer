@@ -29,7 +29,7 @@ sweep_params = {
         # 6, 
         # 8,
     ],
-    "textual_inversion": [True, False],
+    "ti_lr": [1e-3, None],
     "unet_optimizer_type": [
         "adamw",
         "adamw_8bit",

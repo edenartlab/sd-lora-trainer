@@ -450,6 +450,7 @@ def get_textual_inversion_prompt_embeds(
 
 
 def main(config: TrainingConfig, wandb_log = False, output_dir = None):
+    TRAIN_TEXTUAL_INVERSION =  True if config.ti_lr != None else False
     
     device = "cuda:0"
     inference_device = "cuda:1"
@@ -591,7 +592,7 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
             lora_weight_decay=config.lora_weight_decay,
             use_dora=config.use_dora,
             transformer_trainable_params=transformer_trainable_params,
-            optimizer_name="adamw_8bit",
+            optimizer_name=config.unet_optimizer_type,
             lr = config.unet_learning_rate
         )
     else:
@@ -883,6 +884,7 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
                     num_inference_steps=28,
                     guidance_scale=7.0,
                     generator = torch.Generator(device=inference_device).manual_seed(0),
+                    batch_size = 1
                 )
 
                 ## run inference and save images during training
