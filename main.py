@@ -543,6 +543,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = TrainingConfig.from_json(file_path=args.config_filename)
+
+    print("Starting new LoRa training run with config:")
+    print(config)
+    
     for progress in train(config=config):
         print(f"Progress: {(100*progress):.2f}%", end="\r")
 
