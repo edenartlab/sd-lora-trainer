@@ -74,7 +74,7 @@ class TrainingConfig(BaseModel):
     unet_learning_rate: float = 1.0
     lr_num_cycles: int = 1
     lr_power: float = 1.0
-    sample_imgs_lora_scale: float = 0.65    # Default lora scale for sampling the validation images
+    sample_imgs_lora_scale: float = None    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False
@@ -116,6 +116,12 @@ class TrainingConfig(BaseModel):
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
             self.mask_target_prompts = "face"
             #self.use_face_detection_instead = True
+
+        if not self.sample_imgs_lora_scale:
+            if self.sd_model_version == "sdxl":
+                self.sample_imgs_lora_scale = 0.7
+            else:
+                self.sample_imgs_lora_scale = 0.85
         
         if self.use_dora:
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")
