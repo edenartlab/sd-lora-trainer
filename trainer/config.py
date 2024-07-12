@@ -5,6 +5,53 @@ import json, time, os
 from typing import Literal
 from trainer.models import pretrained_models
 from trainer.utils.utils import pick_best_gpu_id
+import subprocess
+
+def run_command(command):
+    try:
+        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        return f"Error: {e.stderr}"
+
+
+print("=================================================================")
+print("=================================================================")
+
+print("NVIDIA Driver Version:")
+nvidia_smi_output = run_command("nvidia-smi --query-gpu=driver_version --format=csv,noheader")
+print(nvidia_smi_output.strip())  # strip() removes any trailing newlines
+
+print("\nNVCC Version:")
+print(run_command("nvcc --version"))
+
+print("\nCUDNN Libraries:")
+print(run_command("ldconfig -p | grep cudnn"))
+
+print("\nFull NVIDIA-SMI Output:")
+print(run_command("nvidia-smi"))
+
+# Run nvcc --version
+nvcc_version = run_command("nvcc --version")
+print("NVCC Version:")
+print(nvcc_version)
+
+# Run ldconfig -p | grep cudnn
+cudnn_info = run_command("ldconfig -p | grep cudnn")
+print("\nCUDNN Libraries:")
+print(cudnn_info)
+
+# Check if CUDA is available
+import torch
+if torch.cuda.is_available():
+    print(f"Torch version: {torch.__version__}")
+    print(f"CUDA Version: {torch.version.cuda}")
+    print(f"cuDNN Version: {torch.backends.cudnn.version()}")
+else:
+    print("CUDA is not available.")
+
+print("-----------------------------------------------------------------")
+print("-----------------------------------------------------------------")
 
 class TrainingConfig(BaseModel):
     lora_training_urls: str
