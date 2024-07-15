@@ -6,6 +6,7 @@ import random
 random.seed(0)
 
 GPU_IDS = [1,2,3]
+wandb_log = True
 
 def divide_list(lst, n):
     """
@@ -154,6 +155,8 @@ all_commands = []
 
 for c in all_config_paths:
     command = f"python3 main_sd3.py {c}"
+    if wandb_log:
+        command = command + " --wandb-log"
     all_commands.append(command)
 
 random.shuffle(all_commands)

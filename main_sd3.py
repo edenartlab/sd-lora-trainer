@@ -649,7 +649,7 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
 
     if wandb_log:
         wandb.init(
-            project = "eden-concept-trainer-sd3",
+            project = "eden-concept-trainer-sd3-sweep",
             config = config.dict()
         )
     for epoch in range(config.num_train_epochs):
