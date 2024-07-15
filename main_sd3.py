@@ -451,7 +451,6 @@ def get_textual_inversion_prompt_embeds(
 
 def main(config: TrainingConfig, wandb_log = False, output_dir = None):
     TRAIN_TEXTUAL_INVERSION =  True if config.ti_lr != None else False
-    
     device = "cuda:0"
     inference_device = "cuda:0"
     # 1. Load tokenizers
@@ -650,7 +649,8 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
     if wandb_log:
         wandb.init(
             project = "eden-concept-trainer-sd3-sweep",
-            config = config.dict()
+            config = config.dict(),
+            name= os.path.basename(output_dir)
         )
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
