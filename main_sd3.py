@@ -453,14 +453,15 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
     TRAIN_TEXTUAL_INVERSION =  True if config.ti_lr != None else False
     
     device = "cuda:0"
-    inference_device = "cuda:0"
+    inference_device = "cuda:1"
     # 1. Load tokenizers
     tokenizer_one, tokenizer_two, tokenizer_three = load_sd3_tokenizers()
     tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three]
 
     pipeline = StableDiffusion3Pipeline.from_pretrained(
         "stabilityai/stable-diffusion-3-medium-diffusers",
-        torch_dtype=torch.bfloat16
+        torch_dtype=torch.bfloat16,
+        batch_size=  1
     )
 
     text_encoder_one, text_encoder_two, text_encoder_three = pipeline.text_encoder.to(device), pipeline.text_encoder_2.to(device), pipeline.text_encoder_3.to(device)
@@ -560,7 +561,9 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
         "<s0><s1>, Gentleman with a moustache dressed up as santa",
         "<s0><s1>, An 8 bit pixel art portrait of a man",
         "<s0><s1>, A man as a character within skyrim",
+        "<s0><s1>, A picture of a man dressed in a tomato suit"
     ]
+    
 
     if TRAIN_TEXTUAL_INVERSION:
         pass
@@ -852,56 +855,55 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
                 Run inference on a few prompts
                 """
                 torch.cuda.empty_cache()
-                
-                if TRAIN_TEXTUAL_INVERSION:
-                    prompt_embeds, pooled_prompt_embeds = get_textual_inversion_prompt_embeds(
-                        textual_inversion=textual_inversion,
-                        textual_inversion_2=textual_inversion_2,
-                        prompts = inference_prompts,
-                        text_encoders=text_encoders,
-                        tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three],
-                        device=device
-                    )
-                    prompt_embeds = prompt_embeds.to(inference_device)
-                    pooled_prompt_embeds = pooled_prompt_embeds.to(inference_device)
-                    pipeline = pipeline.to(inference_device)
-
-                else:
-                    pipeline = pipeline.to(inference_device)
-
-                    prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-                        prompt = inference_prompts, 
-                        text_encoders = text_encoders, 
-                        tokenizers = tokenizers,
-                        device=inference_device
-                    )
-                torch.cuda.empty_cache()
-                # pipeline.transformer = transformer.to(inference_device)
-                result = pipeline(
-                    prompt_embeds = prompt_embeds,
-                    pooled_prompt_embeds = pooled_prompt_embeds,
-                    negative_prompt="",
-                    num_inference_steps=28,
-                    guidance_scale=7.0,
-                    generator = torch.Generator(device=inference_device).manual_seed(0),
-                    batch_size = 1
-                )
-
                 ## run inference and save images during training
                 train_samples_folder = os.path.join(
-                    checkpoints_folder,
+                    sweep_output_dir,
                     f"global_step_{global_step}",
                     f"generated_samples"
                 )
                 os.system(
                     f"mkdir -p {train_samples_folder}"
                 )
-                for index in range(len(result.images)):
+                for prompt_idx, inference_prompt in enumerate(inference_prompts):
+                    if TRAIN_TEXTUAL_INVERSION:
+                        prompt_embeds, pooled_prompt_embeds = get_textual_inversion_prompt_embeds(
+                            textual_inversion=textual_inversion,
+                            textual_inversion_2=textual_inversion_2,
+                            prompts = [inference_prompt],
+                            text_encoders=text_encoders,
+                            tokenizers = [tokenizer_one, tokenizer_two, tokenizer_three],
+                            device=device
+                        )
+                        prompt_embeds = prompt_embeds.to(inference_device)
+                        pooled_prompt_embeds = pooled_prompt_embeds.to(inference_device)
+                        pipeline = pipeline.to(inference_device)
+
+                    else:
+                        pipeline = pipeline.to(inference_device)
+
+                        prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+                            prompt = [inference_prompt], 
+                            text_encoders = text_encoders, 
+                            tokenizers = tokenizers,
+                            device=inference_device
+                        )
+                    torch.cuda.empty_cache()
+                    # pipeline.transformer = transformer.to(inference_device)
+                    result = pipeline(
+                        prompt_embeds = prompt_embeds,
+                        pooled_prompt_embeds = pooled_prompt_embeds,
+                        negative_prompt="",
+                        num_inference_steps=28,
+                        guidance_scale=7.0,
+                        generator = torch.Generator(device=inference_device).manual_seed(0),
+                    ).images[0]
+
+                    
                     filename = os.path.join(
                         train_samples_folder,
-                        f"global_step_{global_step}_index_{index}.jpg"
+                        f"global_step_{global_step}_index_{prompt_idx}.jpg"
                     )
-                    result.images[index].save(filename)
+                    result.save(filename)
                     print(f"Saved: {filename}")
 
                 torch.cuda.empty_cache()
