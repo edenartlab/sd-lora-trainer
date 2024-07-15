@@ -54,25 +54,23 @@ os.system(f"mkdir -p {config_folder}")
 sweep_params = {
     "unet_learning_rate": [
         5e-5,
-        # 1e-4,
-        # 3e-4,
-        # 7e-4,
-        # 1e-3,
-        # 2e-3,
-        # 3e-3
+        1e-4,
+        3e-4,
+        7e-4,
+        1e-3,
+        2e-3,
     ],
     "train_batch_size": [
         2,
-        # 4,
-        # 6,
-        # 8,
-        # 16
+        4,
+        8,
+        16
     ],
     "lora_rank": [
         2, 
-        # 4, 
-        # 6, 
-        # 8,
+        4, 
+        6, 
+        8,
     ],
     "ti_lr": [1e-3, None],
     "unet_optimizer_type": [
