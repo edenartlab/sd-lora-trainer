@@ -13,7 +13,7 @@
     "ti_lr": 0.001,
     "ti_weight_decay": 0.0005,
 
-    "remove_ti_token_from_prompts": false,
+    "disable_ti": false,
     "text_encoder_lora_optimizer": null,
     "text_encoder_lora_lr": 1.0e-4,
     "text_encoder_lora_weight_decay": 1e-5,

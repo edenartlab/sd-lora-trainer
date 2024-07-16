@@ -12,7 +12,7 @@ invisible-watermark==0.2.0
 pandas==2.2.1
 numpy==1.26.4
 opencv-python==4.10.0.84
-mediapipe== 0.10.14
+mediapipe==0.10.14
 openai==1.35.13
 python-dotenv==1.0.1
 prodigyopt==1.0
