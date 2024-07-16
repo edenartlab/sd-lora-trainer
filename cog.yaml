@@ -6,16 +6,11 @@ build:
   cuda: "12.1"
   python_version: "3.11"
   system_packages:
-    - "libcudnn8=8.9.0.131-1+cuda12.1"
-    - "libcudnn8-dev=8.9.0.131-1+cuda12.1"
+    - "ffmpeg"
 
   python_requirements: requirements.txt
   run:
-    - apt-mark showhold
-    - apt-get update -y -qq
-    - apt-get upgrade -y --allow-change-held-packages
-    - apt-get install -y --allow-change-held-packages ffmpeg libgl1-mesa-glx libegl1-mesa-dev libsm6 libxext6 libglib2.0-0
-    - wget http://thegiflibrary.tumblr.com/post/11565547760 -O face_landmarker_v2_with_blendshapes.task -q https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+    - wget https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task -O face_landmarker_v2_with_blendshapes.task
 
 predict: "predict.py:Predictor"
 image: "r8.im/edenartlab/sdxl-lora-trainer"
