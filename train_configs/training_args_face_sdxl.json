@@ -1,5 +1,5 @@
 {
-    "output_dir": "lora_models/test_xander",
+    "name": "xander_sdxl",
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip",
     "concept_mode": "face",

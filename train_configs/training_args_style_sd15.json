@@ -1,5 +1,5 @@
 {
-    "output_dir": "lora_models/test_clipx",
+    "name": "clipx_sd15",
     "sd_model_version": "sd15",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
     "concept_mode": "style",

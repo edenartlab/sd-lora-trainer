@@ -1,9 +1,10 @@
 {
-    "output_dir": "lora_models/test_clipx",
+    "name": "clipx_sdxl",
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
     "concept_mode": "style",
-    "seed": 0,
+    "sample_imgs_lora_scale": 0.7,
+    "seed": 1,
     "resolution": 512,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
