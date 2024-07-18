@@ -473,7 +473,7 @@ def train(config: TrainingConfig):
             pretrained_model_version=config.pretrained_model["version"]
         )
         
-        if config.debug:
+        if config.debug and 0:
             # Reload the entire pipe from disk + LoRa:
             pipe_to_use = None
             checkpoint_folder = output_save_dir
@@ -526,6 +526,7 @@ def train(config: TrainingConfig):
     config.training_attributes["validation_prompts"] = validation_prompts
     config.save_as_json(os.path.join(output_save_dir, "training_args.json"))
     print("Training job complete, saving outputs...", flush = True)
+    print("------------------------------------------")
 
     return config, output_save_dir
 

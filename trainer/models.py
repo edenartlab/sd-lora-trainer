@@ -43,7 +43,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     text_encoder_one.to(device, dtype=weight_dtype)
     
     tokenizer_two = text_encoder_two = None
-    if pretrained_model['version'] == "sdxl":
+    if sd_model_version == "sdxl":
         tokenizer_two = pipe.tokenizer_2
         text_encoder_two = pipe.text_encoder_2
         text_encoder_two.requires_grad_(False)

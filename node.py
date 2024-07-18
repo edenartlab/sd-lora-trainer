@@ -3,6 +3,8 @@ import tarfile
 import json
 import time
 import torch
+import numpy as np
+from PIL import Image
 
 from main import train
 from trainer.config import TrainingConfig, model_paths
@@ -34,8 +36,8 @@ class Eden_LoRa_trainer:
         }
 
     CATEGORY = "Eden 🌱"
-    RETURN_TYPES = ("STRING", "STRING", "FLOAT")
-    RETURN_NAMES = ("lora_path", "embedding_path", "total_runtime_s")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("sample_images", "lora_path", "embedding_path", "total_runtime_s")
     FUNCTION = "train_lora"
 
     def train_lora(self, 
@@ -91,21 +93,30 @@ class Eden_LoRa_trainer:
             while True:
                 try:
                     progress_f = next(train_generator)
+                    print("---- Progress ----")
+                    print(progress_f)
                 except StopIteration as e:
                     config, output_save_dir = e.value  # Capture the return value
+                    print("---- Training finished at StopIteration! ----")
                     break
 
         validation_grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
-        directory = cogPath(output_save_dir)
 
         attributes = {}
         attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
         attributes['job_time_seconds'] = config.job_time
 
-        print(f"LORA training finished in {config.job_time:.1f} seconds")
-        print(f"Returning {out_path}")
+        print(f"LORA training node finished in {config.job_time:.1f} seconds")
+        print("---------- Made by Eden.art 🌱 ----------")
 
         lora_path = os.path.join(output_save_dir, config.name + ".safetensors")
         embedding_path = os.path.join(output_save_dir, config.name + "_embeddings.safetensors")
 
-        return (lora_path, embedding_path, config.job_time)
+        # Load the grid image:
+        grid_image = Image.open(validation_grid_img_path)
+        grid_image = np.array(grid_image).astype(np.float32) / 255.0
+        grid_image = torch.from_numpy(grid_image)[None,]
+
+        final_msg = f"LoRa trained in {config.job_time/60:.1f} minutes. Files saved at {output_save_dir}"
+
+        return (grid_image, lora_path, embedding_path, final_msg)
