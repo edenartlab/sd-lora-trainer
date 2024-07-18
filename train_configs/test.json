@@ -1,0 +1,27 @@
+{
+    "name": "xander_test",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip",
+    "concept_mode": "face",
+    "seed": 1,
+    "resolution": 512,
+    "train_batch_size": 4,
+    "n_sample_imgs": 4,
+    "max_train_steps": 200,
+    "token_warmup_steps": 0,
+    "checkpointing_steps": 100,
+    "ti_lr": 0.001,
+    "ti_weight_decay": 0.0005,
+
+    "disable_ti": false,
+    "text_encoder_lora_optimizer": null,
+    "text_encoder_lora_lr": 1.0e-4,
+    "text_encoder_lora_weight_decay": 1e-5,
+    "text_encoder_lora_rank": 12,
+
+    "unet_lr": 0.001,
+    "lora_rank": 16,
+    "use_dora": false,
+    "caption_model": "blip",
+    "debug": true
+}
