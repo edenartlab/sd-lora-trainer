@@ -36,7 +36,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     else:
         vae.to(device, dtype=weight_dtype)
         if weight_dtype != torch.float32:
-            print(f"Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but might not be for training..")
+            print(f"Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but may not be ideal for training..?")
 
     unet.to(device, dtype=weight_dtype)
     text_encoder_one.requires_grad_(False)

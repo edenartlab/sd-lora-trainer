@@ -134,7 +134,7 @@ class TrainingConfig(BaseModel):
         if not self.name:
             self.name = f"{os.path.basename(self.output_dir)}_{self.concept_mode}_{lora_str}_{self.sd_model_version}_{timestamp_short}"
 
-        self.output_dir = self.output_dir + f"/{self.name}/" + f"{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
+        self.output_dir = self.output_dir + f"/{self.name}/" + f"{timestamp_short}-{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.seed is None:

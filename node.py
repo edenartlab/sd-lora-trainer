@@ -28,7 +28,7 @@ class Eden_LoRa_trainer:
                     "use_dora": ("BOOLEAN", {"default": False}),
                     "n_tokens": ("INT", {"default": 2, "min": 1, "max": 3}),
                     "debug_mode": ("BOOLEAN", {"default": False}),
-                    "checkpointing_steps": ("INT", {"default": 200, "min": 100, "max": 2000}),
+                    "checkpointing_steps": ("INT", {"default": 200, "min": 10, "max": 2000}),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),
                 }
         }

@@ -25,6 +25,7 @@ from trainer.loss import compute_diffusion_loss, compute_grad_norm, Conditioning
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
+
 from trainer.optimizer import (
     OptimizerCollection, 
     get_optimizer_and_peft_models_text_encoder_lora, 
@@ -33,10 +34,24 @@ from trainer.optimizer import (
     get_unet_optimizer
 )
 
-def train(
-    config: TrainingConfig,
-):  
+def train(config: TrainingConfig):
+
     seed_everything(config.seed)
+    weight_dtype = dtype_map[config.weight_type]
+
+    (   
+        pipe,
+        tokenizer_one,
+        tokenizer_two,
+        noise_scheduler,
+        text_encoder_one,
+        text_encoder_two,
+        vae,
+        unet,
+    ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype)
+
+    config.sd_model_version = sd_model_version
+    config.pretrained_model["version"] = sd_model_version
 
     config, input_dir = preprocess(
         config,
@@ -56,22 +71,6 @@ def train(
 
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
-
-    weight_dtype = dtype_map[config.weight_type]
-
-    (   
-        pipe,
-        tokenizer_one,
-        tokenizer_two,
-        noise_scheduler,
-        text_encoder_one,
-        text_encoder_two,
-        vae,
-        unet,
-    ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
-
-    config.sd_model_version = sd_model_version
-    config.pretrained_model["version"] = sd_model_version
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
