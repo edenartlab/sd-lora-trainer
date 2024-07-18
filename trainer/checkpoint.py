@@ -184,11 +184,20 @@ def save_checkpoint(
 
         convert_pytorch_lora_safetensors_to_webui(
             pytorch_lora_weights_filename=os.path.join(output_dir, "pytorch_lora_weights.safetensors"),
-            output_filename=os.path.join(output_dir, f"{name}.safetensors")
+            output_filename=os.path.join(output_dir, f"{name}_{pretrained_model_version}.safetensors")
         )
     else:
         # Save the entire, finetuned unet weights:
         unet.save_pretrained(save_directory = output_dir)
+
+    # Remove unneeded checkpoints if they exist in the output directory: TODO clean this up so they are never needed in the first place..
+    to_remove = ["pytorch_lora_weights.safetensors", "adapter_model.safetensors"]
+    for file in to_remove:
+        file_path = os.path.join(output_dir, file)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    return
 
 def load_checkpoint(
     pretrained_model_version: str,

@@ -437,7 +437,7 @@ def train(config: TrainingConfig):
             
             if global_step % (config.max_train_steps//20) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
-                print_system_info()
+                #print_system_info()
                 print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
                 yield np.min((progress, 1.0))
 
@@ -512,13 +512,6 @@ def train(config: TrainingConfig):
         img_grid_path = make_validation_img_grid(output_save_dir)
         shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
 
-        # Remove unneeded checkpoints if they exist in the output directory:
-        to_remove = ["pytorch_lora_weights.safetensors", "adapter_model.safetensors"]
-        for file in to_remove:
-            file_path = os.path.join(output_save_dir, file)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
@@ -546,6 +539,7 @@ if __name__ == "__main__":
 
     print("Starting new LoRa training run with config:")
     print(config)
+    print("------------------------------------------")
     
     for progress in train(config=config):
         print(f"Progress: {(100*progress):.2f}%", end="\r")
