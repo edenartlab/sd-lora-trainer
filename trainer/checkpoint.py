@@ -135,7 +135,7 @@ def save_checkpoint(
     embedding_handler.save_embeddings(
         os.path.join(
             output_dir,
-            f"{name}_embeddings.safetensors"
+            f"{name}_{pretrained_model_version}_embeddings.safetensors"
         )
     )
 
@@ -184,7 +184,7 @@ def save_checkpoint(
 
         convert_pytorch_lora_safetensors_to_webui(
             pytorch_lora_weights_filename=os.path.join(output_dir, "pytorch_lora_weights.safetensors"),
-            output_filename=os.path.join(output_dir, f"{name}_{pretrained_model_version}.safetensors")
+            output_filename=os.path.join(output_dir, f"{name}_{pretrained_model_version}_LoRa.safetensors")
         )
     else:
         # Save the entire, finetuned unet weights:

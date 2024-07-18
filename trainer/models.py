@@ -9,7 +9,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     if not os.path.exists(pretrained_model['path']):
         download_weights(pretrained_model['url'], pretrained_model['path'])
 
-    print(f"Loading model weights from {pretrained_model['path']} with dtype: {weight_dtype}...")
+    print(f"Loading model weights from {os.path.abspath(pretrained_model['path'])} with dtype: {weight_dtype}...")
 
     try:
         pipe = StableDiffusionXLPipeline.from_single_file(
