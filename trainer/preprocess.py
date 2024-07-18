@@ -510,7 +510,7 @@ def gpt4_v_caption_dataset(
         base64_image = prep_img_for_gpt_api(img,  max_size=(512, 512))
 
         payload = {
-            "model": "gpt-4-turbo",
+            "model": "gpt-4o",
             "messages": [
                 {
                     "role": "user",
