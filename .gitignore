@@ -4,13 +4,13 @@ __pycache__
 
 models
 lora_models*
+eden_lora_training_runs/
 datasets
 
 *.tar
 .env
 .cog
 .huggingface
-train.py
 rendered_images*
 
 gridsearch*
