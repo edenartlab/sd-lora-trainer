@@ -68,7 +68,10 @@ def train(
         text_encoder_two,
         vae,
         unet,
-    ) = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
+    ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
+
+    config.sd_model_version = sd_model_version
+    config.pretrained_model["version"] = sd_model_version
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(

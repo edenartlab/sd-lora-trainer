@@ -3,62 +3,42 @@ from datetime import datetime
 from pydantic import BaseModel
 import json, time, os
 from typing import Literal
-from trainer.models import pretrained_models
 from trainer.utils.utils import pick_best_gpu_id
-import subprocess
 
-def run_command(command):
-    try:
-        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        return f"Error: {e.stderr}"
+class ModelPaths:
+    def __init__(self):
+        self.paths = {
+            "BLIP": "./cache",
+            "CLIP": "./cache",
+            "SR": "./cache",
+            "SD": "./models",
+        }
 
+    def get_path(self, key):
+        return self.paths.get(key, None)
 
-print("=================================================================")
-print("=================================================================")
+    def set_path(self, key, path):
+        if key in self.paths:
+            self.paths[key] = path
 
-print("NVIDIA Driver Version:")
-nvidia_smi_output = run_command("nvidia-smi --query-gpu=driver_version --format=csv,noheader")
-print(nvidia_smi_output.strip())  # strip() removes any trailing newlines
+model_paths = ModelPaths()
 
-print("\nNVCC Version:")
-print(run_command("nvcc --version"))
+# Default download urls in case no local model is found:
+SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
+SD15_URL = "https://huggingface.co/KamCastle/jugg/resolve/main/juggernaut_reborn.safetensors"
 
-print("\nCUDNN Libraries:")
-print(run_command("ldconfig -p | grep cudnn"))
-
-print("\nFull NVIDIA-SMI Output:")
-print(run_command("nvidia-smi"))
-
-# Run nvcc --version
-nvcc_version = run_command("nvcc --version")
-print("NVCC Version:")
-print(nvcc_version)
-
-# Run ldconfig -p | grep cudnn
-cudnn_info = run_command("ldconfig -p | grep cudnn")
-print("\nCUDNN Libraries:")
-print(cudnn_info)
-
-# Check if CUDA is available
-import torch
-if torch.cuda.is_available():
-    print(f"Torch version: {torch.__version__}")
-    print(f"CUDA Version: {torch.version.cuda}")
-    print(f"cuDNN Version: {torch.backends.cudnn.version()}")
-else:
-    print("CUDA is not available.")
-
-print("-----------------------------------------------------------------")
-print("-----------------------------------------------------------------")
+pretrained_models = {
+    "sdxl": {"path": os.path.join(model_paths.get_path("SD"), os.path.basename(SDXL_URL)), "url": SDXL_URL, "version": "sdxl"},
+    "sd15": {"path": os.path.join(model_paths.get_path("SD"), os.path.basename(SD15_URL)), "url": SD15_URL, "version": "sd15"}
+}
 
 class TrainingConfig(BaseModel):
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
     caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
     caption_model: Literal["gpt4-v", "blip"] = "blip"
-    sd_model_version: Literal["sdxl", "sd15"]
+    sd_model_version: Literal["sdxl", "sd15", None] = None
+    ckpt_path: str = None  # optional hardcoded checkpoint path
     pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 512
@@ -106,7 +86,7 @@ class TrainingConfig(BaseModel):
     clipseg_temperature: float = 0.5   # temperature for the CLIPSeg mask
     n_sample_imgs: int = 4
     name: str = None
-    output_dir: str = "lora_models/unnamed"
+    output_dir: str = "eden_lora_training_runs"
     debug: bool = False
     allow_tf32: bool = True
     disable_ti: bool = False
@@ -140,7 +120,11 @@ class TrainingConfig(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        self.pretrained_model = pretrained_models[self.sd_model_version]
+
+        if not self.ckpt_path:
+            self.pretrained_model = pretrained_models[self.sd_model_version]
+        else:
+            self.pretrained_model = {"path": self.ckpt_path, "url": None, "version": None}
 
         # add some metrics to the foldername:
         lora_str = "dora" if self.use_dora else "lora"
@@ -149,7 +133,7 @@ class TrainingConfig(BaseModel):
         if not self.name:
             self.name = f"{os.path.basename(self.output_dir)}_{self.concept_mode}_{lora_str}_{self.sd_model_version}_{timestamp_short}"
 
-        self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
+        self.output_dir = self.output_dir + f"/{self.name}/" + f"{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.seed is None:

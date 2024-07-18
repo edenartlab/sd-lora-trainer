@@ -1,7 +1,3 @@
-# Have SwinIR upsample
-# Have BLIP auto caption
-# Have CLIPSeg auto mask concept
-
 import gc
 import fnmatch
 import mimetypes
@@ -25,6 +21,7 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
+
 from transformers import (
     BlipForConditionalGeneration,
     Blip2ForConditionalGeneration,
@@ -38,13 +35,13 @@ from transformers import (
 
 from trainer.utils.io import download_and_prep_training_data
 from trainer.utils.utils import fix_prompt
+from trainer.config import model_paths
 
 import re
 import openai
 from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
-
 try:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=OPENAI_API_KEY)
@@ -53,8 +50,6 @@ except:
     OPENAI_API_KEY = None
     client = None
     print("WARNING: Could not find OPENAI_API_KEY in .env, disabling gpt prompt generation.")
-
-MODEL_PATH = "./cache"
 
 # Put some boundaries to make the gpt pass work well: (very long text often confuses the model and also costs more money...)
 MIN_GPT_PROMPTS = 3
@@ -139,7 +134,7 @@ def swin_ir_sr(
     """
 
     model = Swin2SRForImageSuperResolution.from_pretrained(
-        model_id, cache_dir=MODEL_PATH
+        model_id, cache_dir = model_paths.get_path("SR")
     ).to(device)
     processor = Swin2SRImageProcessor()
 
@@ -193,9 +188,9 @@ def clipseg_mask_generator(
 
     model = None
     if any(target_prompts):
-        processor = CLIPSegProcessor.from_pretrained(model_id, cache_dir=MODEL_PATH)
+        processor = CLIPSegProcessor.from_pretrained(model_id, cache_dir = model_paths.get_path("CLIP"))
         model = CLIPSegForImageSegmentation.from_pretrained(
-            model_id, cache_dir=MODEL_PATH
+            model_id, cache_dir = model_paths.get_path("CLIP")
         ).to(device)
 
     masks = []
@@ -406,16 +401,16 @@ def blip_caption_dataset(
 
     print(f"Using model {model_id} for image captioning...")
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    
     if "blip2" in model_id:
-        processor = Blip2Processor.from_pretrained(model_id, cache_dir=MODEL_PATH)
+        processor = Blip2Processor.from_pretrained(model_id, cache_dir = model_paths.get_path("BLIP"))
         model = Blip2ForConditionalGeneration.from_pretrained(
-            model_id, cache_dir=MODEL_PATH, torch_dtype=torch.float16
+            model_id, cache_dir = model_paths.get_path("BLIP"), torch_dtype=torch.float16
         ).to(device)
     else:
-        processor = BlipProcessor.from_pretrained(model_id, cache_dir=MODEL_PATH)
+        processor = BlipProcessor.from_pretrained(model_id, cache_dir = model_paths.get_path("BLIP"))
         model = BlipForConditionalGeneration.from_pretrained(
-            model_id, cache_dir=MODEL_PATH, torch_dtype=torch.float16
+            model_id, cache_dir = model_paths.get_path("BLIP"), torch_dtype=torch.float16
         ).to(device)
 
     for i, image in enumerate(tqdm(images)):
@@ -643,6 +638,30 @@ def augment_image(image):
 def round_to_nearest_multiple(x, multiple):
     return int(float(multiple) * round(float(x) / float(multiple)))
 
+'''
+For Stable Diffusion 1.5, outputs are optimised around 512x512 pixels. Many common fine-tuned versions of SD1.5 are optimised around 768x768. The best resolutions for common aspect ratios are typically:
+1:1 (square): 512x512, 768x768
+3:2 (landscape): 768x512
+2:3 (portrait): 512x768
+4:3 (landscape): 768x576
+3:4 (portrait): 576x768
+16:9 (widescreen): 912x512
+9:16 (tall): 512x912
+
+For SDXL, outputs are optimised around 1024x1024 pixels. The best resolutions for common aspect ratios are typically:
+stable-diffusion-xl-1024-v0-9 supports generating images at the following dimensions:
+1024 x 1024
+1152 x 896
+896 x 1152
+1216 x 832
+832 x 1216
+1344 x 768
+768 x 1344
+1536 x 640
+640 x 1536
+
+'''
+
 def calculate_new_dimensions(target_size, target_aspect_ratio):
     """
     Calculate the new width and height given a target size and aspect ratio.
@@ -659,8 +678,6 @@ def calculate_new_dimensions(target_size, target_aspect_ratio):
     new_height = round_to_nearest_multiple(new_height, 64)
 
     return [new_width, new_height]
-
-
 
 
 def load_and_save_masks_and_captions(
