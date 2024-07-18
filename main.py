@@ -370,7 +370,7 @@ def train(config: TrainingConfig):
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
+            if (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
                 
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
@@ -391,28 +391,29 @@ def train(config: TrainingConfig):
                 )
                 last_save_step = global_step
 
-                token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
-                for idx, text_encoder in enumerate(text_encoders):
-                    if text_encoder is None:
-                        continue
-                    n = len(token_embeddings[f'txt_encoder_{idx}'])
-                    for i in range(n):
-                        token = trainable_tokens[f'txt_encoder_{idx}'][i]
-                        # Strip any backslashes from the token name:
-                        token = token.replace("/", "_")
-                        embedding = token_embeddings[f'txt_encoder_{idx}'][i]
-                        plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
+                if config.debug:
+                    token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
+                    for idx, text_encoder in enumerate(text_encoders):
+                        if text_encoder is None:
+                            continue
+                        n = len(token_embeddings[f'txt_encoder_{idx}'])
+                        for i in range(n):
+                            token = trainable_tokens[f'txt_encoder_{idx}'][i]
+                            # Strip any backslashes from the token name:
+                            token = token.replace("/", "_")
+                            embedding = token_embeddings[f'txt_encoder_{idx}'][i]
+                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
-                embedding_handler.print_token_info()
-                if config.is_lora: # plotting this hist for full unet parameters can run OOM
-                    plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
-                plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
-                target_std_dict = {f"text_encoder_{idx}_target": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
-                plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
-                plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
-                plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
-                plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-                
+                    embedding_handler.print_token_info()
+                    if config.is_lora: # plotting this hist for full unet parameters can run OOM
+                        plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
+                    plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+                    target_std_dict = {f"text_encoder_{idx}_target": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
+                    plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
+                    plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
+                    plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
+                    plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
+                    
                 validation_prompts = render_images(
                     pipe = pipe, 
                     render_size = config.validation_img_size, 
@@ -435,10 +436,10 @@ def train(config: TrainingConfig):
             images_done += config.train_batch_size
             global_step += 1
             
-            if global_step % (config.max_train_steps//20) == 0:
+            if global_step % (config.max_train_steps//50) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
                 #print_system_info()
-                print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
+                print(f"\n---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
                 yield np.min((progress, 1.0))
 
             if global_step > config.max_train_steps:

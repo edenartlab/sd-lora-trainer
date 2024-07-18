@@ -11,6 +11,7 @@ from trainer.config import TrainingConfig, model_paths
 from trainer.utils.io import clean_filename
 
 import folder_paths
+import comfy.utils
 
 class Eden_LoRa_trainer:
     @classmethod
@@ -37,7 +38,7 @@ class Eden_LoRa_trainer:
 
     CATEGORY = "Eden 🌱"
     RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("sample_images", "lora_path", "embedding_path", "total_runtime_s")
+    RETURN_NAMES = ("sample_images", "lora_path", "embedding_path", "final_msg")
     FUNCTION = "train_lora"
 
     def train_lora(self, 
@@ -87,17 +88,17 @@ class Eden_LoRa_trainer:
             verbose=True,
             debug=debug_mode,
         )
-        
+
+        pbar = comfy.utils.ProgressBar(100)
+
         with torch.inference_mode(False):
             train_generator = train(config=config)
             while True:
                 try:
                     progress_f = next(train_generator)
-                    print("---- Progress ----")
-                    print(progress_f)
+                    pbar.update_absolute(progress_f * 100)
                 except StopIteration as e:
                     config, output_save_dir = e.value  # Capture the return value
-                    print("---- Training finished at StopIteration! ----")
                     break
 
         validation_grid_img_path = os.path.join(output_save_dir, "validation_grid.jpg")
@@ -107,10 +108,17 @@ class Eden_LoRa_trainer:
         attributes['job_time_seconds'] = config.job_time
 
         print(f"LORA training node finished in {config.job_time:.1f} seconds")
-        print("---------- Made by Eden.art 🌱 ----------")
+        print("---------- Made with love by Eden.art 🌱 ----------")
+        
+        # safetensors paths:
+        paths = [os.path.join(output_save_dir, f) for f in os.listdir(output_save_dir) if f.endswith(".safetensors")]
 
-        lora_path = os.path.join(output_save_dir, config.name + ".safetensors")
-        embedding_path = os.path.join(output_save_dir, config.name + "_embeddings.safetensors")
+        # find the index of the path containing "_embeddings.safetensors":
+        for i, path in enumerate(paths):
+            if "_embeddings.safetensors" in path:
+                embedding_path = path
+            else:
+                lora_path = path
 
         # Load the grid image:
         grid_image = Image.open(validation_grid_img_path)
