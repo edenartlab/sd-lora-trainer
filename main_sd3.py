@@ -474,14 +474,14 @@ def main(config: TrainingConfig, wandb_log = False, output_dir = None):
             tokenizer=pipeline.tokenizer,
             trigger_text = "<s0><s1>, ",
             num_tokens = 2,
-            initial_embed_string = "Belgian Man"
+            initial_embed_string = "Caucasian Man"
         )
         textual_inversion_2 = TextualInversion(
             embedding_module=pipeline.text_encoder_2.text_model.embeddings,
             tokenizer=pipeline.tokenizer_2,
             trigger_text = "<s0><s1>, ",
             num_tokens = 2,
-            initial_embed_string = "Belgian Man"
+            initial_embed_string = "Caucasian Man"
         )
         textual_inversion_params = [textual_inversion.params, textual_inversion_2.params]
         optimizer_textual_inversion = torch.optim.SGD(
