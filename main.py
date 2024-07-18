@@ -68,7 +68,10 @@ def train(
         text_encoder_two,
         vae,
         unet,
-    ) = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
+    ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
+
+    config.sd_model_version = sd_model_version
+    config.pretrained_model["version"] = sd_model_version
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
@@ -197,7 +200,7 @@ def train(
     print(f"--- Instantaneous batch size per device = {config.train_batch_size}")
     print(f"--- Total batch_size (distributed + accumulation) = {total_batch_size}")
     print(f"--- Gradient Accumulation steps = {config.gradient_accumulation_steps}")
-    print(f"--- Total optimization steps = {config.max_train_steps}\n")
+    print(f"--- Total optimization steps = {config.max_train_steps}\n", flush = True)
 
     global_step = 0
     last_save_step = 0
@@ -402,7 +405,6 @@ def train(
                         plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
                 embedding_handler.print_token_info()
-                print("plotting...")
                 if config.is_lora: # plotting this hist for full unet parameters can run OOM
                     plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
                 plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
@@ -412,7 +414,6 @@ def train(
                 plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                 plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
                 
-                print("Getting ready to render validation images...")
                 validation_prompts = render_images(
                     pipe = pipe, 
                     render_size = config.validation_img_size, 
@@ -438,11 +439,11 @@ def train(
             if global_step % (config.max_train_steps//20) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
                 print_system_info()
-                print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
+                print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
                 yield np.min((progress, 1.0))
 
             if global_step > config.max_train_steps:
-                print("Reached max steps, stopping training!")
+                print("Reached max steps, stopping training!", flush = True)
                 break
 
     # final_save
@@ -473,7 +474,6 @@ def train(
             pretrained_model_version=config.pretrained_model["version"]
         )
         
-        print("Running final inference round...")
         if config.debug:
             # Reload the entire pipe from disk + LoRa:
             pipe_to_use = None
@@ -533,6 +533,7 @@ def train(
     config.job_time = time.time() - config.start_time
     config.training_attributes["validation_prompts"] = validation_prompts
     config.save_as_json(os.path.join(output_save_dir, "training_args.json"))
+    print("Training job complete, saving outputs...", flush = True)
 
     return config, output_save_dir
 

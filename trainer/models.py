@@ -4,44 +4,23 @@ import subprocess
 import torch
 from diffusers import AutoencoderKL, DDPMScheduler, EulerDiscreteScheduler, UNet2DConditionModel, StableDiffusionPipeline, StableDiffusionXLPipeline
 
-############################################################################################################
-
-SDXL_MODEL_CACHE = "./models/juggernaut_v6.safetensors"
-SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernautXL_v6.safetensors"
-
-#SDXL_MODEL_CACHE = "./models/sd_xl_base_1.0_0.9vae.safetensors"
-#SDXL_URL         = "https://edenartlab-lfs.s3.amazonaws.com/comfyui/models2/checkpoints/sd_xl_base_1.0_0.9vae.safetensors"
-
-SD15_MODEL_CACHE = "./models/juggernaut_reborn.safetensors"
-SD15_URL         = "https://edenartlab-lfs.s3.amazonaws.com/models/checkpoints/juggernaut_reborn.safetensors"
-
-#SD15_MODEL_CACHE = "./models/photon_v1.safetensors"
-#SD15_URL         = "https://civitai.com/api/download/models/90072"
-
-pretrained_models = {
-    "sdxl": {"path": SDXL_MODEL_CACHE, "url": SDXL_URL, "version": "sdxl"},
-    "sd15": {"path": SD15_MODEL_CACHE, "url": SD15_URL, "version": "sd15"}
-}
-
-############################################################################################################
-
-
 def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae_float32 = False):
-    if not isinstance(pretrained_model, dict) or 'path' not in pretrained_model or 'version' not in pretrained_model:
-        raise ValueError("pretrained_model must be a dict with 'path' and 'version' keys")
-
     # check if the model is already downloaded:
     if not os.path.exists(pretrained_model['path']):
         download_weights(pretrained_model['url'], pretrained_model['path'])
 
     print(f"Loading model weights from {pretrained_model['path']} with dtype: {weight_dtype}...")
 
-    if pretrained_model['version'] == "sd15":
-        pipe = StableDiffusionPipeline.from_single_file(
-            pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
-    else:
+    try:
         pipe = StableDiffusionXLPipeline.from_single_file(
             pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
+        sd_model_version = "sdxl"
+    except:
+        pipe = StableDiffusionPipeline.from_single_file(
+            pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
+        sd_model_version = "sd15"
+
+    print(f"Loaded {sd_model_version} model!")
 
     pipe = pipe.to(device, dtype=weight_dtype)
     noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
@@ -79,7 +58,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
         text_encoder_two,
         vae,
         unet,
-    )
+    ), sd_model_version
 
 def download_weights(url, dest):
     start = time.time()
