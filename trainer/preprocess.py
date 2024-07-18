@@ -401,7 +401,7 @@ def blip_caption_dataset(
 
     print(f"Using model {model_id} for image captioning...")
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     if "blip2" in model_id:
         processor = Blip2Processor.from_pretrained(model_id, cache_dir = model_paths.get_path("BLIP"))
         model = Blip2ForConditionalGeneration.from_pretrained(
@@ -468,7 +468,7 @@ def gpt4_v_get_description(config, images):
     base64_image = prep_img_for_gpt_api(img,  max_size=(1024, 1024))
 
     payload = {
-        "model": "gpt-4-turbo",
+        "model": "gpt-4o",
         "messages": [
             {
                 "role": "user",
