@@ -1013,6 +1013,29 @@ def encode_prompt(
 
     return prompt_embeds, pooled_prompt_embeds
 
+import os
+import fnmatch
+
+def find_images_recursive(folder_path, image_extensions=['*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp', '*.tiff']):
+    """
+    Recursively find all image filenames inside a folder.
+
+    Args:
+        folder_path (str): The path to the folder to search in.
+        image_extensions (list): A list of image file extensions to look for.
+
+    Returns:
+        list: A list of image filenames with their full paths.
+    """
+    image_files = []
+
+    for root, dirs, files in os.walk(folder_path):
+        for ext in image_extensions:
+            for filename in fnmatch.filter(files, ext):
+                image_files.append(os.path.join(root, filename))
+
+    return image_files
+
 class ConceptPreprocessingPipeline:
     def __init__(
         self,
@@ -1084,12 +1107,12 @@ class ConceptPreprocessingPipeline:
         folder:str, 
         **kwargs
     ):
-        image_filenames = [f for f in os.listdir(folder) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+        image_filenames = find_images_recursive(
+            folder_path=folder,
+            image_extensions=['*.jpg', '*.jpeg', '*.png']
+        )
+        
         image_filenames.sort()
-        image_filenames = [
-            os.path.join(folder,x)
-            for x in image_filenames
-        ]
         return cls(
             image_filenames=image_filenames,
             **kwargs
@@ -1496,7 +1519,7 @@ def main(args):
 
 
     preprocessing_pipeline = ConceptPreprocessingPipeline.from_image_folder(
-        folder="./data/xander_big",
+        folder="./data/does_details",
         captions=None,
     )
     train_dataset = preprocessing_pipeline.build_dataset(
