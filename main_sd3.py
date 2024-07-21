@@ -37,7 +37,7 @@ from huggingface_hub import create_repo, upload_folder
 from huggingface_hub.utils import insecure_hashlib
 from peft import LoraConfig, set_peft_model_state_dict
 from peft.utils import get_peft_model_state_dict
-from PIL import Image
+from PIL import Image as PILImage
 from PIL.ImageOps import exif_transpose
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -66,8 +66,9 @@ from diffusers.utils import (
 )
 from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
 from diffusers.utils.torch_utils import is_compiled_module
-
-
+import os
+from datasets import Dataset, Features, Value, Image
+from transformers import BlipProcessor, BlipForConditionalGeneration
 if is_wandb_available():
     import wandb
 
@@ -1012,6 +1013,88 @@ def encode_prompt(
 
     return prompt_embeds, pooled_prompt_embeds
 
+class ConceptPreprocessingPipeline:
+    def __init__(
+        self,
+        image_filenames: list[str],
+        captions: list[str] = None,
+        captioning_model_device: str = "cuda:0",
+    ):
+
+        self.image_filenames=image_filenames
+        
+        if captions == None:
+            processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+            model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(captioning_model_device)
+            self.captions = [
+                    self.caption_image(
+                    model=model,
+                    processor=processor,
+                    image_filename=f,
+                    device=captioning_model_device
+                ) for f in tqdm(
+                    image_filenames,
+                    desc = "Captioning Images"
+                )
+            ]
+        else:
+            assert len(image_filenames) == len(captions),f"Expected the number of captions ({len(captions)}) to be the same as the number of image filenames ({len(image_filenames)})"
+
+    def caption_image(self, model, processor, image_filename: list, device: str) -> str:
+        # Open the image
+        image = PILImage.open(image_filename).convert("RGB")
+        
+        # Process the image
+        inputs = processor(images=image, return_tensors="pt").to(device)
+        
+        # Generate the caption
+        out = model.generate(**inputs)
+        caption = processor.decode(out[0], skip_special_tokens=True)
+        return caption
+
+    def build_dataset(self, max_num_samples=None):
+
+        image_data = []
+        for index, filename in enumerate(tqdm(self.image_filenames)):
+
+            image_data.append(
+                {
+                    "instance_images": filename, 
+                    "instance_prompt": self.captions[index]
+                }
+            )
+            if max_num_samples is not None:
+                if index+1 == max_num_samples:
+                    break
+        
+        # Define features including the new prompt field
+        features = Features({
+            'instance_images': Image(),
+            'instance_prompt': Value('string')
+        })
+
+        # Create the dataset with specified features
+        dataset = Dataset.from_list(image_data).cast(features)
+        dataset.custom_instance_prompts = False
+        return dataset
+
+    @classmethod
+    def from_image_folder(
+        cls, 
+        folder:str, 
+        **kwargs
+    ):
+        image_filenames = [f for f in os.listdir(folder) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+        image_filenames.sort()
+        image_filenames = [
+            os.path.join(folder,x)
+            for x in image_filenames
+        ]
+        return cls(
+            image_filenames=image_filenames,
+            **kwargs
+        )
+
 
 def main(args):
     if args.report_to == "wandb" and args.hub_token is not None:
@@ -1412,112 +1495,30 @@ def main(args):
         )
 
 
-    import os
-    from datasets import Dataset, Image
-    from PIL import Image as PILImage
-    from datasets import Dataset, Features, Value, Image
-
-
-    def create_image_dataset(folder_path, prompts: list[str], prompt_generator=None):
-        # Get all image files from the folder
-        image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
-        image_files.sort()
-        # Create a list to store image data
-        image_data = []
-        
-        for index, image_file in enumerate(tqdm(image_files, desc = "captioning images")):
-            file_path = os.path.join(folder_path, image_file)
-            
-            # Open the image to verify it's valid
-            try:
-                with PILImage.open(file_path) as img:
-                    # Generate prompt using the prompt_generator function if provided
-                    if prompts is None:
-                        assert prompt_generator is not None
-                        prompt = prompt_generator(file_path) if prompt_generator else f"An image of {image_file}"
-                    else:
-                        prompt = prompts[index]
-                    # If the image is valid, add its path and prompt to the dataset
-                    image_data.append({"instance_images": file_path, "file_name": image_file, "instance_prompt": prompt})
-            except Exception as e:
-                print(f"Error processing {image_file}: {str(e)}")
-        
-        # Define features including the new prompt field
-        features = Features({
-            'instance_images': Image(),
-            'file_name': Value('string'),
-            'instance_prompt': Value('string')
-        })
-
-        # Create the dataset with specified features
-        dataset = Dataset.from_list(image_data).cast(features)
-
-
-        dataset.custom_instance_prompts = False
-        return dataset
-
-    # Dataset and DataLoaders creation:
-    train_dataset = DreamBoothDataset(
-        instance_data_root=args.instance_data_dir,
-        instance_prompt=args.instance_prompt,
-        class_prompt=args.class_prompt,
-        class_data_root=args.class_data_dir if args.with_prior_preservation else None,
-        class_num=args.num_class_images,
-        size=args.resolution,
-        repeats=args.repeats,
-        center_crop=args.center_crop,
+    preprocessing_pipeline = ConceptPreprocessingPipeline.from_image_folder(
+        folder="./data/xander_big",
+        captions=None,
     )
-    
-
-    """
-    in the original dataset
-    instance_images is a torch tensor
-
-    but in my dataset, it's a pil image
-
-    what transforms are they using to convert pil images to a tensor?
-    """
-
-    from transformers import BlipProcessor, BlipForConditionalGeneration
-    import torch
-    from PIL import Image as PILImage
-    import torch
-
-    # Load BLIP model and processor
-    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-
-    def generate_caption(image_path):
-        # Open the image
-        image = PILImage.open(image_path).convert("RGB")
-        
-        # Process the image
-        inputs = processor(images=image, return_tensors="pt")
-        
-        # Generate the caption
-        out = model.generate(**inputs)
-        caption = processor.decode(out[0], skip_special_tokens=True)
-        
-        return caption
-    
+    train_dataset = preprocessing_pipeline.build_dataset(
+        max_num_samples=None
+    )
     # train_dataset_ours = create_image_dataset(
     #     folder_path="../../../../trainer_sd3/sd-lora-trainer/data/xander_big",
     #     prompt_generator=generate_caption,
     #     prompts = None
     # )
-    train_dataset_ours = create_image_dataset(
-        folder_path = "./data/clipx_tiny",
-        prompt_generator=generate_caption,
-        prompts = [
-            "A blockchain of bees",
-            "a gorgon made out of sharks eating each other swimming underwater",
-            "a hillside at sunset, Venus and earth circling the sun",
-            "A mermaid made out of fishnets and other sea trash, swimming underwater in the ocean",
-            "A throng of Lilliputians cramped inside the pores of a giant sea-sponge | C. G. Jung - 'Liber Novus'",
-            "an ancient temple deep in the amazon jungle"
-        ]
-    )
-    train_dataset = train_dataset_ours
+    # train_dataset_ours = create_image_dataset(
+    #     folder_path = "./data/clipx_tiny",
+    #     prompt_generator=generate_caption,
+    #     prompts = [
+    #         "A blockchain of bees",
+    #         "a gorgon made out of sharks eating each other swimming underwater",
+    #         "a hillside at sunset, Venus and earth circling the sun",
+    #         "A mermaid made out of fishnets and other sea trash, swimming underwater in the ocean",
+    #         "A throng of Lilliputians cramped inside the pores of a giant sea-sponge | C. G. Jung - 'Liber Novus'",
+    #         "an ancient temple deep in the amazon jungle"
+    #     ]
+    # )
 
     # raise AssertionError(
     #     train_dataset_ours[0]["instance_images"].shape,
