@@ -1,3 +1,6 @@
+data/
+sd3_sweep_vis/
+sd3_sweep_commands/
 .ipynb_checkpoints/
 cache
 __pycache__
