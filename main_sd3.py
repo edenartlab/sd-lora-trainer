@@ -835,7 +835,9 @@ class DreamBoothDataset(Dataset):
 
 our_transforms = transforms.Compose(
             [
-                transforms.Resize((512,512)),
+                transforms.CenterCrop(512),
+                # transforms.Resize((512,512)),
+                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize([0.5], [0.5]),
             ]
@@ -1045,6 +1047,10 @@ class ConceptPreprocessingPipeline:
     ):
 
         self.image_filenames=image_filenames
+
+        self.convert_all_images_to_rgb(
+            image_filenames=image_filenames
+        )
         
         if captions == None:
             processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
@@ -1060,8 +1066,31 @@ class ConceptPreprocessingPipeline:
                     desc = "Captioning Images"
                 )
             ]
+            del model
+            del processor
+            torch.cuda.empty_cache()
+            print(f"Captions examples:", self.captions[:25])
         else:
             assert len(image_filenames) == len(captions),f"Expected the number of captions ({len(captions)}) to be the same as the number of image filenames ({len(image_filenames)})"
+            self.captions = captions
+
+        self.captions = [
+            "TOK " + x
+            for x in self.captions
+        ]
+
+    def convert_all_images_to_rgb(self, image_filenames: list[str]):
+
+        for filename in image_filenames:
+
+            image = PILImage.open(filename)
+
+            # Check if the image is not in RGB mode
+            if image.mode != 'RGB':
+                # Convert to RGB
+                image = image.convert('RGB')
+                # Save the image back to the same filename
+                image.save(filename)
 
     def caption_image(self, model, processor, image_filename: list, device: str) -> str:
         # Open the image
@@ -1138,6 +1167,7 @@ def main(args):
 
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
     kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+
     accelerator = Accelerator(
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision=args.mixed_precision,
@@ -1145,6 +1175,14 @@ def main(args):
         project_config=accelerator_project_config,
         kwargs_handlers=[kwargs],
     )
+    with accelerator.main_process_first():
+        preprocessing_pipeline = ConceptPreprocessingPipeline.from_image_folder(
+            folder="./data/haeckel",
+            captions=None,
+        )
+        train_dataset = preprocessing_pipeline.build_dataset(
+            max_num_samples=None
+        )
 
     # Disable AMP for MPS.
     if torch.backends.mps.is_available():
@@ -1518,13 +1556,6 @@ def main(args):
         )
 
 
-    preprocessing_pipeline = ConceptPreprocessingPipeline.from_image_folder(
-        folder="./data/does_details",
-        captions=None,
-    )
-    train_dataset = preprocessing_pipeline.build_dataset(
-        max_num_samples=None
-    )
     # train_dataset_ours = create_image_dataset(
     #     folder_path="../../../../trainer_sd3/sd-lora-trainer/data/xander_big",
     #     prompt_generator=generate_caption,
