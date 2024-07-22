@@ -3,15 +3,43 @@ from datetime import datetime
 from pydantic import BaseModel
 import json, time, os
 from typing import Literal
-from trainer.models import pretrained_models
 from trainer.utils.utils import pick_best_gpu_id
+
+class ModelPaths:
+    def __init__(self):
+        self.paths = {
+            "BLIP": "./cache",
+            "CLIP": "./cache",
+            "SR": "./cache",
+            "SD": "./models",
+        }
+
+    def get_path(self, key):
+        return self.paths.get(key, None)
+
+    def set_path(self, key, path):
+        if key in self.paths:
+            self.paths[key] = path
+
+model_paths = ModelPaths()
+
+# Default download urls in case no local model is found:
+#SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
+SDXL_URL = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0_0.9vae.safetensors"
+SD15_URL = "https://huggingface.co/KamCastle/jugg/resolve/main/juggernaut_reborn.safetensors"
+
+pretrained_models = {
+    "sdxl": {"path": os.path.join(model_paths.get_path("SD"), os.path.basename(SDXL_URL)), "url": SDXL_URL, "version": "sdxl"},
+    "sd15": {"path": os.path.join(model_paths.get_path("SD"), os.path.basename(SD15_URL)), "url": SD15_URL, "version": "sd15"}
+}
 
 class TrainingConfig(BaseModel):
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
     caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
     caption_model: Literal["gpt4-v", "blip"] = "blip"
-    sd_model_version: Literal["sdxl", "sd15"]
+    sd_model_version: Literal["sdxl", "sd15", None] = None
+    ckpt_path: str = None  # optional hardcoded checkpoint path
     pretrained_model: dict = None
     seed: Union[int, None] = None
     resolution: int = 512
@@ -25,7 +53,7 @@ class TrainingConfig(BaseModel):
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
 
-    unet_optimizer_type: Literal["adamw", "prodigy"] = "adamw"
+    unet_optimizer_type: Literal["adamw", "prodigy", "AdamW8bit"] = "adamw"
     unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
     unet_lr: float = 1.0e-3
     prodigy_d_coef: float = 1.0
@@ -59,10 +87,10 @@ class TrainingConfig(BaseModel):
     clipseg_temperature: float = 0.5   # temperature for the CLIPSeg mask
     n_sample_imgs: int = 4
     name: str = None
-    output_dir: str = "lora_models/unnamed"
+    output_dir: str = "eden_lora_training_runs"
     debug: bool = False
     allow_tf32: bool = True
-    remove_ti_token_from_prompts: bool = False
+    disable_ti: bool = False
     weight_type: Literal["fp16", "bf16", "fp32"] = "bf16"
     n_tokens: int = 2
     inserting_list_tokens: List[str] = ["<s0>","<s1>"]
@@ -74,7 +102,7 @@ class TrainingConfig(BaseModel):
     unet_learning_rate: float = 1.0
     lr_num_cycles: int = 1
     lr_power: float = 1.0
-    sample_imgs_lora_scale: float = 0.65    # Default lora scale for sampling the validation images
+    sample_imgs_lora_scale: float = None    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
     aspect_ratio_bucketing: bool = False
@@ -93,7 +121,11 @@ class TrainingConfig(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        self.pretrained_model = pretrained_models[self.sd_model_version]
+
+        if not self.ckpt_path:
+            self.pretrained_model = pretrained_models[self.sd_model_version]
+        else:
+            self.pretrained_model = {"path": self.ckpt_path, "url": None, "version": None}
 
         # add some metrics to the foldername:
         lora_str = "dora" if self.use_dora else "lora"
@@ -102,7 +134,7 @@ class TrainingConfig(BaseModel):
         if not self.name:
             self.name = f"{os.path.basename(self.output_dir)}_{self.concept_mode}_{lora_str}_{self.sd_model_version}_{timestamp_short}"
 
-        self.output_dir = self.output_dir + f"--{timestamp_short}-{self.sd_model_version}_{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
+        self.output_dir = self.output_dir + f"/{self.name}/" + f"{timestamp_short}-{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.seed is None:
@@ -116,6 +148,12 @@ class TrainingConfig(BaseModel):
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
             self.mask_target_prompts = "face"
             #self.use_face_detection_instead = True
+
+        if not self.sample_imgs_lora_scale:
+            if self.sd_model_version == "sdxl":
+                self.sample_imgs_lora_scale = 0.7
+            else:
+                self.sample_imgs_lora_scale = 0.85
         
         if self.use_dora:
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")

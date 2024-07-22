@@ -29,7 +29,7 @@ Install all dependencies using
 
 then you can simply run:
 
-`python main.py -c training_args.json` 
+`python main.py train_configs/training_args.json` 
 to start a training job.
 
 Adjust the arguments inside `training_args.json` to setup a custom training job.
@@ -44,8 +44,9 @@ sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/la
 sudo chmod +x /usr/local/bin/cog
 ```
 
-2. Build the image with `sudo cog build`
-3. Run a training run with `sudo sh cog_test_train.sh`
+2. Build the image with `cog build`
+3. Run a training run with `sh cog_test_train.sh`
+4. You can also go into the container with `cog run /bin/bash`
 
 ## Automatic Checkpoint Evaluation
 

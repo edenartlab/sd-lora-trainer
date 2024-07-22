@@ -1,5 +1,5 @@
 # Set GPU ID to run these jobs on:
-GPU_ID="device=2"
+GPU_ID="device=3"
 
 cog predict --gpus $GPU_ID \
     -i name="xander_sdxl_cog" \

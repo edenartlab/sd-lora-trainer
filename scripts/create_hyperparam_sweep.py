@@ -35,12 +35,12 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "grimes"
+exp_name             = "beeple"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
-min_hamming_distance = 3   # min_n_params that have to be different from any previous experiment to be scheduled
-
+min_hamming_distance = 1   # min_n_params that have to be different from any previous experiment to be scheduled
+nohup                = True
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 # Define training hyperparameters and their possible values
@@ -48,43 +48,46 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sd15", "sdxl"],
+    "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/grimes"
+        "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple_large",
+        "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple"
 
     ],
-    "concept_mode": ['face'],
+    "concept_mode": ['style'],
+    "sample_imgs_lora_scale": [0.8],
+    "disable_ti": ['false', 'true'],
     "seed": [0],
     "resolution": [512],
     "train_batch_size": [4],
-    "n_sample_imgs": [6],
-    "max_train_steps": [400,800],
-    "checkpointing_steps": [100],
+    "n_sample_imgs": [8],
+    "max_train_steps": [1200],
+    "checkpointing_steps": [200],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [2],
-    "ti_lr": [0.001,0.0005],
-    "ti_weight_decay": [0.001,0.0],
+    "ti_lr": [0.001],
+    "ti_weight_decay": [0.001],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0,60],
+    "token_warmup_steps": [0],
     "tok_cov_reg_w": [2000],
-    "cond_reg_w": [0.01e-5],
-    "tok_cond_reg_w": [0.01e-5],
 
-    "unet_prodigy_growth_factor": [1.05],
-    "unet_lr": [0.001],
+    "unet_lr": [0.0002, 0.00005],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [16,32],
-    "use_dora": ['false', 'true'],
+    "lora_rank": [16],
+    "use_dora": ['false'],
+
+    "unet_optimizer_type": ['AdamW8bit'],
+    "is_lora": ['false'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
     "caption_model": ["blip", "gpt4-v"],
-    "augment_imgs_up_to_n": [20,40],
+    "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']
 }
@@ -146,7 +149,12 @@ def generate_sh_script(folder_path, output_sh_path):
         
         # Write a command for each JSON file
         for json_file in json_files:
-            command = f"python main.py {os.path.join(folder_path, json_file)}\n"
+            file_path = os.path.join("scripts/", folder_path, json_file)
+            command = f"python main.py {file_path}\n"
+
+            if nohup:
+                command = f"nohup {command} > {file_path.replace('.json', '.log')} 2>&1 &\n"
+
             sh_file.write(command)
 
 generate_sh_script(config_output_dir, output_sh_path)

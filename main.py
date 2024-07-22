@@ -12,7 +12,6 @@ import torch
 import torch.utils.checkpoint
 from tqdm import tqdm
 
-import prodigyopt
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 #from diffusers.training_utils import cast_training_params
 
@@ -26,6 +25,7 @@ from trainer.loss import compute_diffusion_loss, compute_grad_norm, Conditioning
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
+
 from trainer.optimizer import (
     OptimizerCollection, 
     get_optimizer_and_peft_models_text_encoder_lora, 
@@ -34,10 +34,24 @@ from trainer.optimizer import (
     get_unet_optimizer
 )
 
-def train(
-    config: TrainingConfig,
-):  
+def train(config: TrainingConfig):
+
     seed_everything(config.seed)
+    weight_dtype = dtype_map[config.weight_type]
+
+    (   
+        pipe,
+        tokenizer_one,
+        tokenizer_two,
+        noise_scheduler,
+        text_encoder_one,
+        text_encoder_two,
+        vae,
+        unet,
+    ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype)
+
+    config.sd_model_version = sd_model_version
+    config.pretrained_model["version"] = sd_model_version
 
     config, input_dir = preprocess(
         config,
@@ -57,19 +71,6 @@ def train(
 
     if config.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
-
-    weight_dtype = dtype_map[config.weight_type]
-
-    (   
-        pipe,
-        tokenizer_one,
-        tokenizer_two,
-        noise_scheduler,
-        text_encoder_one,
-        text_encoder_two,
-        vae,
-        unet,
-    ) = load_models(config.pretrained_model, config.device, weight_dtype, keep_vae_float32=0)
 
     # Initialize new tokens for training.
     embedding_handler = TokenEmbeddingsHandler(
@@ -113,22 +114,26 @@ def train(
 
 
     embedding_handler.make_embeddings_trainable()
-    optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
-        text_encoders=text_encoders,
-        textual_inversion_lr=config.ti_lr,
-        textual_inversion_weight_decay=config.ti_weight_decay,
-        optimizer_name=config.ti_optimizer ## hardcoded
-    )
+    if not config.disable_ti:
+        optimizer_ti, textual_inversion_params = get_textual_inversion_optimizer(
+            text_encoders=text_encoders,
+            textual_inversion_lr=config.ti_lr,
+            textual_inversion_weight_decay=config.ti_weight_decay,
+            optimizer_name=config.ti_optimizer ## hardcoded
+        )
+    else:
+        optimizer_ti = None
+        textual_inversion_params = None
 
     if not config.is_lora: # This code pathway has not been tested in a long while
         print(f"Doing full fine-tuning on the U-Net")
         unet.requires_grad_(True)
         unet_lora_parameters = None
+        optimizer_text_encoder_lora = None
         unet_trainable_params = unet.parameters()
     else:
         # Do lora-training instead.
         # https://huggingface.co/docs/peft/main/en/developer_guides/lora#rank-stabilized-lora
-
         # target_blocks=["block"] for original IP-Adapter
         # target_blocks=["up_blocks.0.attentions.1"] for style blocks only
         # target_blocks = ["up_blocks.0.attentions.1", "down_blocks.2.attentions.1"] # for style+layout blocks
@@ -194,7 +199,7 @@ def train(
     print(f"--- Instantaneous batch size per device = {config.train_batch_size}")
     print(f"--- Total batch_size (distributed + accumulation) = {total_batch_size}")
     print(f"--- Gradient Accumulation steps = {config.gradient_accumulation_steps}")
-    print(f"--- Total optimization steps = {config.max_train_steps}\n")
+    print(f"--- Total optimization steps = {config.max_train_steps}\n", flush = True)
 
     global_step = 0
     last_save_step = 0
@@ -216,10 +221,12 @@ def train(
     
     # default value of cold (pre-warmup) optimizer lr:
     if config.sd_model_version == "sdxl":
-        # let textual_inversion do the work first!
-        base_lr = 0.5e-5
+        if config.is_lora: # let textual_inversion do the work first!
+            base_lr = 1.0e-5
+        else:
+            base_lr = 3.0e-5
     elif config.sd_model_version == "sd15":
-        # let lora training kick in soonish
+        # let lora training kick in soonish (pure ti for sd15 is not working super well in my tests)
         base_lr = 1.0e-4
         
     #######################################################################################################
@@ -320,7 +327,7 @@ def train(
                 loss += 0.0 * concept_description_loss
                 losses['concept_description_loss'].append(concept_description_loss.item())
 
-            if config.l1_penalty > 0.0:
+            if config.l1_penalty > 0.0 and unet_lora_parameters:
                 # Compute normalized L1 norm (mean of abs sum) of all lora parameters:
                 l1_norm = sum(p.abs().sum() for p in unet_lora_parameters) / sum(p.numel() for p in unet_lora_parameters)
                 loss += config.l1_penalty * l1_norm
@@ -349,12 +356,6 @@ def train(
                             grad_norms[f'text_encoder_{i}'].append(text_encoder_norm)
 
                 optimizer_collection.step()
-
-                # after every optimizer step, we do some manual intervention of the embeddings to regularize them:
-                if optimizer_collection.get_lr('textual_inversion') > 0.0:
-                    #embedding_handler.fix_embedding_std(config.off_ratio_power)
-                    pass
-
                 optimizer_collection.zero_grad()
 
             #############################################################################################################
@@ -369,7 +370,7 @@ def train(
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
             # Print some statistics:
-            if config.debug and (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > -1:
+            if (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
                 
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
@@ -390,27 +391,29 @@ def train(
                 )
                 last_save_step = global_step
 
-                token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
-                for idx, text_encoder in enumerate(text_encoders):
-                    if text_encoder is None:
-                        continue
-                    n = len(token_embeddings[f'txt_encoder_{idx}'])
-                    for i in range(n):
-                        token = trainable_tokens[f'txt_encoder_{idx}'][i]
-                        # Strip any backslashes from the token name:
-                        token = token.replace("/", "_")
-                        embedding = token_embeddings[f'txt_encoder_{idx}'][i]
-                        plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
+                if config.debug:
+                    token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
+                    for idx, text_encoder in enumerate(text_encoders):
+                        if text_encoder is None:
+                            continue
+                        n = len(token_embeddings[f'txt_encoder_{idx}'])
+                        for i in range(n):
+                            token = trainable_tokens[f'txt_encoder_{idx}'][i]
+                            # Strip any backslashes from the token name:
+                            token = token.replace("/", "_")
+                            embedding = token_embeddings[f'txt_encoder_{idx}'][i]
+                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
 
-                embedding_handler.print_token_info()
-                plot_torch_hist(unet_lora_parameters if config.is_lora else unet.parameters(), global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
-                plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
-                target_std_dict = {f"text_encoder_{idx}_target": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
-                plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
-                plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
-                plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
-                plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-                
+                    embedding_handler.print_token_info()
+                    if config.is_lora: # plotting this hist for full unet parameters can run OOM
+                        plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
+                    plot_loss(losses, save_path=f'{config.output_dir}/losses.png')
+                    target_std_dict = {f"text_encoder_{idx}_target": embedding_handler.embeddings_settings[f"std_token_embedding_{idx}"].item() for idx in range(len(text_encoders)) if text_encoders[idx] is not None}
+                    plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
+                    plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
+                    plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
+                    plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
+                    
                 validation_prompts = render_images(
                     pipe = pipe, 
                     render_size = config.validation_img_size, 
@@ -433,14 +436,14 @@ def train(
             images_done += config.train_batch_size
             global_step += 1
             
-            if global_step % (config.max_train_steps//20) == 0:
+            if global_step % (config.max_train_steps//50) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
-                print_system_info()
-                print(f" ---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r")
+                #print_system_info()
+                print(f"\n---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
                 yield np.min((progress, 1.0))
 
             if global_step > config.max_train_steps:
-                print("Reached max steps, stopping training!")
+                print("Reached max steps, stopping training!", flush = True)
                 break
 
     # final_save
@@ -471,8 +474,7 @@ def train(
             pretrained_model_version=config.pretrained_model["version"]
         )
         
-        print("Running final inference round...")
-        if config.debug:
+        if config.debug and 0:
             # Reload the entire pipe from disk + LoRa:
             pipe_to_use = None
             checkpoint_folder = output_save_dir
@@ -511,13 +513,6 @@ def train(
         img_grid_path = make_validation_img_grid(output_save_dir)
         shutil.copy(img_grid_path, os.path.join(os.path.dirname(output_save_dir), f"validation_grid_{global_step:04d}.jpg"))
 
-        # Remove unneeded checkpoints if they exist in the output directory:
-        to_remove = ["pytorch_lora_weights.safetensors", "adapter_model.safetensors"]
-        for file in to_remove:
-            file_path = os.path.join(output_save_dir, file)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-
     else:
         print(f"Skipping final save, {output_save_dir} already exists")
 
@@ -531,6 +526,8 @@ def train(
     config.job_time = time.time() - config.start_time
     config.training_attributes["validation_prompts"] = validation_prompts
     config.save_as_json(os.path.join(output_save_dir, "training_args.json"))
+    print("Training job complete, saving outputs...", flush = True)
+    print("------------------------------------------")
 
     return config, output_save_dir
 
@@ -541,6 +538,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = TrainingConfig.from_json(file_path=args.config_filename)
+
+    print("Starting new LoRa training run with config:")
+    print(config)
+    print("------------------------------------------")
+    
     for progress in train(config=config):
         print(f"Progress: {(100*progress):.2f}%", end="\r")
 
