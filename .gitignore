@@ -1,7 +1,7 @@
 
 cache
 __pycache__
-
+.ipynb_checkpoints/
 models
 lora_models*
 eden_lora_training_runs/
