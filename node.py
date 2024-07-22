@@ -43,7 +43,7 @@ class Eden_LoRa_trainer:
     FUNCTION = "train_lora"
 
     def train_lora(self, training_images_folder_path,
-            name = lora_name,
+            lora_name = "",
             concept_mode = "style",
             sd_model_version = "sdxl",
             seed = 0,
