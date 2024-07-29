@@ -14,7 +14,7 @@
     "ti_weight_decay": 0.0005,
 
     "disable_ti": false,
-    "n_tokens": 1,
+    "n_tokens": 2,
     "text_encoder_lora_optimizer": null,
     "text_encoder_lora_lr": 1.0e-4,
     "text_encoder_lora_weight_decay": 1e-5,
