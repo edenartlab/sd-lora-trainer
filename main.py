@@ -50,6 +50,11 @@ def train(config: TrainingConfig):
         unet,
     ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype)
 
+    from trainer.ti_cross_attn_loss import init_daam_loss
+
+    pipe, daam_loss = init_daam_loss(
+        pipeline=pipe
+    )
     config.sd_model_version = sd_model_version
     config.pretrained_model["version"] = sd_model_version
 
@@ -316,7 +321,24 @@ def train(config: TrainingConfig):
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
                 return_dict=False,
             )[0]
-            
+
+            daam_loss_values = daam_loss.compute_loss(text_token_indices = range(prompt_embeds.shape[1]))
+            daam_loss_values = [
+                x.item() for x in daam_loss_values
+            ]
+            folder = "./heatmaps"
+            fig = plt.figure()
+            plt.plot(daam_loss_values[1:20])
+            plt.xlabel(f"tokens")
+            plt.ylabel(f"loss")
+            plt.title(f"Global step: {global_step}")
+            plt.grid()
+            fig.savefig(
+                os.path.join(
+                    folder,
+                    f"{global_step}.jpg"
+                )
+            )            
             # Compute the loss:
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
