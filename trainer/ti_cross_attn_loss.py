@@ -8,6 +8,8 @@ from diffusers.utils.deprecation_utils import deprecate
 import torch.nn.functional as F
 import math
 from einops.layers.torch import Reduce
+from torchtyping import TensorType
+from einops import rearrange
 
 # Find all instances of AttnProcessor2_0 in the UNet
 def find_attnprocessor2_0(unet):
@@ -159,6 +161,9 @@ class DAAMLossAttnProcessor2_0:
 class DAAMLoss:
     def __init__(self, attention_processors: list[DAAMLossAttnProcessor2_0]):
         self.attention_processors = attention_processors
+        self.layer_names = [
+            x.name for x in attention_processors
+        ]
 
     def get_all_cross_attention_scores(self):
         cross_attention_scores = {}
@@ -201,6 +206,22 @@ class DAAMLoss:
             return sum(losses)/len(losses)
         else:
             return losses
+
+    def get_image_heatmap(self, text_token_index: int, layer_name: str) -> TensorType["batch", "height", "width"]:
+        cross_attention_scores = self.get_all_cross_attention_scores()
+        assert layer_name in list(cross_attention_scores.keys())
+        
+        cross_attention_scores_single_token = cross_attention_scores[layer_name][:,:,text_token_index]
+        assert cross_attention_scores_single_token.ndim == 2 ## batch, hw
+
+        heatmap = rearrange(
+            cross_attention_scores_single_token,
+            "batch (height width) -> batch height width",
+            height = int(math.sqrt(cross_attention_scores_single_token.shape[1])),
+            width = int(math.sqrt(cross_attention_scores_single_token.shape[1]))
+        )
+
+        return heatmap
 
 def get_module_by_name(module: nn.Module, name: str):
     """Retrieve a module nested in another by its access string."""
