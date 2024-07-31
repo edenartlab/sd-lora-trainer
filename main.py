@@ -322,10 +322,18 @@ def train(config: TrainingConfig):
                 return_dict=False,
             )[0]
 
-            daam_loss_values = daam_loss.compute_loss(text_token_indices = range(prompt_embeds.shape[1]))
-            daam_loss_values = [
-                x.item() for x in daam_loss_values
+            raise AssertionError(daam_loss.get_image_heatmap(text_token_index=1, layer_name = daam_loss.layer_names[0]).shape)
+
+            text_token_index = 0
+            raise AssertionError([x.shape for x in cross_attention_matrices])
+            cross_attention_matrices_single_token = [
+                cross_attention_matrices[:,:, text_token_index]
             ]
+            raise AssertionError([
+                x.shape for x in cross_attention_matrices_single_token
+            ])
+
+            raise AssertionError(daam_loss.compute_single_token_loss(text_token_index = 0, reduce = False))
             folder = "./heatmaps"
             fig = plt.figure()
             plt.plot(daam_loss_values[1:20])
