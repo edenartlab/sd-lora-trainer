@@ -223,6 +223,29 @@ class DAAMLoss:
 
         return heatmap
 
+    def get_the_daam_heatmap(self, text_token_index: int) ->TensorType["batch", "height", "width"]:
+        all_heatmaps = []
+        for layer_name in self.layer_names:
+            heatmap = self.get_image_heatmap(
+                text_token_index=text_token_index,
+                layer_name=layer_name
+            )
+            all_heatmaps.append(heatmap)
+
+        ## each heatmap has a shape: batch, h, w where h=w
+        ## now find the maximum possible height and width across all heatmaps
+        max_height = max(heatmap.shape[1] for heatmap in all_heatmaps)
+        max_width = max(heatmap.shape[2] for heatmap in all_heatmaps)
+
+        ## now resize all_heatmaps to (batch, max_height, max_width) using F.interpolate
+        resized_heatmaps = [
+            F.interpolate(input = x.unsqueeze(1), size = (max_height, max_width)).squeeze(1)
+            for x in all_heatmaps
+        ]
+
+        return sum(resized_heatmaps)
+
+
 def get_module_by_name(module: nn.Module, name: str):
     """Retrieve a module nested in another by its access string."""
     if name == "":
