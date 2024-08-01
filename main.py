@@ -326,14 +326,22 @@ def train(config: TrainingConfig):
             batch_index = 0
             folder = "./heatmaps"
             fig = plt.figure()
-            plot_token_indices = range(10)
-
+           
+            token_strings = [
+                pipe.tokenizer.decode(x)
+                for x in pipe.tokenizer.encode(captions[batch_index])
+            ]
+            plot_token_indices = range(len(token_strings))
             fig, ax = plt.subplots(nrows=1, ncols=len(plot_token_indices), figsize = (10 , 4))
 
             for idx, text_token_index in enumerate(plot_token_indices):
-                ax[idx].imshow(daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)[batch_index].cpu().detach())
+                im = ax[idx].imshow(daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)[batch_index].cpu().detach().float())
                 ax[idx].set_title(f"token: {text_token_index}")
+                ax[idx].axis("off")
+                ax[idx].set_title(f"{token_strings[text_token_index]}")
+                plt.colorbar(im, ax=ax[idx], fraction=0.046, pad=0.04)
 
+            plt.tight_layout()
             fig.savefig(
                 os.path.join(
                     folder,
