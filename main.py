@@ -322,25 +322,18 @@ def train(config: TrainingConfig):
                 return_dict=False,
             )[0]
 
-            raise AssertionError(daam_loss.get_image_heatmap(text_token_index=1, layer_name = daam_loss.layer_names[0]).shape)
 
-            text_token_index = 0
-            raise AssertionError([x.shape for x in cross_attention_matrices])
-            cross_attention_matrices_single_token = [
-                cross_attention_matrices[:,:, text_token_index]
-            ]
-            raise AssertionError([
-                x.shape for x in cross_attention_matrices_single_token
-            ])
-
-            raise AssertionError(daam_loss.compute_single_token_loss(text_token_index = 0, reduce = False))
+            batch_index = 0
             folder = "./heatmaps"
             fig = plt.figure()
-            plt.plot(daam_loss_values[1:20])
-            plt.xlabel(f"tokens")
-            plt.ylabel(f"loss")
-            plt.title(f"Global step: {global_step}")
-            plt.grid()
+            plot_token_indices = range(10)
+
+            fig, ax = plt.subplots(nrows=1, ncols=len(plot_token_indices), figsize = (10 , 4))
+
+            for idx, text_token_index in enumerate(plot_token_indices):
+                ax[idx].imshow(daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)[batch_index].cpu().detach())
+                ax[idx].set_title(f"token: {text_token_index}")
+
             fig.savefig(
                 os.path.join(
                     folder,
