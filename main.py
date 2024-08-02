@@ -38,7 +38,6 @@ def train(config: TrainingConfig):
 
     seed_everything(config.seed)
     weight_dtype = dtype_map[config.weight_type]
-
     (   
         pipe,
         tokenizer_one,
@@ -322,32 +321,114 @@ def train(config: TrainingConfig):
                 return_dict=False,
             )[0]
 
+            """
+            distirbution shift loss
+            """
+            non_ti_heatmaps = []
+            ti_heatmaps = []
+            ti_token_indices = [0,1]
+            batch_index = 0 
 
-            batch_index = 0
-            folder = "./heatmaps"
-            fig = plt.figure()
-           
             token_strings = [
-                pipe.tokenizer.decode(x)
-                for x in pipe.tokenizer.encode(captions[batch_index])
-            ]
-            plot_token_indices = range(len(token_strings))
-            fig, ax = plt.subplots(nrows=1, ncols=len(plot_token_indices), figsize = (10 , 4))
+                    pipe.tokenizer.decode(x)
+                    for x in pipe.tokenizer.encode(captions[batch_index])
+                ]
+            
+            for text_token_index in range(1, len(token_strings)-1):
+                if text_token_index in ti_token_indices:
+                    ti_heatmaps.append(
+                        daam_loss.get_the_daam_heatmap(text_token_index = text_token_index).unsqueeze(0)
+                    )
+                else:
+                    # we unsqueeze because we'll stack them together and then calculate the min, max and the mean
+                    non_ti_heatmaps.append(
+                        daam_loss.get_the_daam_heatmap(text_token_index = text_token_index).unsqueeze(0)
+                    )
 
-            for idx, text_token_index in enumerate(plot_token_indices):
-                im = ax[idx].imshow(daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)[batch_index].cpu().detach().float())
-                ax[idx].set_title(f"token: {text_token_index}")
-                ax[idx].axis("off")
-                ax[idx].set_title(f"{token_strings[text_token_index]}")
-                plt.colorbar(im, ax=ax[idx], fraction=0.046, pad=0.04)
+            non_ti_heatmaps = torch.cat(
+                non_ti_heatmaps,
+                dim = 0
+            )
+            ti_heatmaps = torch.cat(
+                ti_heatmaps,
+                dim = 0
+            )
 
-            plt.tight_layout()
-            fig.savefig(
-                os.path.join(
-                    folder,
-                    f"{global_step}.jpg"
+            non_ti_dist = {
+                "mean": non_ti_heatmaps.mean(),
+                "min": non_ti_heatmaps.min(),
+                "max": non_ti_heatmaps.min()
+            }
+
+            ti_dist = {
+                "mean": ti_heatmaps.mean(),
+                "min": ti_heatmaps.min(),
+                "max": ti_heatmaps.min()
+            }
+
+            dist_loss = torch.tensor(0.0).to(non_ti_dist["max"].device)
+
+            if ti_dist["min"] < non_ti_dist["min"]:
+                dist_loss += (non_ti_dist["min"] - ti_dist["min"].to(non_ti_dist["min"].device)) ** 2
+
+            if ti_dist["max"] > non_ti_dist["max"]:
+                dist_loss += (non_ti_dist["max"] - ti_dist["max"].to(non_ti_dist["max"].device)) ** 2
+
+
+            if global_step % 20 == 0:
+                batch_index = 0
+                folder = "./heatmaps"
+                fig = plt.figure()
+            
+                token_strings = [
+                    pipe.tokenizer.decode(x)
+                    for x in pipe.tokenizer.encode(captions[batch_index])
+                ]
+
+
+                plot_token_indices = range(len(token_strings))
+
+                fig, ax = plt.subplots(nrows=1, ncols=len(plot_token_indices), figsize = (int(3 * len(plot_token_indices)) , 10))
+
+                for idx, text_token_index in enumerate(plot_token_indices):
+                    heatmap = daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)[batch_index].cpu().detach().float()
+                    im = ax[idx].imshow(heatmap)
+                    ax[idx].set_title(f"{token_strings[text_token_index]}\n timestep: {timesteps[batch_index].item()}\nmax: {heatmap.max().item()}\nmin: {heatmap.min().item()}\nnorm: {heatmap.norm().item()}")
+                    ax[idx].axis("off")
+
+                fig.savefig(
+                    os.path.join(
+                        folder,
+                        f"{global_step}.jpg"
+                    )
                 )
-            )            
+                plt.close(fig)
+
+                """
+                histogram to visualize the distributions of the cross attention values for each text token on the image space
+                """
+                fig = plt.figure()
+                fig.suptitle(f"Dist loss: {dist_loss.item()}")
+                plot_token_indices = range(1, len(token_strings)-1)
+                for idx, text_token_index in enumerate(plot_token_indices):
+                    heatmap = daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)[batch_index].cpu().detach().float()
+                    plt.hist(heatmap.reshape(-1), bins = 30, label = token_strings[text_token_index], alpha = 0.5)
+                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+                plt.xlabel("Value")
+                plt.ylabel("Number of instances")
+                plt.grid()
+                # Adjust the layout to prevent the legend from being cut off
+                plt.tight_layout()
+                fig.savefig(
+                    os.path.join(
+                        folder,
+                        f"{global_step}_heatmap.jpg"
+                    ),
+                    bbox_inches='tight'  # This ensures the legend is not cut off when saving
+                )
+                plt.close(fig)  # Close the figure to free up memory
+
             # Compute the loss:
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
@@ -367,6 +448,7 @@ def train(config: TrainingConfig):
                 loss, losses, prompt_embeds_norms = embedding_handler.token_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe = pipe)
 
             losses['tot_loss'].append(loss.item())
+            loss = loss + 1e-12 * dist_loss
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
