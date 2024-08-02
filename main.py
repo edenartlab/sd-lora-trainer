@@ -448,7 +448,7 @@ def train(config: TrainingConfig):
                 loss, losses, prompt_embeds_norms = embedding_handler.token_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe = pipe)
 
             losses['tot_loss'].append(loss.item())
-            loss = loss + 1e-12 * dist_loss
+            loss = loss + 1e-18 * dist_loss
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
