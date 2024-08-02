@@ -366,13 +366,7 @@ def train(config: TrainingConfig):
                 "max": ti_heatmaps.min()
             }
 
-            dist_loss = torch.tensor(0.0).to(non_ti_dist["max"].device)
-
-            if ti_dist["min"] < non_ti_dist["min"]:
-                dist_loss += (non_ti_dist["min"] - ti_dist["min"].to(non_ti_dist["min"].device)) ** 2
-
-            if ti_dist["max"] > non_ti_dist["max"]:
-                dist_loss += (non_ti_dist["max"] - ti_dist["max"].to(non_ti_dist["max"].device)) ** 2
+            dist_loss = (non_ti_dist["mean"] - ti_dist["mean"].to(non_ti_dist["mean"].device)) ** 2
 
 
             if global_step % 20 == 0:
@@ -448,7 +442,7 @@ def train(config: TrainingConfig):
                 loss, losses, prompt_embeds_norms = embedding_handler.token_regularizer.apply_regularization(loss, losses, prompt_embeds_norms, prompt_embeds, pipe = pipe)
 
             losses['tot_loss'].append(loss.item())
-            loss = loss + 1e-18 * dist_loss
+            loss = loss + 1e-4 *  dist_loss
             loss = loss / config.gradient_accumulation_steps
             loss.backward()
 
