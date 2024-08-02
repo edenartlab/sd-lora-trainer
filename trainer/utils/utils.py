@@ -237,7 +237,7 @@ def plot_token_stds(token_std_dict, save_path='token_stds.png', target_value_dic
 
 from scipy.signal import savgol_filter
 def plot_loss(loss_dict, save_path='losses.png', window_length=31, polyorder=3, default_color='gray'):
-    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange', 'concept_description_loss': 'red'}
+    colormap = {'img_loss': 'blue', 'tot_loss': 'green', 'covariance_tok_reg_loss': 'orange', 'concept_description_loss': 'red', 'token_attention_loss': 'purple'}
     values_to_add_to_title = ['concept_description_loss', 'covariance_tok_reg_loss']
     plot_smoothed = ['img_loss']
 

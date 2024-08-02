@@ -20,3 +20,4 @@ omegaconf==2.3.0
 ujson==5.10.0
 bitsandbytes==0.43.1
 setuptools==70.3.0
+torchtyping==0.1.5

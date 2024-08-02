@@ -13,7 +13,6 @@ import torch.utils.checkpoint
 from tqdm import tqdm
 
 from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
-#from diffusers.training_utils import cast_training_params
 
 from trainer.utils.utils import *
 from trainer.checkpoint import save_checkpoint
@@ -21,10 +20,11 @@ from trainer.embedding_handler import TokenEmbeddingsHandler
 from trainer.dataset import PreprocessedDataset
 from trainer.config import TrainingConfig
 from trainer.models import print_trainable_parameters, load_models
-from trainer.loss import compute_diffusion_loss, compute_grad_norm, ConditioningRegularizer
+from trainer.loss import compute_diffusion_loss, compute_grad_norm, ConditioningRegularizer, compute_token_attention_loss
 from trainer.inference import render_images, get_conditioning_signals
 from trainer.preprocess import preprocess
 from trainer.utils.io import make_validation_img_grid
+from trainer.ti_cross_attn_loss import init_daam_loss, plot_token_attention_loss
 
 from trainer.optimizer import (
     OptimizerCollection, 
@@ -49,6 +49,10 @@ def train(config: TrainingConfig):
         vae,
         unet,
     ), sd_model_version = load_models(config.pretrained_model, config.device, weight_dtype)
+
+    pipe, daam_loss = init_daam_loss(
+        pipeline=pipe
+    )
 
     config.sd_model_version = sd_model_version
     config.pretrained_model["version"] = sd_model_version
@@ -213,7 +217,7 @@ def train(config: TrainingConfig):
     # Data tracking inits:
     start_time, images_done = time.time(), 0
     prompt_embeds_norms = {'main':[], 'reg':[]}
-    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': [], 'concept_description_loss': [], 'token_std_loss': []}
+    losses = {'img_loss': [], 'tot_loss': [], 'covariance_tok_reg_loss': [], 'concept_description_loss': [], 'token_std_loss': [], 'token_attention_loss': []}
     grad_norms, token_stds = {'unet': []}, {}
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
@@ -316,10 +320,17 @@ def train(config: TrainingConfig):
                 added_cond_kwargs={"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
                 return_dict=False,
             )[0]
-            
+
             # Compute the loss:
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
+            
+            token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, daam_loss)
+            losses['token_attention_loss'].append(token_attention_loss.item())
+            loss = loss + 0.000001 * token_attention_loss
+
+            if global_step%40 == 0:
+                plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step)
 
             if config.training_attributes["gpt_description"] and config.debug:
                 concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds, config, pipe)

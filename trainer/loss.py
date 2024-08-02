@@ -5,6 +5,53 @@ import torch
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
 from trainer.inference import get_conditioning_signals
 
+def compute_token_attention_loss(pipe, embedding_handler,
+    captions,
+    daam_loss
+    ):
+    """
+    distribution shift loss
+    """
+    
+    ti_heatmaps = []
+
+    for batch_index in range(len(captions)):
+        
+        #token_strings = [
+        #        pipe.tokenizer.decode(x)
+        #        for x in pipe.tokenizer.encode(captions[batch_index])
+        #    ]
+        token_indices_in_prompt = pipe.tokenizer.encode(captions[batch_index])
+
+        trained_token_indices = embedding_handler.train_ids
+        # Find the index of the trained tokens in token_indices_in_prompt:
+        ti_token_indices = [
+            token_indices_in_prompt.index(token_index)
+            for token_index in trained_token_indices
+        ]
+        
+        for text_token_index in ti_token_indices:
+            ti_heatmap = daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)
+            ti_heatmaps.append(ti_heatmap)
+
+    print(f"Appended {len(ti_heatmaps)} heatmaps to ti_heatmaps, batch_size: {len(captions)}, n_tokens: {len(trained_token_indices)}")
+    ti_heatmaps = torch.stack(ti_heatmaps)
+    # ti_heatmaps shape = [n_tokens x batch_size, n_latent_features, w, h]
+    print(f"ti_heatmaps.shape: {ti_heatmaps.shape}")
+
+    # Penalize the ti_heatmaps for having positive values:
+    # dist_loss = torch.relu(ti_heatmaps).mean()
+    #mean_heatmap_value = ti_heatmaps.mean()
+
+    # dont penalize the heatmaps for attention scores below this threshold
+    threshold = -15
+    reg_loss = (torch.relu(ti_heatmaps - threshold)**2).mean()
+
+    print(f"reg_loss: {reg_loss.item():.4f}")
+
+    return reg_loss
+
+
 def compute_snr(noise_scheduler, timesteps):
     """
     Computes SNR as per
