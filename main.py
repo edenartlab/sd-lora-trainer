@@ -327,8 +327,7 @@ def train(config: TrainingConfig):
 
             token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, mask, daam_loss)
             losses['token_attention_loss'].append(token_attention_loss.item())
-            #loss = loss + 0.0000002 * token_attention_loss
-            loss = loss + 0.000002 * token_attention_loss
+            loss = loss + 0.0000002 * token_attention_loss
 
             if global_step%40 == 0:
                 img_ratio = config.train_img_size[0] / config.train_img_size[1]

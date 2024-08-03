@@ -557,7 +557,7 @@ def fixed_get_imports(filename: str | os.PathLike) -> list[str]:
     return imports
 
 from transformers import AutoProcessor, AutoModelForCausalLM 
-
+@torch.no_grad()
 def florence_caption_dataset(images, captions):
 
     with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports): #workaround for unnecessary flash_attn requirement
@@ -574,13 +574,18 @@ def florence_caption_dataset(images, captions):
                 input_ids=inputs["input_ids"],
                 pixel_values=inputs["pixel_values"],
                 max_new_tokens=1024,
-                num_beams=random.choice(2,3,4)
+                num_beams=random.choice([2,3,4])
                 )
 
             generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
             parsed_answer = processor.post_process_generation(generated_text, task=prompt, image_size=(image.width, image.height))
             caption = parsed_answer[prompt]
             captions[i] = caption.replace("The image shows a ", "A ")
+
+    del model
+    del processor
+    gc.collect()
+    torch.cuda.empty_cache()
 
     return captions
 

@@ -50,9 +50,7 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple_large",
-        "/home/rednax/SSD2TB/Github_repos/Eden/images/beeple"
-
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx.zip",
     ],
     "concept_mode": ['style'],
     "sample_imgs_lora_scale": [0.8],
