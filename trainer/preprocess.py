@@ -53,7 +53,7 @@ except:
 
 # Put some boundaries to make the gpt pass work well: (very long text often confuses the model and also costs more money...)
 MIN_GPT_PROMPTS = 3
-MAX_GPT_PROMPTS = 50
+MAX_GPT_PROMPTS = 80
 
 def _find_files(pattern, dir="."):
     """Return list of files matching pattern in a given directory, in absolute format.
@@ -230,7 +230,6 @@ def clipseg_mask_generator(
     torch.cuda.empty_cache()
 
     return masks
-
 
 import textwrap
 def cleanup_prompts_with_chatgpt(
@@ -543,17 +542,62 @@ def gpt4_v_caption_dataset(
 
 
 
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
+#workaround for unnecessary flash_attn requirement
+from unittest.mock import patch
+from transformers.dynamic_module_utils import get_imports
+
+def fixed_get_imports(filename: str | os.PathLike) -> list[str]:
+    if not str(filename).endswith("modeling_florence2.py"):
+        return get_imports(filename)
+    imports = get_imports(filename)
+    imports.remove("flash_attn")
+    return imports
+
+from transformers import AutoProcessor, AutoModelForCausalLM 
+
+def florence_caption_dataset(images, captions):
+
+    with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports): #workaround for unnecessary flash_attn requirement
+        model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-large", attn_implementation="sdpa", device_map=device, torch_dtype=torch_dtype,trust_remote_code=True)
+            
+    processor = AutoProcessor.from_pretrained("microsoft/Florence-2-large", trust_remote_code=True)
+
+    for i, image in enumerate(tqdm(images)):
+        if captions[i] is None:
+            prompt = random.choice(["<CAPTION>", "<DETAILED_CAPTION>"])
+
+            inputs = processor(text=prompt, images=image, return_tensors="pt").to(device, torch_dtype)
+            generated_ids = model.generate(
+                input_ids=inputs["input_ids"],
+                pixel_values=inputs["pixel_values"],
+                max_new_tokens=1024,
+                num_beams=random.choice(2,3,4)
+                )
+
+            generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+            parsed_answer = processor.post_process_generation(generated_text, task=prompt, image_size=(image.width, image.height))
+            caption = parsed_answer[prompt]
+            captions[i] = caption.replace("The image shows a ", "A ")
+
+    return captions
+
+
 @torch.no_grad()
 def caption_dataset(
         images: List[Image.Image],
         captions: List[str],
-        caption_model: Literal[str] = "blip"
+        caption_model: Literal["blip", "gpt4-v", "florence"] = "blip"
     ) -> List[str]:
 
     if "blip" in caption_model:
         captions = blip_caption_dataset(images, captions)
     elif "gpt4-v" in caption_model:
         captions = gpt4_v_caption_dataset(images, captions)
+    elif "florence" in caption_model:
+        captions = florence_caption_dataset(images, captions)
 
     return captions
 
@@ -763,44 +807,14 @@ def load_and_save_masks_and_captions(
         upscale_margin = 0.75
         images = swin_ir_sr(images, target_size=(int(config.train_img_size[0]*upscale_margin), int(config.train_img_size[0]*upscale_margin)))
 
-    if add_lr_flips and len(images) < 40:
+    if add_lr_flips and len(images) < MAX_GPT_PROMPTS:
         print(f"Adding LR flips... (doubling the number of images from {n_training_imgs} to {n_training_imgs*2})")
         images   = images + [image.transpose(Image.FLIP_LEFT_RIGHT) for image in images]
         captions = captions + captions
 
-    # It's nice if we can achieve the gpt pass, so pre-augment the images if there's very few:
-    # Ensure we have at least 'augment_imgs_up_to_n' images through augmentation
-    aug_imgs, aug_caps = [],[]
-    # if we still have a very small amount of imgs, do some basic augmentation:
-    while len(images) + len(aug_imgs) < MIN_GPT_PROMPTS: 
-        print(f"Adding augmented version of each training img...")
-        aug_imgs.extend([augment_image(image) for image in images])
-        aug_caps.extend(captions)
-
-    images.extend(aug_imgs)
-    captions.extend(aug_caps)
-
-    # It's nice if we can achieve the gpt pass, so if we're not losing too much, cut-off the n_images to just match what we're allowed to give to gpt:
-    if (len(images) > MAX_GPT_PROMPTS) and (len(images) < MAX_GPT_PROMPTS*1.33):
-        images = images[:MAX_GPT_PROMPTS-1]
-        captions = captions[:MAX_GPT_PROMPTS-1]
-
-    if len(images) > 50 and caption_model != "blip":
-        print(f"Captioning a lot of ({len(images)}) images --> falling back to using blip!")
-        caption_model = "blip"
-
-    print(f"Generating {len(images)} captions using mode: {concept_mode}...")
-    captions = caption_dataset(images, captions, caption_model = caption_model)
-
-    # Cleanup prompts using chatgpt:
-    captions = [fix_prompt(caption) for caption in captions]
-    trigger_text = ""
-    gpt_concept_description = None
-    if not config.disable_ti:
-        captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
 
     aug_imgs, aug_caps = [],[]
-    # if we still have a very small amount of imgs, do some basic augmentation:
+    # if we still have a small amount of imgs, do some basic augmentation:
     while len(images) + len(aug_imgs) < augment_imgs_up_to_n: 
         print(f"Adding augmented version of each training img...")
         aug_imgs.extend([augment_image(image) for image in images])
@@ -809,6 +823,21 @@ def load_and_save_masks_and_captions(
     images.extend(aug_imgs)
     captions.extend(aug_caps)
     
+    print(f"Generating {len(images)} captions using mode: {concept_mode}...")
+    captions = caption_dataset(images, captions, caption_model = caption_model)
+
+    # It's nice if we can achieve the gpt pass, so if we're not losing too much, cut-off the n_images to just match what we're allowed to give to gpt:
+    if (len(images) > MAX_GPT_PROMPTS) and (len(images) < MAX_GPT_PROMPTS*1.33):
+        images = images[:MAX_GPT_PROMPTS-1]
+        captions = captions[:MAX_GPT_PROMPTS-1]
+
+    # Cleanup prompts using chatgpt:
+    captions = [fix_prompt(caption) for caption in captions]
+    trigger_text = ""
+    gpt_concept_description = None
+    if not config.disable_ti:
+        captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
+
     if (gpt_concept_description is not None) and ((mask_target_prompts is None) or (mask_target_prompts == "")):
         print(f"Using GPT concept name as CLIP-segmentation prompt: {gpt_concept_description}")
         mask_target_prompts = gpt_concept_description

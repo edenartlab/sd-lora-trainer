@@ -24,7 +24,8 @@ class ModelPaths:
 model_paths = ModelPaths()
 
 # Default download urls in case no local model is found:
-SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
+SDXL_URL = "https://edenartlab-lfs.s3.amazonaws.com/comfyui/models2/checkpoints/zavychromaxl_v90.safetensors"
+#SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
 #SDXL_URL = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0_0.9vae.safetensors"
 SD15_URL = "https://huggingface.co/KamCastle/jugg/resolve/main/juggernaut_reborn.safetensors"
 
@@ -37,7 +38,7 @@ class TrainingConfig(BaseModel):
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
     caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
-    caption_model: Literal["gpt4-v", "blip"] = "blip"
+    caption_model: Literal["gpt4-v", "blip", "florence"] = "florence"
     sd_model_version: Literal["sdxl", "sd15", None] = None
     ckpt_path: str = None  # optional hardcoded checkpoint path
     pretrained_model: dict = None

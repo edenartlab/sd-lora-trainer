@@ -4,24 +4,36 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils._foreach_utils import _group_tensors_by_device_and_dtype, _has_foreach_support
 from trainer.inference import get_conditioning_signals
+import torch.nn.functional as F
 
 def compute_token_attention_loss(pipe, embedding_handler,
-    captions,
-    daam_loss
+    captions, masks,
+    daam_loss, verbose = 0
     ):
     """
     distribution shift loss
     """
     
-    ti_heatmaps = []
+    ti_heatmaps, ti_masks, att_L2_losses = [], [], []
+    att_reg_threshold = -5.0
+
+    input_dtype = masks.dtype
+    masks = masks[:,0,:,:].float()
+
+    img_ratio = masks.shape[-1] / masks.shape[-2]
 
     for batch_index in range(len(captions)):
-        
+        mask = masks[batch_index]
+
         #token_strings = [
         #        pipe.tokenizer.decode(x)
         #        for x in pipe.tokenizer.encode(captions[batch_index])
         #    ]
         token_indices_in_prompt = pipe.tokenizer.encode(captions[batch_index])
+
+        mean_att_per_token = daam_loss.get_mean_attention_per_token(token_indices_in_prompt, batch_index)
+        att_L2_loss = (torch.relu(mean_att_per_token - att_reg_threshold)**2).mean()
+        att_L2_losses.append(att_L2_loss)
 
         trained_token_indices = embedding_handler.train_ids
         # Find the index of the trained tokens in token_indices_in_prompt:
@@ -31,25 +43,35 @@ def compute_token_attention_loss(pipe, embedding_handler,
         ]
         
         for text_token_index in ti_token_indices:
-            ti_heatmap = daam_loss.get_the_daam_heatmap(text_token_index = text_token_index)
-            ti_heatmaps.append(ti_heatmap)
+            ti_heatmap = daam_loss.get_the_daam_heatmap(text_token_index = text_token_index, img_ratio=img_ratio)[batch_index]
+            resized_mask = F.interpolate(input = mask.unsqueeze(0).unsqueeze(0), size = (ti_heatmap.shape[-2], ti_heatmap.shape[-1])).squeeze(0).squeeze(0)
 
-    print(f"Appended {len(ti_heatmaps)} heatmaps to ti_heatmaps, batch_size: {len(captions)}, n_tokens: {len(trained_token_indices)}")
+            ti_heatmaps.append(ti_heatmap.float())
+            ti_masks.append(resized_mask.squeeze(0))
+
+    # ti_heatmaps shape = [n_tokens x batch_size, w, h]
     ti_heatmaps = torch.stack(ti_heatmaps)
-    # ti_heatmaps shape = [n_tokens x batch_size, n_latent_features, w, h]
-    print(f"ti_heatmaps.shape: {ti_heatmaps.shape}")
+    ti_masks = torch.stack(ti_masks)
 
-    # Penalize the ti_heatmaps for having positive values:
-    # dist_loss = torch.relu(ti_heatmaps).mean()
-    #mean_heatmap_value = ti_heatmaps.mean()
+    # Penalize large, positive mean token attentions:
+    reg_loss_0 = 5*torch.stack(att_L2_losses).mean()
 
-    # dont penalize the heatmaps for attention scores below this threshold
-    threshold = -15
-    reg_loss = (torch.relu(ti_heatmaps - threshold)**2).mean()
+    # Where the segmentation mask is one, we want to avoid very large attention scores:
+    threshold = 0.0
+    reg_loss_1 = (torch.relu(ti_heatmaps*ti_masks - threshold)**2).mean()
 
-    print(f"reg_loss: {reg_loss.item():.4f}")
+    # Where the segmentation mask is zero, we want to avoid somewhat large attention scores:
+    threshold = -15.0
+    reg_loss_2 = 0.1 * (torch.relu(ti_heatmaps*(1.0-ti_masks) - threshold)**2).mean()
 
-    return reg_loss
+    if verbose:
+        print(f"reg_loss_0: {reg_loss_0.item():.4f}")
+        print(f"reg_loss_1: {reg_loss_1.item():.4f}")
+        print(f"reg_loss_2: {reg_loss_2.item():.4f}")
+
+    reg_loss = reg_loss_0 + reg_loss_1 + reg_loss_2
+
+    return reg_loss.to(input_dtype)
 
 
 def compute_snr(noise_scheduler, timesteps):

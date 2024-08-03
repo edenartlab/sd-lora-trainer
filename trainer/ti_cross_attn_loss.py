@@ -17,10 +17,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-def plot_token_attention_loss(folder, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step):
+def plot_token_attention_loss(folder, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio):
     batch_index = 0
     timestep = timesteps[batch_index].item()
-    if timestep < 300:
+    if timestep > 700:
         batch_index += 1
         timestep = timesteps[batch_index].item()
 
@@ -31,7 +31,7 @@ def plot_token_attention_loss(folder, pipe, daam_loss, captions, timesteps, toke
     plot_token_indices = range(1, len(token_strings) - 1)  # Exclude start and end tokens
 
     # Calculate global min and max for consistent colormap
-    all_heatmaps = [daam_loss.get_the_daam_heatmap(text_token_index=i)[batch_index].cpu().detach().float() 
+    all_heatmaps = [daam_loss.get_the_daam_heatmap(text_token_index=i, img_ratio=img_ratio)[batch_index].cpu().detach().float() 
                     for i in plot_token_indices]
     vmin, vmax = np.min([h.min() for h in all_heatmaps]), np.max([h.max() for h in all_heatmaps])
 
@@ -76,6 +76,7 @@ def plot_token_attention_loss(folder, pipe, daam_loss, captions, timesteps, toke
              transform=ax.transAxes, ha='right', va='top', 
              bbox=dict(facecolor='white', edgecolor='black', alpha=0.8))
 
+    plt.ylim(0, 0.6)
     fig.savefig(os.path.join(folder, f"histogram_{global_step}.jpg"), dpi=300, bbox_inches='tight')
     plt.close(fig)
 
@@ -178,8 +179,6 @@ class DAAMLossAttnProcessor2_0:
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-
-        
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
 
@@ -244,61 +243,46 @@ class DAAMLoss:
             ] = p.cross_attention_scores
 
         return cross_attention_scores
-
-    def compute_single_token_loss(self, text_token_index: list[int], reduce = False):
-        loss = {}
+    
+    def get_mean_attention_per_token(self, token_indices_in_prompt, batch_index):
         cross_attention_scores = self.get_all_cross_attention_scores()
 
-        for name, cross_attention_map in cross_attention_scores.items():
-            """
-            cross_attention_map.shape: (batch, image_patches, text_tokens)
-            """
-            assert cross_attention_map.ndim == 3
-            loss[name] = cross_attention_map[:,:,text_token_index].norm() / cross_attention_map.shape[1]
-        
-        if reduce:
-            all_losses = list(loss.values())
-            return sum(all_losses)/len(all_losses)
-        else:
-            return loss
+        means = []
 
+        for layer_name in cross_attention_scores.keys():
+            attention = cross_attention_scores[layer_name][batch_index][:, 1:len(token_indices_in_prompt)-1]
+            attention_mean_per_token = attention.mean(dim=0)
+            means.append(attention_mean_per_token)
 
-    def compute_loss(self, text_token_indices: list[int], reduce = False):
-        losses = []
-        for text_token_index in text_token_indices:
-            losses.append(
-                self.compute_single_token_loss(
-                    text_token_index=text_token_index,
-                    reduce = True
-                )
-            )
+        mean_attention_per_token = torch.stack(means).mean(dim=0)
 
-        if reduce:
-            return sum(losses)/len(losses)
-        else:
-            return losses
+        return mean_attention_per_token
 
-    def get_image_heatmap(self, text_token_index: int, layer_name: str) -> TensorType["batch", "height", "width"]:
+    def get_image_heatmap(self, text_token_index: int, layer_name: str, img_ratio: float) -> TensorType["batch", "height", "width"]:
         cross_attention_scores = self.get_all_cross_attention_scores()
         assert layer_name in list(cross_attention_scores.keys())
         
         cross_attention_scores_single_token = cross_attention_scores[layer_name][:,:,text_token_index]
 
+        width = round(math.sqrt(cross_attention_scores_single_token.shape[-1] * img_ratio))
+        height = round(width / img_ratio)
+
         heatmap = rearrange(
             cross_attention_scores_single_token,
             "batch (height width) -> batch height width",
-            height = int(math.sqrt(cross_attention_scores_single_token.shape[1])),
-            width = int(math.sqrt(cross_attention_scores_single_token.shape[1]))
+            height = height,
+            width = width
         )
 
         return heatmap
 
-    def get_the_daam_heatmap(self, text_token_index: int, resize = 'min') ->TensorType["batch", "height", "width"]:
+    def get_the_daam_heatmap(self, text_token_index: int, img_ratio: float, resize = 'min') -> TensorType["batch", "height", "width"]:
         all_heatmaps = []
         for layer_name in self.layer_names:
             heatmap = self.get_image_heatmap(
                 text_token_index=text_token_index,
-                layer_name=layer_name
+                layer_name=layer_name,
+                img_ratio = img_ratio
             )
             all_heatmaps.append(heatmap)
 

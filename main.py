@@ -324,13 +324,15 @@ def train(config: TrainingConfig):
             # Compute the loss:
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
-            
-            token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, daam_loss)
+
+            token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, mask, daam_loss)
             losses['token_attention_loss'].append(token_attention_loss.item())
-            loss = loss + 0.000001 * token_attention_loss
+            #loss = loss + 0.0000002 * token_attention_loss
+            loss = loss + 0.000002 * token_attention_loss
 
             if global_step%40 == 0:
-                plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step)
+                img_ratio = config.train_img_size[0] / config.train_img_size[1]
+                plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio)
 
             if config.training_attributes["gpt_description"] and config.debug:
                 concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds, config, pipe)
