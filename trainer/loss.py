@@ -54,14 +54,14 @@ def compute_token_attention_loss(pipe, embedding_handler,
     ti_masks = torch.stack(ti_masks)
 
     # Penalize large, positive mean token attentions:
-    reg_loss_0 = 10*torch.stack(att_L2_losses).mean()
+    reg_loss_0 = 20*torch.stack(att_L2_losses).mean()
 
     # Where the segmentation mask is one, we want to avoid very large attention scores:
     threshold = 0.0
-    reg_loss_1 = 0.5*(torch.relu(ti_heatmaps*ti_masks - threshold)**2).mean()
+    reg_loss_1 = 0.25*(torch.relu(ti_heatmaps*ti_masks - threshold)**2).mean()
 
     # Where the segmentation mask is zero, we want to avoid somewhat large attention scores:
-    threshold = -15.0
+    threshold = -10.0
     reg_loss_2 = 0.1 * (torch.relu(ti_heatmaps*(1.0-ti_masks) - threshold)**2).mean()
 
     if verbose:
