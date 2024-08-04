@@ -1,4 +1,3 @@
-import fnmatch
 import math
 import os
 import time
@@ -11,8 +10,6 @@ import zipfile
 import torch
 import torch.utils.checkpoint
 from tqdm import tqdm
-
-from typing import Union, Iterable, List, Dict, Tuple, Optional, cast
 
 from trainer.utils.utils import *
 from trainer.checkpoint import save_checkpoint
@@ -175,7 +172,10 @@ def train(config: TrainingConfig):
         aspect_ratio_bucketing=config.aspect_ratio_bucketing,
         train_batch_size=config.train_batch_size
     )
-    # offload the vae to cpu:
+    print("Final training captions:")
+    print(train_dataset.captions[:40])
+
+    # offload the vae to cpu and release memory:
     vae = vae.to('cpu')
     gc.collect()
     torch.cuda.empty_cache()
@@ -185,16 +185,10 @@ def train(config: TrainingConfig):
         train_dataset,
         batch_size=config.train_batch_size,
         shuffle=True,
-        num_workers=config.dataloader_num_workers,
+        num_workers=config.dataloader_num_workers
     )
 
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / config.gradient_accumulation_steps)
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader))
-
-    if config.max_train_steps is None:
-        config.max_train_steps = config.num_train_epochs * num_update_steps_per_epoch
-
-    config.num_train_epochs = math.ceil(config.max_train_steps / num_update_steps_per_epoch)
+    config.num_train_epochs = int(math.ceil(config.max_train_steps / len(train_dataloader)))
     total_batch_size = config.train_batch_size * config.gradient_accumulation_steps
 
     print(f"--- Num samples = {len(train_dataset)}")
@@ -288,6 +282,8 @@ def train(config: TrainingConfig):
             else:
                 captions, vae_latent, mask = train_dataset.get_aspect_ratio_bucketed_batch()
 
+            mask = mask.to(config.device)
+
             captions = list(captions)
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
                 config, pipe, captions
@@ -327,11 +323,7 @@ def train(config: TrainingConfig):
 
             token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, mask, daam_loss)
             losses['token_attention_loss'].append(token_attention_loss.item())
-            loss = loss + 0.0000002 * token_attention_loss
-
-            if global_step%40 == 0:
-                img_ratio = config.train_img_size[0] / config.train_img_size[1]
-                plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio)
+            loss = loss + config.token_attention_loss_w * token_attention_loss
 
             if config.training_attributes["gpt_description"] and config.debug:
                 concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds, config, pipe)
@@ -381,6 +373,10 @@ def train(config: TrainingConfig):
                         for std_i, std in enumerate(embedding_stds):
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
+                if global_step % 50 == 0:
+                    img_ratio = config.train_img_size[0] / config.train_img_size[1]
+                    plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio)
+
             # Print some statistics:
             if (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
                 
@@ -404,6 +400,7 @@ def train(config: TrainingConfig):
                 last_save_step = global_step
 
                 if config.debug:
+
                     token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
                     for idx, text_encoder in enumerate(text_encoders):
                         if text_encoder is None:
@@ -425,7 +422,8 @@ def train(config: TrainingConfig):
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                     plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-                    
+
+
                 validation_prompts = render_images(
                     pipe = pipe, 
                     render_size = config.validation_img_size, 

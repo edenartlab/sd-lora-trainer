@@ -155,11 +155,7 @@ def get_conditioning_signals(config, pipe, captions):
         # original_size = (config.resolution, config.resolution)
         original_size = (1024, 1024)
         target_size = (config.resolution, config.resolution)
-
-        crops_coords_top_left = (
-            config.crops_coords_top_left_h,
-            config.crops_coords_top_left_w,
-        )
+        crops_coords_top_left = (0,0)
 
         if pipe.text_encoder_2 is None:
             text_encoder_projection_dim = int(pooled_prompt_embeds.shape[-1])

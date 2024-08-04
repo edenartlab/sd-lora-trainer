@@ -234,6 +234,36 @@ class DAAMLoss:
             x.name for x in attention_processors
         ]
 
+    def process_and_stack_attention_scores(self, img_ratio: float):
+        reshaped_tensors = []
+        min_heatmap_pixels = np.inf
+
+        # Process each attention score
+        for processor in self.attention_processors:
+            score = processor.cross_attention_scores
+            bs, seq_len, channels = score.shape
+
+            # Calculate width and height based on img_ratio
+            width = round(math.sqrt(seq_len * img_ratio))
+            height = round(width / img_ratio)
+            reshaped_score = rearrange(score, 'b (h w) c -> b h w c', h=height, w=width)
+            reshaped_tensors.append(reshaped_score)
+            min_heatmap_pixels = min(min_heatmap_pixels, height * width)
+
+        final_height = round(math.sqrt(min_heatmap_pixels))
+        final_width = round(final_height / img_ratio)
+
+        # Interpolate and standardize all tensors to the same size
+        for i, heatmap in enumerate(reshaped_tensors):
+            if heatmap.shape[1] * heatmap.shape[2] != min_heatmap_pixels:
+                # Interpolating to match the smallest tensor size uniformly
+                heatmap = F.interpolate(heatmap.permute(0, 3, 1, 2), size=(final_height, final_width), mode='bilinear').permute(0, 2, 3, 1)
+                reshaped_tensors[i] = heatmap
+
+        # Stack all tensors along the first dimension
+        stacked_tensor = torch.stack(reshaped_tensors, dim=0)
+        return stacked_tensor
+
     def get_all_cross_attention_scores(self):
         cross_attention_scores = {}
 
@@ -243,20 +273,6 @@ class DAAMLoss:
             ] = p.cross_attention_scores
 
         return cross_attention_scores
-    
-    def get_mean_attention_per_token(self, token_indices_in_prompt, batch_index):
-        cross_attention_scores = self.get_all_cross_attention_scores()
-
-        means = []
-
-        for layer_name in cross_attention_scores.keys():
-            attention = cross_attention_scores[layer_name][batch_index][:, 1:len(token_indices_in_prompt)-1]
-            attention_mean_per_token = attention.mean(dim=0)
-            means.append(attention_mean_per_token)
-
-        mean_attention_per_token = torch.stack(means).mean(dim=0)
-
-        return mean_attention_per_token
 
     def get_image_heatmap(self, text_token_index: int, layer_name: str, img_ratio: float) -> TensorType["batch", "height", "width"]:
         cross_attention_scores = self.get_all_cross_attention_scores()
@@ -313,10 +329,8 @@ def get_module_by_name(module: nn.Module, name: str):
     names = name.split(sep=".")
     return reduce(getattr, names, module)
 
-def init_daam_loss(pipeline: StableDiffusionXLPipeline)-> tuple[StableDiffusionXLPipeline, DAAMLoss]:
 
-    assert isinstance(pipeline, StableDiffusionXLPipeline)
-
+def init_daam_loss(pipeline):
     ## find out where the attention processor thingies are
     module_names = find_attnprocessor2_0(
         unet = pipeline.unet
@@ -325,8 +339,6 @@ def init_daam_loss(pipeline: StableDiffusionXLPipeline)-> tuple[StableDiffusionX
     all_daam_attention_processors = []
     # override the attention processor thingies
     for name in module_names:
-        # print(f"Replacing: {name}")
-        
         # Get parent module and attribute name
         parent_name = ".".join(name.split(".")[:-1])
         attr_name = name.split(".")[-1]

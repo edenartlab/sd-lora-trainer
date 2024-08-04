@@ -260,11 +260,7 @@ class TokenEmbeddingsHandler:
             # original_size = (config.resolution, config.resolution)
             original_size = (1024, 1024)
             target_size = (config.resolution, config.resolution)
-
-            crops_coords_top_left = (
-                config.crops_coords_top_left_h,
-                config.crops_coords_top_left_w,
-            )
+            crops_coords_top_left = (0,0)
 
             if pipe.text_encoder_2 is None:
                 text_encoder_projection_dim = int(pooled_prompt_embeds.shape[-1])
@@ -397,7 +393,6 @@ class TokenEmbeddingsHandler:
                 embedding_tensor.grad.data[:-config.n_tokens, : ] *= 0.
 
             optimizer_ti.step()
-            self.fix_embedding_std(config.off_ratio_power)
             optimizer_ti.zero_grad()
 
         if config.debug:
@@ -429,41 +424,6 @@ class TokenEmbeddingsHandler:
     @property
     def device(self):
         return self.text_encoders[0].device
-
-    def fix_embedding_std(self, off_ratio_power=0.1):
-        if off_ratio_power == 0.0:
-            return
-
-        idx = 0
-        for tokenizer, text_encoder in zip(self.tokenizers, self.text_encoders):
-            if text_encoder is None:
-                idx += 1
-                continue
-
-            # Get the standard deviation target and current embeddings.
-            target_std = self.embeddings_settings[f"std_token_embedding_{idx}"]
-            embeddings, _ = self.get_trainable_embeddings()
-            new_embeddings = embeddings[f'txt_encoder_{idx}']
-            assert len(new_embeddings.shape) == 2, "Embeddings should be 2D!"
-
-            new_stds = new_embeddings.std(dim=1)
-            #off_ratios = target_std.float() / new_stds.float()
-            off_ratios = target_std / new_stds
-
-            # Check if off_ratios are within an acceptable range.
-            if (off_ratios.min() < 0.9) or (off_ratios.max() > 1.1):
-                # Convert the pytorch tensor into a list of python floats:
-                off_ratio_float_list = np.round(off_ratios.detach().float().cpu().numpy().tolist(), 3)
-                print(f"WARNING: std-off ratio-{idx} (target-std / embedding-std) token-ratios = {off_ratio_float_list}, prob not ideal...")
-
-            # Adjust embeddings using the computed ratios.
-            index_no_updates = self.embeddings_settings[f"index_no_updates_{idx}"]
-            index_updates = ~index_no_updates
-            multiplier_values = off_ratios**off_ratio_power
-            multiplier_values = multiplier_values.unsqueeze(1).expand_as(new_embeddings)
-            text_encoder.text_model.embeddings.token_embedding.weight.data[index_updates] *= multiplier_values
-
-            idx += 1
 
     def _load_embeddings(self, loaded_embeddings, tokenizer, text_encoder):
         # Assuming new tokens are of the format <s_i>

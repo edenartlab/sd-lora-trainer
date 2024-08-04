@@ -331,12 +331,12 @@ def extract_gpt_concept_description(gpt_completion, concept_mode):
     return concept_name
 
 
-def post_process_captions(captions, text, concept_mode, job_seed):
+def post_process_captions(captions, text, concept_mode, job_seed, skip_gpt_cleanup=False):
     text = text.strip()
     gpt_cleanup_worked = False
     gpt_concept_description = None
 
-    if len(captions) >= MIN_GPT_PROMPTS and len(captions) <= MAX_GPT_PROMPTS and not text and client:
+    if (len(captions) >= MIN_GPT_PROMPTS and len(captions) <= MAX_GPT_PROMPTS and not text and client) and not skip_gpt_cleanup:
         retry_count = 0
         while retry_count < 5:
             try:
@@ -841,14 +841,13 @@ def load_and_save_masks_and_captions(
     trigger_text = ""
     gpt_concept_description = None
     if not config.disable_ti:
-        captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed)
+        captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed, skip_gpt_cleanup=config.skip_gpt_cleanup)
 
     if (gpt_concept_description is not None) and ((mask_target_prompts is None) or (mask_target_prompts == "")):
         print(f"Using GPT concept name as CLIP-segmentation prompt: {gpt_concept_description}")
         mask_target_prompts = gpt_concept_description
 
     if mask_target_prompts is None or config.concept_mode == "style":
-        print("Disabling CLIP-segmentation")
         mask_target_prompts = ""
         temp = 999
     else:
@@ -922,10 +921,6 @@ def load_and_save_masks_and_captions(
         captions = [caption.replace("TOK", replace_str) for caption in captions]
     else:
         captions = ["TOK, " + caption if "TOK" not in caption else caption for caption in captions]
-
-    print("Final captions:")
-    for caption in captions:
-        print(caption)
 
     # iterate through the images, masks, and captions and add a row to the dataframe for each
     print("Saving final training dataset...")

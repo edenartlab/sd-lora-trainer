@@ -1,7 +1,7 @@
 {
     "name": "xander_test",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene.zip",
+    "lora_training_urls": "/home/rednax/Documents/datasets/01_people/mira",
     "concept_mode": "face",
     "seed": 1,
     "resolution": 512,
@@ -10,9 +10,9 @@
     "max_train_steps": 400,
     "augment_imgs_up_to_n": 40,
     "token_warmup_steps": 0,
-    "checkpointing_steps": 100,
+    "checkpointing_steps": 200,
     "ti_lr": 0.001,
-    "ti_weight_decay": 0.0005,
+    "ti_weight_decay": 0.00,
 
     "disable_ti": false,
     "n_tokens": 3,

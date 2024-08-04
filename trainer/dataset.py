@@ -69,11 +69,9 @@ class PreprocessedDataset(Dataset):
             self.do_cache = True
 
             for idx in range(len(self.data)):
-                if len(self.data) < 25:
-                    print(self.captions[idx])
                 vae_latent, mask = self._process(idx)
                 self.vae_latents.append(vae_latent)
-                self.masks.append(mask)
+                self.masks.append(mask.detach())
 
             print(f"\nCached latents, masks and captions for {len(self.vae_latents)} images.")
             del self.vae_encoder
@@ -100,12 +98,9 @@ class PreprocessedDataset(Dataset):
     def get_aspect_ratio_bucketed_batch(self):
         assert self.bucket_manager is not None, f"Expected self.bucket_manager to not be None! In order to get an aspect ratio bucketed batch, please set aspect_ratio_bucketing = True and set a value for train_batch_size when doing __init__()"
         indices, resolution = self.bucket_manager.get_batch()
-
-        print(f"Got bucket batch: {indices}, resolution: {resolution}")
         tok1, tok2, vae_latents, masks = [], [], [], []
         
         for idx in indices:
-
             if  self.tokenizer_2 is None:
                 t1, v, m = self.__getitem__(idx = idx, bucketing_resolution=resolution)
             else:
@@ -141,28 +136,24 @@ class PreprocessedDataset(Dataset):
         image = PIL.Image.open(image_path).convert("RGB")
         if bucketing_resolution is None:
             image = prepare_image(image, w = self.size[0], h = self.size[1], pipe = self.pipe).to(
-                dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
+                dtype=self.vae_encoder.dtype
             )
         else:
             image = prepare_image(image, w = bucketing_resolution[0], h = bucketing_resolution[1], pipe = self.pipe).to(
-                dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
+                dtype=self.vae_encoder.dtype
             )
 
-        vae_latent = self.vae_encoder.encode(image).latent_dist
+        vae_latent = self.vae_encoder.encode(image.to(self.vae_encoder.device)).latent_dist
         dummy_vae_latent = vae_latent.sample()
 
         if self.mask_path is None:
-            mask = torch.ones_like(
-                dummy_vae_latent, dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
-            )
+            mask = torch.ones_like(dummy_vae_latent, dtype=self.vae_encoder.dtype)
 
         else:
             mask_path = self.mask_path[idx]
             mask_path = os.path.join(self.data_dir, mask_path)
             mask = PIL.Image.open(mask_path)
-            mask = prepare_mask(mask, self.size[0], self.size[1]).to(
-                dtype=self.vae_encoder.dtype, device=self.vae_encoder.device
-            )
+            mask = prepare_mask(mask, self.size[0], self.size[1]).to(dtype=self.vae_encoder.dtype)
             
             mask_dtype = mask.dtype
             mask = mask.float()
@@ -182,10 +173,10 @@ class PreprocessedDataset(Dataset):
 
         if self.do_cache:
             vae_latent = self.vae_latents[idx].sample() * self.vae_scaling_factor
-            return self.captions[idx], vae_latent.squeeze(), self.masks[idx]
+            return self.captions[idx], vae_latent.squeeze().detach(), self.masks[idx].detach()
         else: # This code pathway has not been tested in a long time and might be broken
             caption, vae_latent, mask = self._process(idx, bucketing_resolution=bucketing_resolution)
             vae_latent = vae_latent.sample() * self.vae_scaling_factor
-            return caption, vae_latent.squeeze(), mask
+            return caption, vae_latent.squeeze().detach(), mask.detach()
 
 

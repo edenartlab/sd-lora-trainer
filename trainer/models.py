@@ -4,24 +4,30 @@ import subprocess
 import torch
 from diffusers import AutoencoderKL, DDPMScheduler, EulerDiscreteScheduler, UNet2DConditionModel, StableDiffusionPipeline, StableDiffusionXLPipeline
 
-def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae_float32 = False):
+def load_models(pretrained_model, device, weight_dtype = torch.float16):
     # check if the model is already downloaded:
     if not os.path.exists(pretrained_model['path']):
         download_weights(pretrained_model['url'], pretrained_model['path'])
 
+    tokenizer_two, text_encoder_two = None, None
     print(f"Loading model weights from {os.path.abspath(pretrained_model['path'])} with dtype: {weight_dtype}...")
 
     try:
+        print("Loading as SDXL model...")
         pipe = StableDiffusionXLPipeline.from_single_file(
             pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
         sd_model_version = "sdxl"
+        tokenizer_two = pipe.tokenizer_2
+        text_encoder_two = pipe.text_encoder_2
+        text_encoder_two.requires_grad_(False)
+        text_encoder_two.to(device, dtype=weight_dtype)
     except:
+        print("Loading as SD15 model...")
         pipe = StableDiffusionPipeline.from_single_file(
             pretrained_model['path'], torch_dtype=weight_dtype, use_safetensors=True)
         sd_model_version = "sd15"
 
     print(f"Loaded {sd_model_version} model!")
-
     pipe = pipe.to(device, dtype=weight_dtype)
     noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
 
@@ -31,24 +37,11 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16, keep_vae
     text_encoder_one = pipe.text_encoder
 
     vae.requires_grad_(False)
-    if keep_vae_float32:
-        vae.to(device, dtype=torch.float32)
-    else:
-        vae.to(device, dtype=weight_dtype)
-        if weight_dtype != torch.float32:
-            print(f"Warning: VAE will be loaded as {weight_dtype}, this is fine for inference but may not be ideal for training..?")
-
+    vae.to(device, dtype=weight_dtype)
     unet.to(device, dtype=weight_dtype)
     text_encoder_one.requires_grad_(False)
     text_encoder_one.to(device, dtype=weight_dtype)
-    
-    tokenizer_two = text_encoder_two = None
-    if sd_model_version == "sdxl":
-        tokenizer_two = pipe.tokenizer_2
-        text_encoder_two = pipe.text_encoder_2
-        text_encoder_two.requires_grad_(False)
-        text_encoder_two.to(device, dtype=weight_dtype)
-        
+
     return (
         pipe,
         tokenizer_one,

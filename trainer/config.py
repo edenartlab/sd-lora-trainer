@@ -48,30 +48,30 @@ class TrainingConfig(BaseModel):
     train_img_size: List[int] = None
     train_aspect_ratio: float = None
     train_batch_size: int = 4
-    num_train_epochs: int = 10000
     max_train_steps: int = 360
+    num_train_epochs: int = None
     checkpointing_steps: int = 10000
     gradient_accumulation_steps: int = 1
     is_lora: bool = True
 
     unet_optimizer_type: Literal["adamw", "prodigy", "AdamW8bit"] = "adamw"
     unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
-    unet_lr: float = 1.0e-3
+    unet_lr: float = 0.0002
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
 
     ti_lr: float = 1e-3
-    ti_lr_warmup_steps: int = 20   # slowly ramp up the learning rate to build some momentum
+    ti_lr_warmup_steps: int = 10   # slowly ramp up the learning rate to build some momentum
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
     ti_weight_decay: float = 0.0
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     
+    token_attention_loss_w: float = 4e-7
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 2000.    # regularizes the token covariance matrix wrt pretrained "healthy" tokens
-    off_ratio_power: float = 0.02   # Pulls the std of the token distribution towards the target std
+    tok_cov_reg_w: float = 500.     # regularizes the token covariance matrix wrt pretrained, normal tokens
     l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
     
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
@@ -92,17 +92,13 @@ class TrainingConfig(BaseModel):
     debug: bool = False
     allow_tf32: bool = True
     disable_ti: bool = False
+    skip_gpt_cleanup: bool = False
     weight_type: Literal["fp16", "bf16", "fp32"] = "bf16"
     n_tokens: int = 2
     inserting_list_tokens: List[str] = ["<s0>","<s1>"]
     token_dict: dict = {"TOK": "<s0><s1>"}
     device: str = "cuda:0"
-    crops_coords_top_left_h: int = 0
-    crops_coords_top_left_w: int = 0
     do_cache: bool = True
-    unet_learning_rate: float = 1.0
-    lr_num_cycles: int = 1
-    lr_power: float = 1.0
     sample_imgs_lora_scale: float = None    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}
@@ -129,13 +125,12 @@ class TrainingConfig(BaseModel):
             self.pretrained_model = {"path": self.ckpt_path, "url": None, "version": None}
 
         # add some metrics to the foldername:
-        lora_str = "dora" if self.use_dora else "lora"
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
         
         if not self.name:
-            self.name = f"{os.path.basename(self.output_dir)}_{self.concept_mode}_{lora_str}_{self.sd_model_version}_{timestamp_short}"
+            self.name = "unnamed"
 
-        self.output_dir = self.output_dir + f"/{self.name}/" + f"{timestamp_short}-{self.concept_mode}_{lora_str}_{self.resolution}_{self.prodigy_d_coef}_{self.caption_model}_{self.max_train_steps}"
+        self.output_dir = self.output_dir + f"/{self.name}_" + f"{timestamp_short}-{self.concept_mode}_{self.resolution}_{self.caption_model}_{self.max_train_steps}"
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.seed is None:

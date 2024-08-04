@@ -35,12 +35,12 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "beeple"
+exp_name             = "objects"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 200  # how many random experiment settings to generate
-min_hamming_distance = 1   # min_n_params that have to be different from any previous experiment to be scheduled
-nohup                = True
+min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
+nohup                = False
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 # Define training hyperparameters and their possible values
@@ -50,41 +50,45 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx.zip",
+        "/home/rednax/Documents/datasets/plantoid/plantoid",
+        "/home/rednax/Documents/datasets/sweep/banny",
+        "/home/rednax/Documents/datasets/sweep/banny_mini"
+
     ],
-    "concept_mode": ['style'],
+    "concept_mode": ['object'],
     "sample_imgs_lora_scale": [0.8],
-    "disable_ti": ['false', 'true'],
+    "disable_ti": ['false'],
     "seed": [0],
     "resolution": [512],
     "train_batch_size": [4],
-    "n_sample_imgs": [8],
-    "max_train_steps": [1200],
-    "checkpointing_steps": [200],
+    "n_sample_imgs": [6],
+    "max_train_steps": [400],
+    "checkpointing_steps": [100],
     "gradient_accumulation_steps": [1],
 
-    "n_tokens": [2],
+    "n_tokens": [2,3,4],
     "ti_lr": [0.001],
-    "ti_weight_decay": [0.001],
+    "ti_weight_decay": [0.000],
     "l1_penalty": [0.0],
     "token_warmup_steps": [0],
-    "tok_cov_reg_w": [2000],
+    "tok_cov_reg_w": [500],
+    "token_attention_loss_w": [0, 2e-7, 10e-7],
 
-    "unet_lr": [0.0002, 0.00005],
+    "unet_lr": [0.001, 0.0003, 0.0001],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [16],
+    "lora_rank": [16,32],
     "use_dora": ['false'],
 
-    "unet_optimizer_type": ['AdamW8bit'],
-    "is_lora": ['false'],
+    "unet_optimizer_type": ['adamw'],
+    "is_lora": ['true'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
-    "caption_model": ["blip", "gpt4-v"],
+    "caption_model": ["blip", "florence"],
     "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']
