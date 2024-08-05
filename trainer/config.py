@@ -128,7 +128,7 @@ class TrainingConfig(BaseModel):
         timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
         
         if not self.name:
-            self.name = "unnamed"
+            self.name = os.path.basename(self.lora_training_urls)[:40]
 
         self.output_dir = self.output_dir + f"/{self.name}_" + f"{timestamp_short}-{self.concept_mode}_{self.resolution}_{self.caption_model}_{self.max_train_steps}"
         os.makedirs(self.output_dir, exist_ok=True)

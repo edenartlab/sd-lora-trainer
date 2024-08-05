@@ -35,10 +35,10 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "objects"
+exp_name             = "faces"
 caption_prefix       = ""
 mask_target_prompts  = ""
-n_exp                = 200  # how many random experiment settings to generate
+n_exp                = 100  # how many random experiment settings to generate
 min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
 nohup                = False
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
@@ -50,35 +50,35 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/plantoid/plantoid",
-        "/home/rednax/Documents/datasets/sweep/banny",
-        "/home/rednax/Documents/datasets/sweep/banny_mini"
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene.zip",
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/mira.zip"
 
     ],
-    "concept_mode": ['object'],
-    "sample_imgs_lora_scale": [0.8],
+    "concept_mode": ['face'],
+    "sample_imgs_lora_scale": [0.75],
     "disable_ti": ['false'],
     "seed": [0],
     "resolution": [512],
     "train_batch_size": [4],
-    "n_sample_imgs": [6],
-    "max_train_steps": [400],
-    "checkpointing_steps": [100],
+    "n_sample_imgs": [8],
+    "max_train_steps": [360],
+    "checkpointing_steps": [360],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [2,3,4],
-    "ti_lr": [0.001],
+    "ti_lr": [0.001, 0.003],
     "ti_weight_decay": [0.000],
     "l1_penalty": [0.0],
     "token_warmup_steps": [0],
     "tok_cov_reg_w": [500],
     "token_attention_loss_w": [0, 2e-7, 10e-7],
 
-    "unet_lr": [0.001, 0.0003, 0.0001],
+    "unet_lr": [0.001, 0.002],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [16,32],
+    "lora_rank": [16,8],
     "use_dora": ['false'],
 
     "unet_optimizer_type": ['adamw'],
@@ -105,7 +105,7 @@ shutil.rmtree(config_output_dir, ignore_errors=True)
 os.makedirs(config_output_dir, exist_ok=True)
 
 # Open the shell script file
-try_sampling_n_times = 200
+try_sampling_n_times = 120
 for exp_index in tqdm(range(n_exp)):  # number of combinations you want to generate
     resamples, combination = 0, None
 
@@ -126,9 +126,6 @@ for exp_index in tqdm(range(n_exp)):  # number of combinations you want to gener
             config_filename = f"{config_output_dir}/{exp_name}_{exp_index:03d}.json"
             dirname = os.path.dirname(config_filename)
             os.makedirs(dirname, exist_ok=True)
-
-            # Make some final adjustments to the experiment settings before saving to disk:
-            experiment_settings["output_dir"] = f'{experiment_settings["output_dir"]}__{exp_index:03d}'
 
             with open(config_filename, "w") as f:
                 json.dump(experiment_settings, f, indent=4)

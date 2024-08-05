@@ -22,7 +22,7 @@
     "text_encoder_lora_rank": 12,
 
     "sample_imgs_lora_scale": 0.8,
-    "unet_lr": 0.0002,
+    "unet_lr": 0.0005,
     "lora_rank": 16,
     "use_dora": false,
     "caption_model": "florence",

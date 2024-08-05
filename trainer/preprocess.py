@@ -567,7 +567,8 @@ def florence_caption_dataset(images, captions):
 
     for i, image in enumerate(tqdm(images)):
         if captions[i] is None:
-            prompt = random.choice(["<CAPTION>", "<DETAILED_CAPTION>"])
+            #prompt = random.choice(["<CAPTION>", "<DETAILED_CAPTION>"])
+            prompt = "<CAPTION>"
 
             inputs = processor(text=prompt, images=image, return_tensors="pt").to(device, torch_dtype)
             generated_ids = model.generate(
