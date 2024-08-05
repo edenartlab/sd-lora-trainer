@@ -56,7 +56,7 @@ class TrainingConfig(BaseModel):
 
     unet_optimizer_type: Literal["adamw", "prodigy", "AdamW8bit"] = "adamw"
     unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
-    unet_lr: float = 0.0002
+    unet_lr: float = 0.001
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
@@ -68,7 +68,7 @@ class TrainingConfig(BaseModel):
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
     
-    token_attention_loss_w: float = 4e-7
+    token_attention_loss_w: float = 2e-7
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
     tok_cov_reg_w: float = 500.     # regularizes the token covariance matrix wrt pretrained, normal tokens

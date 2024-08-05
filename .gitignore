@@ -17,6 +17,7 @@ gridsearch*
 aesthetic_score_best_model.pth
 
 # experiment folders:
+scripts/plots
 conditioning_spaces/
 training_args_x_*.json
 xander_configs/

@@ -248,17 +248,18 @@ class DAAMLoss:
             height = round(width / img_ratio)
             reshaped_score = rearrange(score, 'b (h w) c -> b h w c', h=height, w=width)
             reshaped_tensors.append(reshaped_score)
-            min_heatmap_pixels = min(min_heatmap_pixels, height * width)
 
-        final_height = round(math.sqrt(min_heatmap_pixels))
-        final_width = round(final_height / img_ratio)
+            if height*width < min_heatmap_pixels:
+                min_heatmap_pixels = height*width
+                min_heatmap_shape = height, width
 
         # Interpolate and standardize all tensors to the same size
         for i, heatmap in enumerate(reshaped_tensors):
             if heatmap.shape[1] * heatmap.shape[2] != min_heatmap_pixels:
                 # Interpolating to match the smallest tensor size uniformly
-                heatmap = F.interpolate(heatmap.permute(0, 3, 1, 2), size=(final_height, final_width), mode='bilinear').permute(0, 2, 3, 1)
+                heatmap = F.interpolate(heatmap.permute(0, 3, 1, 2), size=(min_heatmap_shape[0], min_heatmap_shape[1]), mode='bicubic').permute(0, 2, 3, 1)
                 reshaped_tensors[i] = heatmap
+
 
         # Stack all tensors along the first dimension
         stacked_tensor = torch.stack(reshaped_tensors, dim=0)

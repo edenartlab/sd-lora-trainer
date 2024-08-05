@@ -66,15 +66,15 @@ hyperparameters = {
     "checkpointing_steps": [360],
     "gradient_accumulation_steps": [1],
 
-    "n_tokens": [2,3,4],
-    "ti_lr": [0.001, 0.003],
+    "n_tokens": [3],
+    "ti_lr": [0.001],
     "ti_weight_decay": [0.000],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0],
+    "token_warmup_steps": [0,60],
     "tok_cov_reg_w": [500],
-    "token_attention_loss_w": [0, 2e-7, 10e-7],
+    "token_attention_loss_w": [2e-7],
 
-    "unet_lr": [0.001, 0.002],
+    "unet_lr": [0.001, 0.0003],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
@@ -88,7 +88,7 @@ hyperparameters = {
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
-    "caption_model": ["blip", "florence"],
+    "caption_model": ["florence"],
     "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']

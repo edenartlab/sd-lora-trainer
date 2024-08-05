@@ -819,16 +819,6 @@ def load_and_save_masks_and_captions(
         captions = captions + captions
 
 
-    aug_imgs, aug_caps = [],[]
-    # if we still have a small amount of imgs, do some basic augmentation:
-    while len(images) + len(aug_imgs) < augment_imgs_up_to_n: 
-        print(f"Adding augmented version of each training img...")
-        aug_imgs.extend([augment_image(image) for image in images])
-        aug_caps.extend(captions)
-
-    images.extend(aug_imgs)
-    captions.extend(aug_caps)
-    
     print(f"Generating {len(images)} captions using mode: {concept_mode}...")
     captions = caption_dataset(images, captions, caption_model = caption_model)
 
@@ -844,6 +834,19 @@ def load_and_save_masks_and_captions(
     if not config.disable_ti:
         captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed, skip_gpt_cleanup=config.skip_gpt_cleanup)
 
+
+    
+    aug_imgs, aug_caps = [],[]
+    # if we still have a small amount of imgs, do some basic augmentation:
+    while len(images) + len(aug_imgs) < augment_imgs_up_to_n: 
+        print(f"Adding augmented version of each training img...")
+        aug_imgs.extend([augment_image(image) for image in images])
+        aug_caps.extend(captions)
+
+    images.extend(aug_imgs)
+    captions.extend(aug_caps)
+    
+
     if (gpt_concept_description is not None) and ((mask_target_prompts is None) or (mask_target_prompts == "")):
         print(f"Using GPT concept name as CLIP-segmentation prompt: {gpt_concept_description}")
         mask_target_prompts = gpt_concept_description
@@ -855,7 +858,6 @@ def load_and_save_masks_and_captions(
         temp = config.clipseg_temperature
 
     print(f"Generating {len(images)} masks...")
-
     # Make sure we have a bias for the background pixels to never 100% ignore them
     background_bias = 0.05
     if not use_face_detection_instead:

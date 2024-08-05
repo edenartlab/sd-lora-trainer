@@ -80,7 +80,7 @@ def identify_varying_hyperparams(data, skip_params=['output_dir', 'start_time', 
     
     return varying_params
 
-def create_plots(data, varying_params, outdir):
+def create_plots(data, varying_params, outdir, top = 0.15):
     os.makedirs(outdir, exist_ok=True)
     
     for param, values in varying_params.items():
@@ -90,12 +90,17 @@ def create_plots(data, varying_params, outdir):
         
         plt.figure(figsize=(12, 8))
         param_data = defaultdict(list)
+        all_scores = []
         
         for args, score in data:
             if param in args:
                 value = args[param]
                 value_str = str(value)
                 param_data[value_str].append(score)
+                all_scores.append(score)
+        
+        # Calculate global top threshold
+        global_top_percent = np.percentile(all_scores, 100*(1-top))
         
         # Sort the values
         try:
@@ -109,16 +114,15 @@ def create_plots(data, varying_params, outdir):
         for i, value_str in enumerate(values_list):
             scores = param_data[value_str]
 
-            # Apply jitter first
+            # Apply jitter
             jittered_x = np.random.normal(i, 0.1, size=len(scores))
             jittered_y = np.array(scores) + np.random.normal(0, 0.01 * max(scores), size=len(scores))
 
-            # Calculate top 25% based on ORIGINAL scores (before jitter)
-            top_25_percent = np.percentile(scores, 75)
-            top_25_mask = np.array(scores) >= top_25_percent
+            # Use global top 25% threshold
+            top_mask = np.array(scores) >= global_top_percent
 
             # Emphasize top 25% scores using JITTERED coordinates for plotting
-            sns.scatterplot(x=jittered_x[top_25_mask], y=jittered_y[top_25_mask], alpha=0.6, color='black', marker='X', s=40, linewidth=1)
+            sns.scatterplot(x=jittered_x[top_mask], y=jittered_y[top_mask], alpha=0.6, color='black', marker='X', s=40, linewidth=1)
 
             # Plot all scores using JITTERED coordinates
             sns.scatterplot(x=jittered_x, y=jittered_y, alpha=0.6, label=value_str)
@@ -135,11 +139,10 @@ def create_plots(data, varying_params, outdir):
         plt.plot(range(len(values_list)), p(range(len(values_list))), "r--", alpha=0.8,
                  label=f'All data: y={z[0]:.2f}x+{z[1]:.2f}\nR²: {r2_score(y, p(x)):.4f}')
         
-        # Calculate trendline for top 25% scoring datapoints
-        top_25_percent = np.percentile(y, 75)
-        top_25_mask = y >= top_25_percent
-        x_top = x[top_25_mask]
-        y_top = y[top_25_mask]
+        # Calculate trendline for global top 25% scoring datapoints
+        top_mask = y >= global_top_percent
+        x_top = x[top_mask]
+        y_top = y[top_mask]
         
         z_top = np.polyfit(x_top, y_top, 1)
         p_top = np.poly1d(z_top)
@@ -169,7 +172,7 @@ def create_plots(data, varying_params, outdir):
     print(f"Plots have been saved as PNG files in {outdir}")
 
 if __name__ == "__main__":
-    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/OBJECTS"
+    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/faces"
     outdir = os.path.join('.', os.path.basename(root_dir))
     
     # Collect data
