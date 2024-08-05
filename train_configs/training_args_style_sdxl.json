@@ -4,17 +4,17 @@
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
     "concept_mode": "style",
     "sample_imgs_lora_scale": 0.8,
-    "seed": 1,
+    "seed": 0,
     "resolution": 512,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
     "max_train_steps": 360,
     "token_warmup_steps": 0,
-    "checkpointing_steps": 360,
-    "ti_lr": 0.001,
+    "checkpointing_steps": 180,
 
+    "ti_lr": 0.001,
     "unet_lr": 0.001,
     "lora_rank": 16,
-    "use_dora": false,
+
     "debug": true
 }

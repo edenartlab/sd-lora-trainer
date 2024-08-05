@@ -94,9 +94,9 @@ class TrainingConfig(BaseModel):
     disable_ti: bool = False
     skip_gpt_cleanup: bool = False
     weight_type: Literal["fp16", "bf16", "fp32"] = "bf16"
-    n_tokens: int = 2
-    inserting_list_tokens: List[str] = ["<s0>","<s1>"]
-    token_dict: dict = {"TOK": "<s0><s1>"}
+    n_tokens: int = 3
+    inserting_list_tokens: List[str] = ["<s0>","<s1>","<s2>"]
+    token_dict: dict = {"TOK": "<s0><s1><s2>"}
     device: str = "cuda:0"
     do_cache: bool = True
     sample_imgs_lora_scale: float = None    # Default lora scale for sampling the validation images

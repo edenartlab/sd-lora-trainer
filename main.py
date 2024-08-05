@@ -400,19 +400,6 @@ def train(config: TrainingConfig):
                 last_save_step = global_step
 
                 if config.debug:
-
-                    token_embeddings, trainable_tokens = embedding_handler.get_trainable_embeddings()
-                    for idx, text_encoder in enumerate(text_encoders):
-                        if text_encoder is None:
-                            continue
-                        n = len(token_embeddings[f'txt_encoder_{idx}'])
-                        for i in range(n):
-                            token = trainable_tokens[f'txt_encoder_{idx}'][i]
-                            # Strip any backslashes from the token name:
-                            token = token.replace("/", "_")
-                            embedding = token_embeddings[f'txt_encoder_{idx}'][i]
-                            plot_torch_hist(embedding, global_step, os.path.join(config.output_dir, 'ti_embeddings') , f"enc_{idx}_tokid_{i}: {token}", min_val=-0.05, max_val=0.05, ymax_f = 0.05, color = 'red')
-
                     embedding_handler.print_token_info()
                     if config.is_lora: # plotting this hist for full unet parameters can run OOM
                         plot_torch_hist(unet_lora_parameters, global_step, config.output_dir, "lora_weights", min_val=-0.4, max_val=0.4, ymax_f = 0.08)
@@ -422,7 +409,6 @@ def train(config: TrainingConfig):
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
                     plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
-
 
                 validation_prompts = render_images(
                     pipe = pipe, 
