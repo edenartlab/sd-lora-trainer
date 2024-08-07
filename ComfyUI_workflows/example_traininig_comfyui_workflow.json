@@ -1,0 +1,236 @@
+{
+  "last_node_id": 7,
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        911,
+        202
+      ],
+      "size": {
+        "0": 347.36749267578125,
+        "1": 87.71485137939453
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 9,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        909,
+        301
+      ],
+      "size": {
+        "0": 349.7635803222656,
+        "1": 88.69296264648438
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 10,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 5,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        909,
+        401
+      ],
+      "size": {
+        "0": 349.3501892089844,
+        "1": 98.81207275390625
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 11,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "PreviewImage",
+      "pos": [
+        1302,
+        131
+      ],
+      "size": {
+        "0": 557.6970825195312,
+        "1": 461.9648742675781
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 7,
+      "type": "Eden_LoRa_trainer",
+      "pos": [
+        510,
+        100
+      ],
+      "size": {
+        "0": 315,
+        "1": 430
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sample_images",
+          "type": "IMAGE",
+          "links": [
+            8
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "links": [
+            9
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "embedding_path",
+          "type": "STRING",
+          "links": [
+            10
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "final_msg",
+          "type": "STRING",
+          "links": [
+            11
+          ],
+          "shape": 3,
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Eden_LoRa_trainer"
+      },
+      "widgets_values": [
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
+        "zavychromaxl_v90.safetensors",
+        "clipx_style_test",
+        "style",
+        4,
+        400,
+        0.001,
+        0.001,
+        16,
+        3,
+        true,
+        200,
+        28387,
+        "randomize"
+      ]
+    }
+  ],
+  "links": [
+    [
+      8,
+      7,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      9,
+      7,
+      1,
+      3,
+      0,
+      "*"
+    ],
+    [
+      10,
+      7,
+      2,
+      4,
+      0,
+      "*"
+    ],
+    [
+      11,
+      7,
+      3,
+      5,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": [
+        -223.57653387888135,
+        141.12776657771462
+      ]
+    }
+  },
+  "version": 0.4
+}
