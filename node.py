@@ -27,6 +27,7 @@ class Eden_LoRa_trainer:
                     "ti_lr":   ("FLOAT", {"default": 0.001, "min": 0.0001, "max": 0.01, "step": 0.0001}),
                     "unet_lr": ("FLOAT", {"default": 0.001, "min": 0.0001, "max": 0.01, "step": 0.0001}),
                     "lora_rank": ("INT", {"default": 16, "min": 1, "max": 64}),
+                    "disable_ti": ("BOOLEAN", {"default": False}),
                     "n_tokens": ("INT", {"default": 3, "min": 1, "max": 5}),
                     "debug_mode": ("BOOLEAN", {"default": False}),
                     "save_checkpoint_every_n_steps": ("INT", {"default": 180, "min": 10, "max": 10000}),
@@ -50,6 +51,7 @@ class Eden_LoRa_trainer:
             ti_lr = 0.001,
             unet_lr = 0.001,
             lora_rank = 16,
+            disable_ti = False,
             n_tokens = 3,
             debug_mode = False,
             save_checkpoint_every_n_steps = 180,
@@ -80,6 +82,7 @@ class Eden_LoRa_trainer:
             lora_rank=lora_rank,
             use_dora=False,
             caption_model="blip",
+            disable_ti=disable_ti,
             n_tokens=n_tokens,
             verbose=True,
             debug=debug_mode,
@@ -125,7 +128,7 @@ class Eden_LoRa_trainer:
                 grid_images.append(grid_image)
         
         grid_images = torch.stack(grid_images)
-        
+
         # Make sure that grid_images always has 4 dimensions:
         if len(grid_images.shape) == 3:
             grid_images = grid_images.unsqueeze(0)
