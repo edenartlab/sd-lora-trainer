@@ -38,7 +38,7 @@ class TrainingConfig(BaseModel):
     lora_training_urls: str
     concept_mode: Literal["face", "style", "object"]
     caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
-    caption_model: Literal["gpt4-v", "blip", "florence"] = "florence"
+    caption_model: Literal["gpt4-v", "blip", "florence"] = "blip"
     sd_model_version: Literal["sdxl", "sd15", None] = None
     ckpt_path: str = None  # optional hardcoded checkpoint path
     pretrained_model: dict = None
@@ -147,7 +147,7 @@ class TrainingConfig(BaseModel):
 
         if not self.sample_imgs_lora_scale:
             if self.sd_model_version == "sdxl":
-                self.sample_imgs_lora_scale = 0.7
+                self.sample_imgs_lora_scale = 0.75
             else:
                 self.sample_imgs_lora_scale = 0.85
         

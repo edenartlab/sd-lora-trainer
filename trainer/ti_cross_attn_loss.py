@@ -9,7 +9,6 @@ from diffusers.utils.deprecation_utils import deprecate
 import torch.nn.functional as F
 import math
 from einops.layers.torch import Reduce
-from torchtyping import TensorType
 from einops import rearrange
 
 import matplotlib.pyplot as plt
@@ -275,7 +274,7 @@ class DAAMLoss:
 
         return cross_attention_scores
 
-    def get_image_heatmap(self, text_token_index: int, layer_name: str, img_ratio: float) -> TensorType["batch", "height", "width"]:
+    def get_image_heatmap(self, text_token_index: int, layer_name: str, img_ratio: float):
         cross_attention_scores = self.get_all_cross_attention_scores()
         assert layer_name in list(cross_attention_scores.keys())
         
@@ -293,7 +292,7 @@ class DAAMLoss:
 
         return heatmap
 
-    def get_the_daam_heatmap(self, text_token_index: int, img_ratio: float, resize = 'min') -> TensorType["batch", "height", "width"]:
+    def get_the_daam_heatmap(self, text_token_index: int, img_ratio: float, resize = 'min'):
         all_heatmaps = []
         for layer_name in self.layer_names:
             heatmap = self.get_image_heatmap(

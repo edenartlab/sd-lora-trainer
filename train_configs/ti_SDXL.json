@@ -1,7 +1,7 @@
 {
     "name": "ti_sdxl_xander",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip",
+    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
     "concept_mode": "face",
     "seed": 1,
     "resolution": 512,
