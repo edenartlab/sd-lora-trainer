@@ -5,6 +5,7 @@ It's a highly optimized trainer that can be used for both full finetuning and tr
 It uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
 The outputs of this trainer are fully compatible with ComfyUI and AUTO111, see documentation [here](https://docs.eden.art/docs/guides/concepts/#exporting-loras-for-use-in-other-tools).
+A full guide on training can be found in [**our docs**](https://docs.eden.art/docs/guides/concepts/#training).
 
 <p align="center">
   <strong>Training images:</strong><br>
