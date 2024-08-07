@@ -1,6 +1,6 @@
 # Trainer
 
-This trainer was developed by the [**Eden** team](https://eden.art/)
+This trainer was developed by the [**Eden** team](https://eden.art/), you can try our hosted version of the trainer in [**our app**](https://app.eden.art/).
 It's a highly optimized trainer that can be used for both full finetuning and training LoRa modules on top of Stable Diffusion.
 It uses a single training script and loss module that works for both **SDv15** and **SDXL**!
 
