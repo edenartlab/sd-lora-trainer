@@ -55,30 +55,6 @@ sudo chmod +x /usr/local/bin/cog
 3. Run a training run with `sh cog_test_train.sh`
 4. You can also go into the container with `cog run /bin/bash`
 
-## Automatic Checkpoint Evaluation
-
-This script uses CLIP img/txt similarity scores to evaluate how good the LoRa is vs how overfit.
-Download the aesthetic predictor model checkpoint first from google drive. This should give you a file named: `aesthetic_score_best_model.pth` (99.2 MB)
-
-```bash
-gdown 1thEIlXVc8lkULVUBY9Ab45tsOERxkjxns
-```
-
-Once the model is downloaded, you can run the eval script with the following CLI args:
-
-- `output_folder`: this is where the outputs of the model get saved as jpeg files
-- `lora_path`: path to your LoRA checkpoint (make sure you edit `path_to_your_model_checkpoints` to point to the correct folder. It generally ends with something like `checkpoint-600` where `600` was the training step)
-- `output_json`: save all scores in this json file
-- `config_filename`: config file used for training
-
-```bash
-python3 evaluate.py \
---output_folder eval_images \
---lora_path path_to_your_model_checkpoint  \
---output_json eval_results.json \
---config_filename training_args.json
-```
-
 
 ## TODO's
 
