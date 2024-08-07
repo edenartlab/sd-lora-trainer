@@ -17,16 +17,21 @@ A full guide on training can be found in [**our docs**](https://docs.eden.art/do
 </p>
 
 
-The trainer supports 3 default modes:
-- **style**: used for learning the aesthetic style of a collection of images.
-- **face**: used for learning a specific face (can be human, character, ...).
-- **object**: will learn a specific object or thing featured in the training images.
-
-The trainer can be run in 4 different ways:
+### The trainer can be run in 4 different ways:
 - [**as a hosted service on our website**](https://app.eden.art/)
 - [**as a hosted service through replicate**](https://replicate.com/edenartlab/sdxl-lora-trainer)
 - **as a ComfyUI node**
 - **as a standalone python script**
+
+### The trainer supports 3 default modes:
+- **style**: used for learning the aesthetic style of a collection of images.
+- **face**: used for learning a specific face (can be human, character, ...).
+- **object**: will learn a specific object or thing featured in the training images.
+
+<p align="center">
+  <strong>Style training example:</strong><br>
+  <img src="assets/style_training_example.jpg" alt="Image 1" style="width:80%;"/>
+</p>
 
 ## Setup
 
