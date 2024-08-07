@@ -1,6 +1,6 @@
 {
-  "last_node_id": 7,
-  "last_link_id": 11,
+  "last_node_id": 9,
+  "last_link_id": 15,
   "nodes": [
     {
       "id": 3,
@@ -14,13 +14,13 @@
         "1": 87.71485137939453
       },
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
           "name": "source",
           "type": "*",
-          "link": 9,
+          "link": 13,
           "dir": 3
         }
       ],
@@ -43,13 +43,13 @@
         "1": 88.69296264648438
       },
       "flags": {},
-      "order": 3,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
           "name": "source",
           "type": "*",
-          "link": 10,
+          "link": 14,
           "dir": 3
         }
       ],
@@ -72,13 +72,13 @@
         "1": 98.81207275390625
       },
       "flags": {},
-      "order": 4,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
           "name": "source",
           "type": "*",
-          "link": 11,
+          "link": 15,
           "dir": 3
         }
       ],
@@ -93,21 +93,21 @@
       "id": 2,
       "type": "PreviewImage",
       "pos": [
-        1302,
-        131
+        1312,
+        101
       ],
       "size": {
         "0": 557.6970825195312,
         "1": 461.9648742675781
       },
       "flags": {},
-      "order": 1,
+      "order": 2,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 8
+          "link": 12
         }
       ],
       "properties": {
@@ -115,11 +115,11 @@
       }
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "Eden_LoRa_trainer",
       "pos": [
-        510,
-        100
+        454,
+        103
       ],
       "size": {
         "0": 315,
@@ -133,7 +133,7 @@
           "name": "sample_images",
           "type": "IMAGE",
           "links": [
-            8
+            12
           ],
           "shape": 3,
           "slot_index": 0
@@ -142,7 +142,7 @@
           "name": "lora_path",
           "type": "STRING",
           "links": [
-            9
+            13
           ],
           "shape": 3,
           "slot_index": 1
@@ -151,7 +151,7 @@
           "name": "embedding_path",
           "type": "STRING",
           "links": [
-            10
+            14
           ],
           "shape": 3,
           "slot_index": 2
@@ -160,7 +160,7 @@
           "name": "final_msg",
           "type": "STRING",
           "links": [
-            11
+            15
           ],
           "shape": 3,
           "slot_index": 3
@@ -175,46 +175,69 @@
         "clipx_style_test",
         "style",
         4,
-        400,
+        360,
         0.001,
         0.001,
         16,
         3,
         true,
-        200,
-        28387,
+        180,
+        0,
         "randomize"
       ]
+    },
+    {
+      "id": 9,
+      "type": "Note",
+      "pos": [
+        465,
+        -245
+      ],
+      "size": [
+        833.2066162535789,
+        284.2696383134398
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "This LoRa trainer was made by the team behind eden.art, led by https://x.com/xsteenbrugge\nThis trainer works for both SD15 and SDXL models, but is primarily tuned for SDXL models.\n\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference!\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 1000) and usually benefits from disabling ti_training.\n\n\n\n\n\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [
     [
+      12,
       8,
-      7,
       0,
       2,
       0,
       "IMAGE"
     ],
     [
-      9,
-      7,
+      13,
+      8,
       1,
       3,
       0,
       "*"
     ],
     [
-      10,
-      7,
+      14,
+      8,
       2,
       4,
       0,
       "*"
     ],
     [
-      11,
-      7,
+      15,
+      8,
       3,
       5,
       0,
@@ -225,10 +248,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.9090909090909091,
+      "scale": 1.1,
       "offset": [
-        -223.57653387888135,
-        141.12776657771462
+        -132.40529807176063,
+        133.74669805019636
       ]
     }
   },
