@@ -23,13 +23,13 @@ class Eden_LoRa_trainer:
                     "lora_name": ("STRING", {"default": "Eden_LoRa"}),
                     "mode": (["style", "face", "object"], ),
                     "train_batch_size": ("INT", {"default": 4, "min": 1, "max": 8}),
-                    "max_train_steps":  ("INT", {"default": 400, "min": 50, "max": 1000}),
+                    "max_train_steps":  ("INT", {"default": 360, "min": 10, "max": 10000}),
                     "ti_lr":   ("FLOAT", {"default": 0.001, "min": 0.0001, "max": 0.01, "step": 0.0001}),
                     "unet_lr": ("FLOAT", {"default": 0.001, "min": 0.0001, "max": 0.01, "step": 0.0001}),
                     "lora_rank": ("INT", {"default": 16, "min": 1, "max": 64}),
                     "n_tokens": ("INT", {"default": 3, "min": 1, "max": 5}),
                     "debug_mode": ("BOOLEAN", {"default": False}),
-                    "save_checkpoint_every_n_steps": ("INT", {"default": 200, "min": 10, "max": 2000}),
+                    "save_checkpoint_every_n_steps": ("INT", {"default": 180, "min": 10, "max": 10000}),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),
                 }
         }
@@ -46,13 +46,13 @@ class Eden_LoRa_trainer:
             mode = "style",
             seed = 0,
             train_batch_size = 4,
-            max_train_steps = 400,
+            max_train_steps = 360,
             ti_lr = 0.001,
             unet_lr = 0.001,
             lora_rank = 16,
             n_tokens = 3,
             debug_mode = False,
-            save_checkpoint_every_n_steps = 1000,
+            save_checkpoint_every_n_steps = 180,
             ):
         
         print("Starting new training job...")
