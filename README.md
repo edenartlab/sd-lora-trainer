@@ -22,6 +22,12 @@ The trainer supports 3 default modes:
 - **face**: used for learning a specific face (can be human, character, ...).
 - **object**: will learn a specific object or thing featured in the training images.
 
+The trainer can be run in 4 different ways:
+- [**as a hosted service on our website**](https://app.eden.art/)
+- [**as a hosted service through replicate**](https://replicate.com/edenartlab/sdxl-lora-trainer)
+- **as a ComfyUI node**
+- **as a standalone python script**
+
 ## Setup
 
 Install all dependencies using 
