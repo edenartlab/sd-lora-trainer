@@ -170,7 +170,7 @@
         "Node name for S&R": "Eden_LoRa_trainer"
       },
       "widgets_values": [
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
+        "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
         "zavychromaxl_v90.safetensors",
         "Eden_LoRa",
         "style",
@@ -183,7 +183,7 @@
         3,
         true,
         180,
-        0,
+        93817,
         "randomize"
       ]
     },
@@ -191,12 +191,12 @@
       "id": 9,
       "type": "Note",
       "pos": [
-        500,
-        -204
+        477,
+        -167
       ],
       "size": [
-        517.9482621039891,
-        235.97544808730578
+        695.892050545609,
+        211.87560768462694
       ],
       "flags": {},
       "order": 1,
@@ -205,7 +205,7 @@
         "text": ""
       },
       "widgets_values": [
-        "This LoRa trainer was made by the team behind eden.art, led by https://x.com/xsteenbrugge\nThis trainer works for both SD15 and SDXL models, but is primarily tuned for SDXL models.\n\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference!\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 1000) and usually benefits from disabling ti_training.\n\nIf you disbale_ti (not recommended) to obtain a normal LoRa that does not train a token embedding, you typically need to train for longer and increase the unet_lr like 2x-3x."
+        "This LoRa trainer was made by the team behind eden.art, led by https://x.com/xsteenbrugge\nThis trainer works for both SD15 and SDXL models, but is primarily tuned for SDXL models.\n\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference!\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 1000) and usually benefits from disabling ti_training.\n\nIf you disbale_ti (not recommended) to obtain a normal LoRa that does not train a token embedding, you typically need to train for longer and increase the unet_lr.\n\n\"training_images\" can both a a path to a local folder or a url to a public .zip file of imgs which will get downloaded."
       ],
       "color": "#432",
       "bgcolor": "#653"
@@ -249,10 +249,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.9090909090909091,
+      "scale": 1.1,
       "offset": [
-        -266.8482621039891,
-        347.82455191269423
+        -239.79761027513499,
+        149.18757789012884
       ]
     }
   },
