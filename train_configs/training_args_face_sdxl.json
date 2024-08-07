@@ -1,5 +1,5 @@
 {
-    "name": "gene_sdxl",
+    "name": "xander_sdxl",
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
     "concept_mode": "face",
