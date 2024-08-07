@@ -65,6 +65,7 @@ sudo chmod +x /usr/local/bin/cog
 
 Bugs:
 - pure textual inversion for SD15 does not seem to work well... (but it works amazingly well for SDXL...) ---> if anyone can figure this one out I'd be forever grateful!
+- figure out why training is 3x slower through comfyui node versus just running main.py as a python job..?
 - Fix aspect_ratio bucketing in the dataloader (see https://github.com/kohya-ss/sd-scripts)
 
 Bigger improvements:

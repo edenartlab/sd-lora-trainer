@@ -241,7 +241,7 @@ def encode_prompt_advanced(
     Helper function to encode the lora_prompt (containing a trained token) and a zero prompt (without the token)
     This allows interpolating the strength of the trained token in the final image.
     """
-    if lora_path:
+    if lora_path and token_scale != 0:
         lora_prompt = prepare_prompt_for_lora(prompt, lora_path, verbose=1)
     else:
         lora_prompt = prompt
@@ -295,6 +295,7 @@ def render_images(
     is_lora,
     pretrained_model,
     lora_scale,
+    disable_ti=False,
     n_steps=25,
     n_imgs=4,
     device="cuda:0",
@@ -372,6 +373,7 @@ def render_images(
             lora_scale,
             guidance_scale=8,
             concept_mode=concept_mode,
+            token_scale = 0 if disable_ti else None
         )
 
         pipeline_args["prompt_embeds"] = c
@@ -411,6 +413,7 @@ def render_images_eval(
     pretrained_model: dict,
     trigger_text: str,
     lora_scale=0.7,
+    disable_ti=False,
     n_steps=25,
     n_imgs=4,
     device="cuda:0",
@@ -465,6 +468,7 @@ def render_images_eval(
             lora_scale,
             guidance_scale=8,
             concept_mode=concept_mode,
+            token_scale = 0 if disable_ti else None
         )
 
         pipeline_args["prompt_embeds"] = c

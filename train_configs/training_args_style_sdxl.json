@@ -8,10 +8,11 @@
     "resolution": 512,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
-    "max_train_steps": 360,
+    "max_train_steps": 500,
     "token_warmup_steps": 0,
-    "checkpointing_steps": 180,
+    "checkpointing_steps": 250,
 
+    "disable_ti": true,
     "ti_lr": 0.001,
     "unet_lr": 0.001,
     "lora_rank": 16,

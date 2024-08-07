@@ -11,6 +11,8 @@
     "max_train_steps": 360,
     "token_warmup_steps": 0,
     "checkpointing_steps": 180,
+
+    "disable_ti": true,
     
     "ti_lr": 0.001,
     "unet_lr": 0.001,

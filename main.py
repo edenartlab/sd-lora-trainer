@@ -217,10 +217,13 @@ def train(config: TrainingConfig):
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
     
-    # default value of cold (pre-warmup) optimizer lr:
+    # default value of cold (starting) optimizer lr:
     if config.sd_model_version == "sdxl":
-        if config.is_lora: # let textual_inversion do the work first!
-            base_lr = 1.0e-5
+        if config.is_lora:
+            if not config.disable_ti:  # let textual_inversion do the work first!
+                base_lr = 1.0e-5
+            else:
+                base_lr = 5.0e-5
         else:
             base_lr = 3.0e-5
     elif config.sd_model_version == "sd15":
@@ -321,9 +324,10 @@ def train(config: TrainingConfig):
             loss = compute_diffusion_loss(config, model_pred, noise, noisy_latent, mask, noise_scheduler, timesteps)
             losses['img_loss'].append(loss.item())
 
-            token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, mask, daam_loss)
-            losses['token_attention_loss'].append(token_attention_loss.item())
-            loss = loss + config.token_attention_loss_w * token_attention_loss
+            if not config.disable_ti:
+                token_attention_loss = compute_token_attention_loss(pipe, embedding_handler, captions, mask, daam_loss)
+                losses['token_attention_loss'].append(token_attention_loss.item())
+                loss = loss + config.token_attention_loss_w * token_attention_loss
 
             if config.training_attributes["gpt_description"] and config.debug:
                 concept_description_loss = embedding_handler.compute_target_prompt_loss(config.training_attributes["gpt_description"], prompt_embeds, pooled_prompt_embeds, config, pipe)
@@ -373,7 +377,7 @@ def train(config: TrainingConfig):
                         for std_i, std in enumerate(embedding_stds):
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
-                if global_step % 50 == 0:
+                if global_step % 50 == 0 and not config.disable_ti:
                     img_ratio = config.train_img_size[0] / config.train_img_size[1]
                     plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio)
 
@@ -419,6 +423,7 @@ def train(config: TrainingConfig):
                     is_lora = config.is_lora, 
                     pretrained_model = config.pretrained_model, 
                     lora_scale = config.sample_imgs_lora_scale,
+                    disable_ti = config.disable_ti,
                     n_imgs = config.n_sample_imgs, 
                     device = config.device,
                     checkpoint_folder = None
@@ -500,6 +505,7 @@ def train(config: TrainingConfig):
                 is_lora=config.is_lora, 
                 pretrained_model=config.pretrained_model, 
                 lora_scale=config.sample_imgs_lora_scale,
+                disable_ti = config.disable_ti,
                 n_imgs = config.n_sample_imgs, 
                 n_steps = 30, 
                 device = config.device,
