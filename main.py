@@ -148,15 +148,18 @@ def train(config: TrainingConfig):
             pipe=pipe
         )
 
-    optimizer_unet = get_unet_optimizer(
-        prodigy_d_coef=config.prodigy_d_coef,
-        prodigy_growth_factor=config.unet_prodigy_growth_factor,
-        lora_weight_decay=config.lora_weight_decay,
-        use_dora=config.use_dora,
-        unet_trainable_params=unet_trainable_params,
-        optimizer_name=config.unet_optimizer_type
-    )
-        
+    if config.unet_lr > 0.0:
+        optimizer_unet = get_unet_optimizer(
+            prodigy_d_coef=config.prodigy_d_coef,
+            prodigy_growth_factor=config.unet_prodigy_growth_factor,
+            lora_weight_decay=config.lora_weight_decay,
+            use_dora=config.use_dora,
+            unet_trainable_params=unet_trainable_params,
+            optimizer_name=config.unet_optimizer_type
+        )
+    else:
+        optimizer_unet = None
+    
     print_trainable_parameters(unet, model_name = 'unet')
     for i, text_encoder in enumerate(text_encoders):
         if text_encoder is not  None:
