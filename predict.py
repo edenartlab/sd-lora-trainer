@@ -14,7 +14,6 @@ from main import train
 from typing import Iterator, Optional
 
 from trainer.preprocess import preprocess
-from trainer.models import pretrained_models
 from trainer.config import TrainingConfig
 from trainer.utils.io import clean_filename
 from trainer.utils.utils import seed_everything
