@@ -62,11 +62,11 @@ class TrainingConfig(BaseModel):
     lora_weight_decay: float = 0.002
 
     ti_lr: float = 1e-3
-    ti_lr_warmup_steps: int = 10   # slowly ramp up the learning rate to build some momentum
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
     ti_weight_decay: float = 0.0
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
-    freeze_ti_after_completion_f: float = 1.0   # freeze the TI after this fraction of the training is done
+    freeze_ti_after_completion_f: float = 0.7    # freeze the TI after this fraction of the training is done
+    freeze_unet_before_completion_f: float = 0.3 # freeze the UNET before this fraction of the training is done
     
     token_attention_loss_w: float = 2e-7
     cond_reg_w: float = 0.0e-5
@@ -147,7 +147,7 @@ class TrainingConfig(BaseModel):
 
         if not self.sample_imgs_lora_scale:
             if self.sd_model_version == "sdxl":
-                self.sample_imgs_lora_scale = 0.75
+                self.sample_imgs_lora_scale = 0.7
             else:
                 self.sample_imgs_lora_scale = 0.85
         

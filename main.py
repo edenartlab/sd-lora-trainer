@@ -259,15 +259,12 @@ def train(config: TrainingConfig):
             completion_f = finegrained_epoch / config.num_train_epochs
 
             # param_groups[1] goes from ti_lr to 0.0 over the course of training
-            if config.ti_optimizer != "prodigy": # Update ti_learning rate gradually:
-                if optimizers['textual_inversion'] is not None:
-                    optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 2.0
-                    # warmup the ti-lr:
-                    if config.ti_lr_warmup_steps > 0:
-                        warmup_f = min(global_step / config.ti_lr_warmup_steps, 1.0)
-                        optimizers['textual_inversion'].param_groups[0]['lr'] *= warmup_f
-                    if config.freeze_ti_after_completion_f <= completion_f:
-                        optimizers['textual_inversion'].param_groups[0]['lr'] *= 0
+            if config.ti_optimizer != "prodigy" and optimizers['textual_inversion'] is not None:
+                # Apply the exponential learning rate
+                optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 0.8
+                # Apply freezing condition
+                if config.freeze_ti_after_completion_f <= completion_f:
+                    optimizers['textual_inversion'].param_groups[0]['lr'] = 0.0
 
             if optimizers['text_encoders'] is not None:
                 optimizers['text_encoders'].param_groups[0]['lr'] = config.text_encoder_lora_lr * (1 - completion_f) ** 2.0
@@ -282,6 +279,9 @@ def train(config: TrainingConfig):
                 exp_factor = (config.unet_lr / base_lr) ** (global_step / config.unet_lr_warmup_steps)
                 # Apply the exponential learning rate
                 optimizers['unet'].param_groups[0]['lr'] = base_lr * exp_factor
+
+                if config.freeze_unet_before_completion_f <= completion_f:
+                    optimizers['unet'].param_groups[0]['lr'] = 0.0
 
             if not config.aspect_ratio_bucketing:
                 captions, vae_latent, mask = batch
