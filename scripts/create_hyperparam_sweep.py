@@ -1,10 +1,8 @@
 
 """
 Faces:
-https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_2.zip
-https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_5.zip
-https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander_best.zip
-https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/steel.zip
+https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip
+https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene.zip
 
 Objects:
 https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/banny_all.zip
@@ -14,7 +12,6 @@ https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets
 
 Styles:
 https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/does.zip
-https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_200.zip
 
 """
 
@@ -56,29 +53,32 @@ hyperparameters = {
 
     ],
     "concept_mode": ['face'],
-    "sample_imgs_lora_scale": [0.75],
+    "sample_imgs_lora_scale": [0.7],
     "disable_ti": ['false'],
     "seed": [0],
     "resolution": [512],
     "train_batch_size": [4],
     "n_sample_imgs": [8],
-    "max_train_steps": [360],
-    "checkpointing_steps": [360],
+    "max_train_steps": [300],
+    "checkpointing_steps": [200],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [3],
     "ti_lr": [0.001],
     "ti_weight_decay": [0.000],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0,60],
-    "tok_cov_reg_w": [500],
-    "token_attention_loss_w": [2e-7],
+    "token_warmup_steps": [0, 60],
+    "tok_cov_reg_w": [0, 500],
+    "token_attention_loss_w": [0e-7, 2e-7],
+
+    "freeze_ti_after_completion_f": [1.0, 0.75, 0.5],
+    "freeze_unet_before_completion_f": [0.0, 0.25, 0.5],
 
     "unet_lr": [0.001, 0.0003],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],
-    "lora_rank": [16,8],
+    "lora_rank": [16],
     "use_dora": ['false'],
 
     "unet_optimizer_type": ['adamw'],

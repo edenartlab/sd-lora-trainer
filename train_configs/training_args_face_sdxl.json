@@ -14,10 +14,10 @@
 
     "disable_ti": false,
     
-    "freeze_ti_after_completion_f": 0.6,
-    "freeze_unet_before_completion_f": 0.4,
+    "freeze_ti_after_completion_f": 0.5,
+    "freeze_unet_before_completion_f": 0.0,
     "ti_lr": 0.001,
-    "unet_lr": 0.0005,
+    "unet_lr": 0.0002,
     "lora_rank": 16,
 
     "debug": true
