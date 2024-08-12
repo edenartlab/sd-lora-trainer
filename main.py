@@ -263,7 +263,7 @@ def train(config: TrainingConfig):
                 # Apply the exponential learning rate
                 optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 0.8
                 # Apply freezing condition
-                if config.freeze_ti_after_completion_f <= completion_f:
+                if completion_f > config.freeze_ti_after_completion_f:
                     optimizers['textual_inversion'].param_groups[0]['lr'] = 0.0
 
             if optimizers['text_encoders'] is not None:
@@ -280,7 +280,7 @@ def train(config: TrainingConfig):
                 # Apply the exponential learning rate
                 optimizers['unet'].param_groups[0]['lr'] = base_lr * exp_factor
 
-                if config.freeze_unet_before_completion_f <= completion_f:
+                if completion_f < config.freeze_unet_before_completion_f:
                     optimizers['unet'].param_groups[0]['lr'] = 0.0
 
             if not config.aspect_ratio_bucketing:

@@ -15,9 +15,9 @@
     "disable_ti": false,
     
     "freeze_ti_after_completion_f": 0.6,
-    "freeze_unet_before_completion_f": 0.6,
+    "freeze_unet_before_completion_f": 0.4,
     "ti_lr": 0.001,
-    "unet_lr": 0.001,
+    "unet_lr": 0.0005,
     "lora_rank": 16,
 
     "debug": true
