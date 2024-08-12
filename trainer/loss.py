@@ -37,7 +37,10 @@ def compute_token_attention_loss(pipe, embedding_handler, captions, masks, daam_
         att_L2_loss = (torch.relu(mean_att_per_token - att_reg_threshold)**2).mean()
         att_L2_losses.append(att_L2_loss)
         
-        ti_token_indices = [token_indices.index(token_id) for token_id in embedding_handler.train_ids]
+        try:
+            ti_token_indices = [token_indices.index(token_id) for token_id in embedding_handler.train_ids]
+        except:
+            continue
         batch_ti_heatmaps, batch_ti_masks = [], []
         # Extract the attention heatmaps corresponding to the trainable token embeddings:
         for text_token_index in ti_token_indices:
@@ -48,6 +51,9 @@ def compute_token_attention_loss(pipe, embedding_handler, captions, masks, daam_
 
         ti_heatmaps.append(torch.stack(batch_ti_heatmaps))
         ti_masks.append(torch.stack(batch_ti_masks))        
+
+    if len(ti_heatmaps) == 0:
+        return torch.tensor(0.0).to(masks.dtype)
 
     ti_heatmaps = torch.stack(ti_heatmaps)
     ti_masks = torch.stack(ti_masks)

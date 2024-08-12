@@ -1,7 +1,7 @@
 {
-    "name": "twisting_realities",
+    "name": "clipx",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
+    "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/clipx.zip",
     "concept_mode": "style",
     "sample_imgs_lora_scale": 0.8,
     "seed": 0,

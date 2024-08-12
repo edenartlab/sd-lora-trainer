@@ -3,7 +3,7 @@
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
     "concept_mode": "face",
-    "sample_imgs_lora_scale": 0.75,
+    "sample_imgs_lora_scale": 0.8,
     "seed": 0,
     "resolution": 512,
     "train_batch_size": 4,
@@ -11,8 +11,10 @@
     "max_train_steps": 250,
     "token_warmup_steps": 0,
     "checkpointing_steps": 175,
+
+    "disable_ti": false,
     
-    "ti_lr": 0.001,
+    "ti_lr": 0.0005,
     "unet_lr": 0.001,
     "lora_rank": 16,
 

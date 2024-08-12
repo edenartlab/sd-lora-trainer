@@ -291,6 +291,11 @@ def train(config: TrainingConfig):
             mask = mask.to(config.device)
 
             captions = list(captions)
+            if config.caption_dropout > 0.0:
+                for i in range(len(captions)):
+                    if np.random.rand() < config.caption_dropout:
+                        captions[i] = ""
+
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
                 config, pipe, captions
             )

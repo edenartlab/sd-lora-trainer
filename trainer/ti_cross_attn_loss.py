@@ -17,67 +17,70 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def plot_token_attention_loss(folder, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio):
-    batch_index = 0
-    timestep = timesteps[batch_index].item()
-    if timestep > 700:
-        batch_index += 1
+    try:
+        batch_index = 0
         timestep = timesteps[batch_index].item()
+        if timestep > 700:
+            batch_index += 1
+            timestep = timesteps[batch_index].item()
 
-    folder = os.path.join(folder, "attention_heatmaps")
-    os.makedirs(folder, exist_ok=True)
+        folder = os.path.join(folder, "attention_heatmaps")
+        os.makedirs(folder, exist_ok=True)
 
-    token_strings = [pipe.tokenizer.decode(x) for x in pipe.tokenizer.encode(captions[batch_index])]
-    plot_token_indices = range(1, len(token_strings) - 1)  # Exclude start and end tokens
+        token_strings = [pipe.tokenizer.decode(x) for x in pipe.tokenizer.encode(captions[batch_index])]
+        plot_token_indices = range(1, len(token_strings) - 1)  # Exclude start and end tokens
 
-    # Calculate global min and max for consistent colormap
-    all_heatmaps = [daam_loss.get_the_daam_heatmap(text_token_index=i, img_ratio=img_ratio)[batch_index].cpu().detach().float() 
-                    for i in plot_token_indices]
-    vmin, vmax = np.min([h.min() for h in all_heatmaps]), np.max([h.max() for h in all_heatmaps])
+        # Calculate global min and max for consistent colormap
+        all_heatmaps = [daam_loss.get_the_daam_heatmap(text_token_index=i, img_ratio=img_ratio)[batch_index].cpu().detach().float() 
+                        for i in plot_token_indices]
+        vmin, vmax = np.min([h.min() for h in all_heatmaps]), np.max([h.max() for h in all_heatmaps])
 
-    # Heatmap plots
-    fig, axes = plt.subplots(nrows=1, ncols=len(plot_token_indices), 
-                             figsize=(3 * len(plot_token_indices), 10))
-    title_str = f"Token Attention Heatmaps (Step: {global_step})\nDenoise Timestep: {timesteps[batch_index].item()}"
-    fig.suptitle(title_str, fontsize=16)
-    
-    for idx, text_token_index in enumerate(plot_token_indices):
-        heatmap = all_heatmaps[idx]
-        im = axes[idx].imshow(heatmap, cmap='viridis', vmin=vmin, vmax=vmax)
-        axes[idx].set_title(f"{token_strings[text_token_index]}")
-        axes[idx].axis("off")
+        # Heatmap plots
+        fig, axes = plt.subplots(nrows=1, ncols=len(plot_token_indices), 
+                                figsize=(3 * len(plot_token_indices), 10))
+        title_str = f"Token Attention Heatmaps (Step: {global_step})\nDenoise Timestep: {timesteps[batch_index].item()}"
+        fig.suptitle(title_str, fontsize=16)
         
-        # Add colorbar
-        divider = make_axes_locatable(axes[idx])
-        cax = divider.append_axes("bottom", size="5%", pad=0.05)
-        plt.colorbar(im, cax=cax, orientation="horizontal")
+        for idx, text_token_index in enumerate(plot_token_indices):
+            heatmap = all_heatmaps[idx]
+            im = axes[idx].imshow(heatmap, cmap='viridis', vmin=vmin, vmax=vmax)
+            axes[idx].set_title(f"{token_strings[text_token_index]}")
+            axes[idx].axis("off")
+            
+            # Add colorbar
+            divider = make_axes_locatable(axes[idx])
+            cax = divider.append_axes("bottom", size="5%", pad=0.05)
+            plt.colorbar(im, cax=cax, orientation="horizontal")
 
-    plt.tight_layout()
-    fig.savefig(os.path.join(folder, f"heatmaps_{global_step}.jpg"), dpi=300, bbox_inches='tight')
-    plt.close(fig)
+        plt.tight_layout()
+        fig.savefig(os.path.join(folder, f"heatmaps_{global_step}.jpg"), dpi=300, bbox_inches='tight')
+        plt.close(fig)
 
-    # Histogram plot
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.set_title(f"Token Attention Distribution (Step: {global_step})", fontsize=16)
-    ax.set_xlabel("Attention Value", fontsize=12)
-    ax.set_ylabel("Frequency", fontsize=12)
+        # Histogram plot
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.set_title(f"Token Attention Distribution (Step: {global_step})", fontsize=16)
+        ax.set_xlabel("Attention Value", fontsize=12)
+        ax.set_ylabel("Frequency", fontsize=12)
 
-    for idx, text_token_index in enumerate(plot_token_indices):
-        heatmap = all_heatmaps[idx]
-        ax.hist(heatmap.reshape(-1), bins=30, label=token_strings[text_token_index], 
-                alpha=0.5, density=True)
+        for idx, text_token_index in enumerate(plot_token_indices):
+            heatmap = all_heatmaps[idx]
+            ax.hist(heatmap.reshape(-1), bins=30, label=token_strings[text_token_index], 
+                    alpha=0.5, density=True)
 
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
-    ax.grid(alpha=0.3)
-    plt.tight_layout()
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
 
-    # Add token attention loss as text
-    plt.text(0.95, 0.95, f"Token Attention Loss: {token_attention_loss.item():.4f}", 
-             transform=ax.transAxes, ha='right', va='top', 
-             bbox=dict(facecolor='white', edgecolor='black', alpha=0.8))
+        # Add token attention loss as text
+        plt.text(0.95, 0.95, f"Token Attention Loss: {token_attention_loss.item():.4f}", 
+                transform=ax.transAxes, ha='right', va='top', 
+                bbox=dict(facecolor='white', edgecolor='black', alpha=0.8))
 
-    plt.ylim(0, 0.6)
-    fig.savefig(os.path.join(folder, f"histogram_{global_step}.jpg"), dpi=300, bbox_inches='tight')
-    plt.close(fig)
+        plt.ylim(0, 0.6)
+        fig.savefig(os.path.join(folder, f"histogram_{global_step}.jpg"), dpi=300, bbox_inches='tight')
+        plt.close(fig)
+    except:
+        print("Failed to plot token attention loss")
 
 
 
