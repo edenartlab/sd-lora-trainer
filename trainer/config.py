@@ -145,19 +145,6 @@ class TrainingConfig(BaseModel):
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!
             self.mask_target_prompts = "face"
             #self.use_face_detection_instead = True
-
-        if not self.sample_imgs_lora_scale:
-            if self.sd_model_version == "sdxl":
-                self.sample_imgs_lora_scale = 0.7
-            else:
-                self.sample_imgs_lora_scale = 0.85
-
-        if not self.validation_img_size:
-            if self.sd_model_version == "sdxl":
-                self.validation_img_size = 1024
-            else:
-                self.validation_img_size = 768
-
         
         if self.use_dora:
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")

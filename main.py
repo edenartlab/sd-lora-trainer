@@ -54,6 +54,18 @@ def train(config: TrainingConfig):
     config.sd_model_version = sd_model_version
     config.pretrained_model["version"] = sd_model_version
 
+    if not config.sample_imgs_lora_scale:
+        if config.sd_model_version == "sdxl":
+            config.sample_imgs_lora_scale = 0.7
+        else:
+            config.sample_imgs_lora_scale = 0.85
+
+    if not config.validation_img_size:
+        if config.sd_model_version == "sdxl":
+            config.validation_img_size = 1024
+        else:
+            config.validation_img_size = 768
+
     config, input_dir = preprocess(
         config,
         working_directory=config.output_dir,
