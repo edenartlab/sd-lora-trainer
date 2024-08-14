@@ -67,13 +67,13 @@ class Predictor(BasePredictor):
             description="Number of training steps. Increasing this usually leads to overfitting, only viable if you have > 100 training imgs. For faces you may want to reduce to eg 300",
             default=300
         ),
+        checkpointing_steps: int = Input(
+            description="Save a checkpoint every n steps (The final checkpoint will always be saved)",
+            default=10000
+        ),
         resolution: int = Input(
             description="Square pixel resolution which your images will be resized to for training, highly recommended: 512 or 640",
             default=512
-        ),
-        train_batch_size: int = Input(
-            description="Batch size (per device) for training (dont increase unless running on a BIG GPU)",
-            default=4
         ),
         unet_lr: float = Input(
             description="final learning rate of unet (after warmup), increasing this usually leads to strong overfitting",
@@ -92,13 +92,21 @@ class Predictor(BasePredictor):
             choices=["blip", "florence"],
             default="blip"
         ),
-        checkpointing_steps: int = Input(
-            description="Save a checkpoint every n steps",
-            default=10000
-        ),
         n_tokens: int = Input(
             description="How many new tokens to train (highly recommended to leave this at 2)",
             ge=1, le=4, default=3
+        ),
+        train_batch_size: int = Input(
+            description="Batch size (per device) for training (dont increase unless running on a BIG GPU)",
+            default=4
+        ),
+        validation_img_size: int = Input(
+            description="Size of sample images in validation grid",
+            default=1024
+        ),
+        sample_imgs_lora_scale: float = Input(
+            description="Scale factor for LoRa when generating sample images. If not provided, will be set automatically",
+            default=None
         ),
         seed: int = Input(
             description="Random seed for reproducible training. Leave empty to use a random seed",
@@ -128,6 +136,8 @@ class Predictor(BasePredictor):
             sd_model_version=sd_model_version,
             seed=seed,
             resolution=resolution,
+            validation_img_size=[validation_img_size, validation_img_size],
+            sample_imgs_lora_scale=sample_imgs_lora_scale,
             train_batch_size=train_batch_size,
             max_train_steps=max_train_steps,
             checkpointing_steps=checkpointing_steps,
