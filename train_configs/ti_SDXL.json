@@ -1,28 +1,20 @@
 {
-    "name": "ti_sdxl_xander",
+    "unet_lr": 0.00,
+    "lora_rank": 4,
+    "freeze_ti_after_completion_f": 1.0,
+
+    "name": "xander_sdxl_ti",
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
     "concept_mode": "face",
-    "seed": 1,
+    "sample_imgs_lora_scale": 0.7,
+    "seed": 0,
     "resolution": 512,
     "train_batch_size": 4,
-    "n_sample_imgs": 4,
-    "max_train_steps": 400,
-    "token_warmup_steps": 0,
-    "checkpointing_steps": 100,
-    "ti_lr": 0.001,
-    "ti_weight_decay": 0.0005,
+    "n_sample_imgs": 8,
+    "max_train_steps": 300,
+    "checkpointing_steps": 200,
 
-    "disable_ti": false,
-    "n_tokens": 2,
-    "text_encoder_lora_optimizer": null,
-    "text_encoder_lora_lr": 1.0e-4,
-    "text_encoder_lora_weight_decay": 1e-5,
-    "text_encoder_lora_rank": 12,
-
-    "unet_lr": 0.00,
-    "lora_rank": 4,
-    "use_dora": false,
     "caption_model": "blip",
     "debug": true
 }

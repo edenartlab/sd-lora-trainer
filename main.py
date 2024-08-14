@@ -274,7 +274,7 @@ def train(config: TrainingConfig):
             # param_groups[1] goes from ti_lr to 0.0 over the course of training
             if config.ti_optimizer != "prodigy" and optimizers['textual_inversion'] is not None:
                 # Apply the exponential learning rate
-                optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 1.4
+                optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 1.5
                 # Apply freezing condition
                 if completion_f > config.freeze_ti_after_completion_f:
                     optimizers['textual_inversion'].param_groups[0]['lr'] = 0.0

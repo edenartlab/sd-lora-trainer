@@ -2,7 +2,7 @@ torch==2.1.0
 torchaudio==2.1.0
 torchvision==0.16.0
 transformers==4.38.0
-diffusers==0.26.0
+diffusers==0.29.2
 tokenizers==0.15.2
 huggingface-hub==0.22.2
 ujson==5.10.0
