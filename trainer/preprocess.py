@@ -597,8 +597,6 @@ def caption_dataset(
         caption_model: Literal["blip", "gpt4-v", "florence"] = "blip"
     ) -> List[str]:
 
-    print(f"Captioning images using {caption_model}...")
-
     if "blip" in caption_model:
         captions = blip_caption_dataset(images, captions)
     elif "gpt4-v" in caption_model:
@@ -820,7 +818,7 @@ def load_and_save_masks_and_captions(
         captions = captions + captions
 
 
-    print(f"Generating {len(images)} captions using mode: {concept_mode}...")
+    print(f"Generating {len(images)} captions using {caption_model} in {concept_mode} mode...")
     captions = caption_dataset(images, captions, caption_model = caption_model)
 
     # It's nice if we can achieve the gpt pass, so if we're not losing too much, cut-off the n_images to just match what we're allowed to give to gpt:
