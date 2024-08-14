@@ -48,7 +48,7 @@ class TrainingConfig(BaseModel):
     train_img_size: List[int] = None
     train_aspect_ratio: float = None
     train_batch_size: int = 4
-    max_train_steps: int = 360
+    max_train_steps: int = 300
     num_train_epochs: int = None
     checkpointing_steps: int = 10000
     gradient_accumulation_steps: int = 1
@@ -56,7 +56,7 @@ class TrainingConfig(BaseModel):
 
     unet_optimizer_type: Literal["adamw", "prodigy", "AdamW8bit"] = "adamw"
     unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
-    unet_lr: float = 0.0005
+    unet_lr: float = 0.0003
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
@@ -66,7 +66,7 @@ class TrainingConfig(BaseModel):
     ti_weight_decay: float = 0.0
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
     freeze_ti_after_completion_f: float = 0.6     # freeze the TI after this fraction of the training is done
-    freeze_unet_before_completion_f: float = 0.3  # freeze the UNET before this fraction of the training is done
+    freeze_unet_before_completion_f: float = 0.0  # freeze the UNET before this fraction of the training is done
     
     token_attention_loss_w: float = 3e-7
     cond_reg_w: float = 0.0e-5

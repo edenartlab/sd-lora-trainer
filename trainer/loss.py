@@ -193,7 +193,7 @@ class ConditioningRegularizer:
             self.distribution_regularizers[f'txt_encoder_{idx}'] = DistributionLoss(pretrained_token_embeddings, outdir = self.config.output_dir if config.debug else None)
             idx += 1
 
-    def apply_regularization(self, loss, losses, prompt_embeds_norms, prompt_embeds, std_loss_w = 0.003, pipe=None):
+    def apply_regularization(self, loss, losses, prompt_embeds_norms, prompt_embeds, std_loss_w = 0.01, pipe=None):
         noise_sigma = 0.0
         if noise_sigma > 0.0: # experimental: apply random noise to the conditioning vectors as a form of regularization
             prompt_embeds[0,1:-2,:] += torch.randn_like(prompt_embeds[0,2:-2,:]) * noise_sigma

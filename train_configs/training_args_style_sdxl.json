@@ -3,19 +3,18 @@
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/clipx.zip",
     "concept_mode": "style",
-    "sample_imgs_lora_scale": 0.8,
+    "sample_imgs_lora_scale": 0.75,
     "seed": 0,
     "resolution": 512,
     "train_batch_size": 4,
-    "n_sample_imgs": 6,
+    "n_sample_imgs": 8,
     "max_train_steps": 300,
-    "token_warmup_steps": 0,
-    "checkpointing_steps": 150,
-
-    "n_tokens": 2,
+    "checkpointing_steps": 200,
+    
+    "disable_ti": false,
 
     "ti_lr": 0.001,
-    "unet_lr": 0.001,
+    "unet_lr": 0.0003,
     "lora_rank": 16,
 
     "debug": true
