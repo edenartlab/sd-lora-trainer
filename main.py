@@ -258,7 +258,8 @@ def train(config: TrainingConfig):
     )
     optimizers = optimizer_collection.optimizers
 
-    embedding_handler.visualize_random_token_embeddings(os.path.join(config.output_dir, 'ti_embeddings'), n = 10)
+    if config.debug:
+        embedding_handler.visualize_random_token_embeddings(os.path.join(config.output_dir, 'ti_embeddings'), n = 10)
 
     for epoch in range(config.num_train_epochs):
         if config.aspect_ratio_bucketing:
