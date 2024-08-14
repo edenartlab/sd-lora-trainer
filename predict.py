@@ -72,7 +72,7 @@ class Predictor(BasePredictor):
             default=10000
         ),
         resolution: int = Input(
-            description="Square pixel resolution which your images will be resized to for training, highly recommended: 512 or 640",
+            description="Square pixel resolution which your images will be resized to for training, highly recommended: 512 or 768",
             default=512
         ),
         unet_lr: float = Input(
