@@ -22,3 +22,4 @@ bitsandbytes==0.43.1
 setuptools==70.3.0
 torchtyping==0.1.5
 einops
+timm

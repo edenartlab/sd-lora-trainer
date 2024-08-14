@@ -1,5 +1,5 @@
 {
-    "name": "clipx",
+    "name": "twisting_realities",
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
     "concept_mode": "style",
@@ -7,7 +7,7 @@
     "seed": 0,
     "resolution": 512,
     "train_batch_size": 4,
-    "n_sample_imgs": 8,
+    "n_sample_imgs": 6,
     "max_train_steps": 300,
     "checkpointing_steps": 200,
 

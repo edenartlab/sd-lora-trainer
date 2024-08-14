@@ -562,7 +562,7 @@ def florence_caption_dataset(images, captions):
     with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports): #workaround for unnecessary flash_attn requirement
         model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-large", attn_implementation="sdpa", device_map=device, torch_dtype=torch_dtype,trust_remote_code=True)
             
-    processor = AutoProcessor.from_pretrained("microsoft/Florence-2-large", trust_remote_code=True)
+    processor = AutoProcessor.from_pretrained("microsoft/Florence-2-large", trust_remote_code=True, cache_dir = model_paths.get_path("FLORENCE"))
 
     for i, image in enumerate(tqdm(images)):
         if captions[i] is None:
@@ -675,15 +675,15 @@ def random_crop(image, scale=(0.85, 0.95)):
 
     return image.crop((left, top, left + new_width, top + new_height))
 
-def gaussian_blur(image):
-    return image.filter(ImageFilter.GaussianBlur(radius=1))
+def gaussian_blur(image, radius = 1.0):
+    return image.filter(ImageFilter.GaussianBlur(radius=radius))
 
 def augment_image(image):
     image = hue_augmentation(image)
     image = color_jitter(image)
     image = random_crop(image)
     if random.random() < 0.5:
-        image = gaussian_blur(image, blur = random.uniform(0.0, 1.0))
+        image = gaussian_blur(image, radius = random.uniform(0.0, 1.0))
     return image
 
 def round_to_nearest_multiple(x, multiple):

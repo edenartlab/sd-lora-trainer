@@ -175,9 +175,13 @@ class Predictor(BasePredictor):
             
             # Add instructions README:
             tar.add("instructions_README.md", arcname="README.md")
-            tar.add("comfyUI_workflow_lora_txt2img.json", arcname="comfyUI_workflow_lora_txt2img.json")
-            if sd_model_version == "sd15":
-                tar.add("comfyUI_workflow_lora_adiff.json", arcname="comfyUI_workflow_lora_adiff.json")
+            comfy_workflows_path = "ComfyUI_workflows"
+            if os.path.exists(comfy_workflows_path) and os.path.isdir(comfy_workflows_path):
+                for root, dirs, files in os.walk(comfy_workflows_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, os.path.dirname(comfy_workflows_path))
+                        tar.add(file_path, arcname=arcname)
 
         attributes = {}
         attributes['grid_prompts'] = config.training_attributes["validation_prompts"]
