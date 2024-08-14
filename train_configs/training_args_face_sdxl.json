@@ -5,17 +5,12 @@
     "concept_mode": "face",
     "sample_imgs_lora_scale": 0.7,
     "seed": 0,
-    "resolution": 768,
-    "train_batch_size": 2,
+    "resolution": 512,
+    "train_batch_size": 4,
     "n_sample_imgs": 8,
     "max_train_steps": 300,
     "checkpointing_steps": 200,
 
-    "disable_ti": false,
-    "caption_model": "florence",
-    "ti_lr": 0.001,
-    "unet_lr": 0.0003,
-    "lora_rank": 16,
-
+    "caption_model": "blip",
     "debug": true
 }

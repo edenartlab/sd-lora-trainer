@@ -8,4 +8,4 @@ cog predict --gpus $GPU_ID \
     -i sd_model_version="sdxl" \
     -i max_train_steps="300" \
     -i debug="False" \
-    -i seed="0"
+    -i seed="1"

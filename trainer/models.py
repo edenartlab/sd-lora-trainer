@@ -11,7 +11,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16):
 
     tokenizer_two, text_encoder_two = None, None
     print(f"Loading model weights from {os.path.abspath(pretrained_model['path'])} with dtype: {weight_dtype}...")
-
+    
     try:
         print("Loading as SDXL model...")
         pipe = StableDiffusionXLPipeline.from_single_file(
