@@ -294,7 +294,7 @@ def train(config: TrainingConfig):
             if config.caption_dropout > 0.0:
                 for i in range(len(captions)):
                     if np.random.rand() < config.caption_dropout:
-                        captions[i] = ""
+                        captions[i] = config.token_dict["TOK"]
 
             prompt_embeds, pooled_prompt_embeds, add_time_ids = get_conditioning_signals(
                 config, pipe, captions
