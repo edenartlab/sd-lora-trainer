@@ -1,0 +1,92 @@
+#!/bin/bash
+
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_000.json
+ > scripts/gridsearch_configs/styles_final/styles_final_000.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_001.json
+ > scripts/gridsearch_configs/styles_final/styles_final_001.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_002.json
+ > scripts/gridsearch_configs/styles_final/styles_final_002.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_003.json
+ > scripts/gridsearch_configs/styles_final/styles_final_003.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_004.json
+ > scripts/gridsearch_configs/styles_final/styles_final_004.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_005.json
+ > scripts/gridsearch_configs/styles_final/styles_final_005.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_006.json
+ > scripts/gridsearch_configs/styles_final/styles_final_006.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_007.json
+ > scripts/gridsearch_configs/styles_final/styles_final_007.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_008.json
+ > scripts/gridsearch_configs/styles_final/styles_final_008.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_009.json
+ > scripts/gridsearch_configs/styles_final/styles_final_009.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_010.json
+ > scripts/gridsearch_configs/styles_final/styles_final_010.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_011.json
+ > scripts/gridsearch_configs/styles_final/styles_final_011.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_012.json
+ > scripts/gridsearch_configs/styles_final/styles_final_012.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_013.json
+ > scripts/gridsearch_configs/styles_final/styles_final_013.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_014.json
+ > scripts/gridsearch_configs/styles_final/styles_final_014.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_015.json
+ > scripts/gridsearch_configs/styles_final/styles_final_015.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_016.json
+ > scripts/gridsearch_configs/styles_final/styles_final_016.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_017.json
+ > scripts/gridsearch_configs/styles_final/styles_final_017.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_018.json
+ > scripts/gridsearch_configs/styles_final/styles_final_018.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_019.json
+ > scripts/gridsearch_configs/styles_final/styles_final_019.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_020.json
+ > scripts/gridsearch_configs/styles_final/styles_final_020.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_021.json
+ > scripts/gridsearch_configs/styles_final/styles_final_021.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_022.json
+ > scripts/gridsearch_configs/styles_final/styles_final_022.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_023.json
+ > scripts/gridsearch_configs/styles_final/styles_final_023.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_024.json
+ > scripts/gridsearch_configs/styles_final/styles_final_024.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_025.json
+ > scripts/gridsearch_configs/styles_final/styles_final_025.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_026.json
+ > scripts/gridsearch_configs/styles_final/styles_final_026.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_027.json
+ > scripts/gridsearch_configs/styles_final/styles_final_027.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_028.json
+ > scripts/gridsearch_configs/styles_final/styles_final_028.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_029.json
+ > scripts/gridsearch_configs/styles_final/styles_final_029.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_030.json
+ > scripts/gridsearch_configs/styles_final/styles_final_030.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_031.json
+ > scripts/gridsearch_configs/styles_final/styles_final_031.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_032.json
+ > scripts/gridsearch_configs/styles_final/styles_final_032.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_033.json
+ > scripts/gridsearch_configs/styles_final/styles_final_033.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_034.json
+ > scripts/gridsearch_configs/styles_final/styles_final_034.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_035.json
+ > scripts/gridsearch_configs/styles_final/styles_final_035.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_036.json
+ > scripts/gridsearch_configs/styles_final/styles_final_036.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_037.json
+ > scripts/gridsearch_configs/styles_final/styles_final_037.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_038.json
+ > scripts/gridsearch_configs/styles_final/styles_final_038.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_039.json
+ > scripts/gridsearch_configs/styles_final/styles_final_039.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_040.json
+ > scripts/gridsearch_configs/styles_final/styles_final_040.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_041.json
+ > scripts/gridsearch_configs/styles_final/styles_final_041.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_042.json
+ > scripts/gridsearch_configs/styles_final/styles_final_042.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_043.json
+ > scripts/gridsearch_configs/styles_final/styles_final_043.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/styles_final/styles_final_044.json
+ > scripts/gridsearch_configs/styles_final/styles_final_044.log 2>&1 &

@@ -24,8 +24,8 @@ class ModelPaths:
 model_paths = ModelPaths()
 
 # Default download urls in case no local model is found:
-#SDXL_URL = "https://edenartlab-lfs.s3.amazonaws.com/comfyui/models2/checkpoints/zavychromaxl_v90.safetensors"
-SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
+SDXL_URL = "https://edenartlab-lfs.s3.amazonaws.com/comfyui/models2/checkpoints/zavychromaxl_v90.safetensors"
+#SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
 SD15_URL = "https://huggingface.co/KamCastle/jugg/resolve/main/juggernaut_reborn.safetensors"
 
 pretrained_models = {
@@ -56,7 +56,7 @@ class TrainingConfig(BaseModel):
 
     unet_optimizer_type: Literal["adamw", "prodigy", "AdamW8bit"] = "adamw"
     unet_lr_warmup_steps: int = None  # slowly increase the learning rate of the adamw unet optimizer
-    unet_lr: float = 0.001
+    unet_lr: float = 0.0005
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
@@ -65,14 +65,14 @@ class TrainingConfig(BaseModel):
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
     ti_weight_decay: float = 0.0
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
-    freeze_ti_after_completion_f: float = 0.7    # freeze the TI after this fraction of the training is done
-    freeze_unet_before_completion_f: float = 0.3 # freeze the UNET before this fraction of the training is done
+    freeze_ti_after_completion_f: float = 0.6     # freeze the TI after this fraction of the training is done
+    freeze_unet_before_completion_f: float = 0.3  # freeze the UNET before this fraction of the training is done
     
-    token_attention_loss_w: float = 2e-7
+    token_attention_loss_w: float = 3e-7
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
-    tok_cov_reg_w: float = 500.     # regularizes the token covariance matrix wrt pretrained, normal tokens
-    l1_penalty: float = 0.01        # Makes the unet lora matrix more sparse
+    tok_cov_reg_w: float = 0.     # regularizes the token covariance matrix wrt pretrained, normal tokens
+    l1_penalty: float = 0.01      # Makes the unet lora matrix more sparse
     
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
     snr_gamma: float = 5.0

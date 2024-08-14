@@ -19,17 +19,23 @@ def load_training_args(directory):
     return None
 
 # Step 4: Traverse the directory structure and collect data
-def collect_data(root_dir):
+def collect_data(root_dir, mode):
     data = []
     for root, dirs, files in os.walk(root_dir):
-        if 'checkpoint-360' in dirs:
-            checkpoints_dir = os.path.join(root, 'checkpoint-360')
-            score = count_jpg_files(checkpoints_dir)
-            training_args = load_training_args(root)
-            if training_args:
-                data.append((training_args, score))
-            else:
-                print(f"Warning: No training_args.json found in {root}")
+        if "checkpoints" in dirs:
+            checkpoints_dir = os.path.join(root,"checkpoints")
+
+            if mode == "final_checkpoint":
+                checkpoint_dirs = sorted([f for f in os.listdir(checkpoints_dir) if os.path.isdir(os.path.join(checkpoints_dir, f))])
+                checkpoint_dir = os.path.join(checkpoints_dir, checkpoint_dirs[-1])
+                score = count_jpg_files(checkpoint_dir)
+                training_args = load_training_args(checkpoint_dir)
+            if mode == "n_validation_grids":
+                score = count_jpg_files(checkpoints_dir)
+                training_args = load_training_args(checkpoints_dir)
+                    
+            data.append((training_args, score))
+
     print(f"Collected data from {len(data)} runs")
     return data
 
@@ -172,11 +178,12 @@ def create_plots(data, varying_params, outdir, top = 0.15):
     print(f"Plots have been saved as PNG files in {outdir}")
 
 if __name__ == "__main__":
-    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/faces"
+    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/faces3"
     outdir = os.path.join('.', os.path.basename(root_dir))
     
     # Collect data
-    data = collect_data(root_dir)
+    data = collect_data(root_dir, mode = "final_checkpoint")
+    #data = collect_data(root_dir, mode = "n_validation_grids")
     
     # Identify varying hyperparameters
     varying_params = identify_varying_hyperparams(data)

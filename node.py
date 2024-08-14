@@ -69,6 +69,7 @@ class Eden_LoRa_trainer:
 
         config = TrainingConfig(
             name=lora_name,
+            output_dir="output",
             lora_training_urls=training_images_folder_path,
             concept_mode=mode,
             ckpt_path=ckpt_path,

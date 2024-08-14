@@ -12,6 +12,8 @@ https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets
 
 Styles:
 https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/does.zip
+https://edenartlab-lfs.s3.amazonaws.com/datasets/clipx.zip
+/home/rednax/Documents/datasets/good_styles/eden_crystals
 
 """
 
@@ -32,12 +34,12 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "faces"
+exp_name             = "styles_final"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
 min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
-nohup                = False
+nohup                = True
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 # Define training hyperparameters and their possible values
@@ -47,28 +49,29 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene.zip",
-        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/mira.zip"
+        "https://edenartlab-lfs.s3.amazonaws.com/datasets/clipx.zip",
+        "/home/rednax/Documents/datasets/good_styles/eden_crystals",
+        "/home/rednax/Documents/datasets/journey_small"
 
     ],
-    "concept_mode": ['face'],
-    "sample_imgs_lora_scale": [0.7],
+    "concept_mode": ['style'],
+    "sample_imgs_lora_scale": [0.8],
     "disable_ti": ['false'],
+    "caption_dropout": [0.0, 0.2],
     "seed": [0],
     "resolution": [512],
     "train_batch_size": [4],
     "n_sample_imgs": [8],
     "max_train_steps": [300],
-    "checkpointing_steps": [200],
+    "checkpointing_steps": [300],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [3],
     "ti_lr": [0.001],
     "ti_weight_decay": [0.000],
     "l1_penalty": [0.0],
-    "token_warmup_steps": [0, 60],
-    "tok_cov_reg_w": [0, 500],
+    "token_warmup_steps": [0],
+    "tok_cov_reg_w": [500],
     "token_attention_loss_w": [0e-7, 2e-7],
 
     "freeze_ti_after_completion_f": [1.0, 0.75, 0.5],

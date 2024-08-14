@@ -1,0 +1,62 @@
+#!/bin/bash
+
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_000.json
+ > scripts/gridsearch_configs/faces3/faces3_000.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_001.json
+ > scripts/gridsearch_configs/faces3/faces3_001.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_002.json
+ > scripts/gridsearch_configs/faces3/faces3_002.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_003.json
+ > scripts/gridsearch_configs/faces3/faces3_003.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_004.json
+ > scripts/gridsearch_configs/faces3/faces3_004.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_005.json
+ > scripts/gridsearch_configs/faces3/faces3_005.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_006.json
+ > scripts/gridsearch_configs/faces3/faces3_006.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_007.json
+ > scripts/gridsearch_configs/faces3/faces3_007.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_008.json
+ > scripts/gridsearch_configs/faces3/faces3_008.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_009.json
+ > scripts/gridsearch_configs/faces3/faces3_009.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_010.json
+ > scripts/gridsearch_configs/faces3/faces3_010.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_011.json
+ > scripts/gridsearch_configs/faces3/faces3_011.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_012.json
+ > scripts/gridsearch_configs/faces3/faces3_012.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_013.json
+ > scripts/gridsearch_configs/faces3/faces3_013.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_014.json
+ > scripts/gridsearch_configs/faces3/faces3_014.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_015.json
+ > scripts/gridsearch_configs/faces3/faces3_015.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_016.json
+ > scripts/gridsearch_configs/faces3/faces3_016.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_017.json
+ > scripts/gridsearch_configs/faces3/faces3_017.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_018.json
+ > scripts/gridsearch_configs/faces3/faces3_018.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_019.json
+ > scripts/gridsearch_configs/faces3/faces3_019.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_020.json
+ > scripts/gridsearch_configs/faces3/faces3_020.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_021.json
+ > scripts/gridsearch_configs/faces3/faces3_021.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_022.json
+ > scripts/gridsearch_configs/faces3/faces3_022.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_023.json
+ > scripts/gridsearch_configs/faces3/faces3_023.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_024.json
+ > scripts/gridsearch_configs/faces3/faces3_024.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_025.json
+ > scripts/gridsearch_configs/faces3/faces3_025.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_026.json
+ > scripts/gridsearch_configs/faces3/faces3_026.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_027.json
+ > scripts/gridsearch_configs/faces3/faces3_027.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_028.json
+ > scripts/gridsearch_configs/faces3/faces3_028.log 2>&1 &
+nohup python main.py scripts/gridsearch_configs/faces3/faces3_029.json
+ > scripts/gridsearch_configs/faces3/faces3_029.log 2>&1 &
