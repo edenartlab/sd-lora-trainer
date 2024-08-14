@@ -597,6 +597,8 @@ def caption_dataset(
         caption_model: Literal["blip", "gpt4-v", "florence"] = "blip"
     ) -> List[str]:
 
+    print(f"Captioning images using {caption_model}...")
+
     if "blip" in caption_model:
         captions = blip_caption_dataset(images, captions)
     elif "gpt4-v" in caption_model:
@@ -681,7 +683,7 @@ def augment_image(image):
     image = color_jitter(image)
     image = random_crop(image)
     if random.random() < 0.5:
-        image = gaussian_blur(image)
+        image = gaussian_blur(image, blur = random.uniform(0.0, 1.0))
     return image
 
 def round_to_nearest_multiple(x, multiple):

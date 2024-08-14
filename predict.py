@@ -65,7 +65,7 @@ class Predictor(BasePredictor):
         ),
         max_train_steps: int = Input(
             description="Number of training steps. Increasing this usually leads to overfitting, only viable if you have > 100 training imgs. For faces you may want to reduce to eg 300",
-            default=400
+            default=300
         ),
         resolution: int = Input(
             description="Square pixel resolution which your images will be resized to for training, highly recommended: 512 or 640",
@@ -77,7 +77,7 @@ class Predictor(BasePredictor):
         ),
         unet_lr: float = Input(
             description="final learning rate of unet (after warmup), increasing this usually leads to strong overfitting",
-            default=0.001
+            default=0.0003
         ),
         ti_lr: float = Input(
             description="Learning rate for training textual inversion embeddings. Don't alter unless you know what you're doing.",
@@ -87,13 +87,9 @@ class Predictor(BasePredictor):
             description="Rank of LoRA embeddings for the unet.",
             default=16
         ),
-        use_dora: bool = Input(
-            description="Use Dora instead of LoRa",
-            default=False,
-        ),
         n_tokens: int = Input(
             description="How many new tokens to train (highly recommended to leave this at 2)",
-            ge=1, le=3, default=2
+            ge=1, le=4, default=3
         ),
         seed: int = Input(
             description="Random seed for reproducible training. Leave empty to use a random seed",
@@ -129,8 +125,7 @@ class Predictor(BasePredictor):
             ti_lr=ti_lr,
             unet_lr=unet_lr,
             lora_rank=lora_rank,
-            use_dora=use_dora,
-            caption_model="blip",
+            caption_model="florence",
             n_tokens=n_tokens,
             verbose=True,
             debug=debug,

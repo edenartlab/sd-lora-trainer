@@ -1,27 +1,21 @@
 {
-    "name": "clipx_sd15",
+    "name": "twisting_realities_sd15",
     "sd_model_version": "sd15",
-    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/clipx_tiny.zip",
+    "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
     "concept_mode": "style",
+    "sample_imgs_lora_scale": 0.8,
     "seed": 0,
-    "resolution": 512,
+    "resolution": 768,
     "train_batch_size": 4,
-    "n_sample_imgs": 6,
-    "max_train_steps": 400,
-    "token_warmup_steps": 0,
+    "n_sample_imgs": 8,
+    "max_train_steps": 600,
     "checkpointing_steps": 200,
+
+    "disable_ti": false,
+    "caption_model": "florence",
     "ti_lr": 0.001,
-    "ti_weight_decay": 0.0005,
-
-    "remove_ti_token_from_prompts": false,
-    "text_encoder_lora_optimizer": null,
-    "text_encoder_lora_lr": 1.0e-4,
-    "text_encoder_lora_weight_decay": 1e-5,
-    "text_encoder_lora_rank": 12,
-
-    "unet_lr": 0.001,
+    "unet_lr": 0.0003,
     "lora_rank": 16,
-    "use_dora": false,
-    "caption_model": "blip",
+
     "debug": true
 }

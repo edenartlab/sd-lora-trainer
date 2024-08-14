@@ -1,7 +1,7 @@
 {
     "name": "clipx",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/clipx.zip",
+    "lora_training_urls": "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
     "concept_mode": "style",
     "sample_imgs_lora_scale": 0.75,
     "seed": 0,
@@ -10,9 +10,9 @@
     "n_sample_imgs": 8,
     "max_train_steps": 300,
     "checkpointing_steps": 200,
-    
-    "disable_ti": false,
 
+    "disable_ti": false,
+    "caption_model": "florence",
     "ti_lr": 0.001,
     "unet_lr": 0.0003,
     "lora_rank": 16,

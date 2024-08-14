@@ -61,11 +61,11 @@ class TrainingConfig(BaseModel):
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
     lora_weight_decay: float = 0.002
 
-    ti_lr: float = 1e-3
+    ti_lr: float = 0.001
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
     ti_weight_decay: float = 0.0
     ti_optimizer: Literal["adamw", "prodigy"] = "adamw"
-    freeze_ti_after_completion_f: float = 0.6     # freeze the TI after this fraction of the training is done
+    freeze_ti_after_completion_f: float = 0.7     # freeze the TI after this fraction of the training is done
     freeze_unet_before_completion_f: float = 0.0  # freeze the UNET before this fraction of the training is done
     
     token_attention_loss_w: float = 3e-7
@@ -150,6 +150,13 @@ class TrainingConfig(BaseModel):
                 self.sample_imgs_lora_scale = 0.7
             else:
                 self.sample_imgs_lora_scale = 0.85
+
+        if not self.validation_img_size:
+            if self.sd_model_version == "sdxl":
+                self.validation_img_size = 1024
+            else:
+                self.validation_img_size = 768
+
         
         if self.use_dora:
             print(f"Disabling L1 penalty and LoRA weight decay for DORA training.")
