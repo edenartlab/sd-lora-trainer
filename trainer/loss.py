@@ -67,9 +67,9 @@ def compute_token_attention_loss(pipe, embedding_handler, captions, masks, daam_
     # Avoid large attention scores for ti tokens, inside the masked region:
     reg_loss_1 = 1.0 * (torch.relu(ti_heatmaps * ti_masks)**2).mean()
     # Avoid large attention scores for ti tokens, outside of the masked region:
-    reg_loss_2 = 1.5 * (torch.relu(ti_heatmaps * (1 - ti_masks) + 10)**2).mean()
-    # Make the Ti tokens have equal avg attention scores (equal distribution of concept information):
-    reg_loss_3 = 2.0 * token_attention_scores.mean()
+    reg_loss_2 = 2.0 * (torch.relu(ti_heatmaps * (1 - ti_masks) + 10)**2).mean()
+    # Make the Ti tokens have similar avg attention scores (equal distribution of concept information over tokens):
+    reg_loss_3 = 1.0 * token_attention_scores.mean()
 
     if verbose:
         print(f"reg_loss_0: {reg_loss_0.item():.4f}")
