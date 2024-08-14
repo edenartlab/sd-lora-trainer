@@ -24,7 +24,7 @@ class ModelPaths:
 
 model_paths = ModelPaths()
 
-# Default download urls in case no local model is found:
+# Default SD model download urls in case no local model is found:
 SDXL_URL = "https://edenartlab-lfs.s3.amazonaws.com/comfyui/models2/checkpoints/zavychromaxl_v90.safetensors"
 #SDXL_URL = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v6/resolve/main/juggernautXL_version6Rundiffusion.safetensors"
 SD15_URL = "https://huggingface.co/KamCastle/jugg/resolve/main/juggernaut_reborn.safetensors"
@@ -126,12 +126,12 @@ class TrainingConfig(BaseModel):
             self.pretrained_model = {"path": self.ckpt_path, "url": None, "version": None}
 
         # add some metrics to the foldername:
-        timestamp_short = datetime.now().strftime("%d_%H-%M-%S")
-        
+        timestamp = datetime.now().strftime("%d%b_%H%M")
+
         if not self.name:
             self.name = os.path.basename(self.lora_training_urls)[:40]
 
-        self.output_dir = self.output_dir + f"/{self.name}_" + f"{timestamp_short}-{self.concept_mode}_{self.resolution}_{self.caption_model}_{self.max_train_steps}"
+        self.output_dir = self.output_dir + f"/{self.name}_{timestamp}-{self.concept_mode}_res{self.resolution}_{self.max_train_steps}steps"
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.seed is None:

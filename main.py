@@ -385,7 +385,7 @@ def train(config: TrainingConfig):
                         for std_i, std in enumerate(embedding_stds):
                             token_stds[f'text_encoder_{idx}'][std_i].append(embedding_stds[std_i].item())
 
-                if global_step % 50 == 0 and not config.disable_ti:
+                if global_step % 50 == 0 and not config.disable_ti and config.debug:
                     img_ratio = config.train_img_size[0] / config.train_img_size[1]
                     plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio)
 

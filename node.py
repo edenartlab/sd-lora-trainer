@@ -30,9 +30,9 @@ class Eden_LoRa_trainer:
                     "lora_rank": ("INT", {"default": 16, "min": 1, "max": 64}),
                     "disable_ti": ("BOOLEAN", {"default": False}),
                     "n_tokens": ("INT", {"default": 3, "min": 1, "max": 5}),
-                    "debug_mode": ("BOOLEAN", {"default": False}),
                     "save_checkpoint_every_n_steps": ("INT", {"default": 200, "min": 10, "max": 10000}),
                     "sample_imgs_lora_scale": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.25}),
+                    "plot_training_graphs_on_disk": ("BOOLEAN", {"default": False}),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),
                 }
         }
@@ -55,7 +55,7 @@ class Eden_LoRa_trainer:
             lora_rank,
             disable_ti,
             n_tokens,
-            debug_mode,
+            plot_training_graphs_on_disk,
             save_checkpoint_every_n_steps,
             sample_imgs_lora_scale,
             seed,
@@ -92,7 +92,7 @@ class Eden_LoRa_trainer:
             disable_ti=disable_ti,
             n_tokens=n_tokens,
             verbose=True,
-            debug=debug_mode,
+            debug=plot_training_graphs_on_disk,
         )
 
         pbar = comfy.utils.ProgressBar(100)
