@@ -1,94 +1,7 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 19,
+  "last_node_id": 15,
+  "last_link_id": 31,
   "nodes": [
-    {
-      "id": 3,
-      "type": "Display Any (rgthree)",
-      "pos": [
-        911,
-        202
-      ],
-      "size": {
-        "0": 347.36749267578125,
-        "1": 87.71485137939453
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "source",
-          "type": "*",
-          "link": 18,
-          "dir": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Display Any (rgthree)"
-      },
-      "widgets_values": [
-        ""
-      ]
-    },
-    {
-      "id": 4,
-      "type": "Display Any (rgthree)",
-      "pos": [
-        909,
-        301
-      ],
-      "size": {
-        "0": 349.7635803222656,
-        "1": 88.69296264648438
-      },
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "source",
-          "type": "*",
-          "link": 17,
-          "dir": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Display Any (rgthree)"
-      },
-      "widgets_values": [
-        ""
-      ]
-    },
-    {
-      "id": 5,
-      "type": "Display Any (rgthree)",
-      "pos": [
-        909,
-        401
-      ],
-      "size": {
-        "0": 349.3501892089844,
-        "1": 98.81207275390625
-      },
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "source",
-          "type": "*",
-          "link": 16,
-          "dir": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Display Any (rgthree)"
-      },
-      "widgets_values": [
-        ""
-      ]
-    },
     {
       "id": 2,
       "type": "PreviewImage",
@@ -107,7 +20,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 19
+          "link": 28
         }
       ],
       "properties": {
@@ -115,15 +28,102 @@
       }
     },
     {
-      "id": 10,
+      "id": 4,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        899,
+        257
+      ],
+      "size": {
+        "0": 349.7635803222656,
+        "1": 88.69296264648438
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 30,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 5,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        900,
+        362
+      ],
+      "size": {
+        "0": 349.3501892089844,
+        "1": 98.81207275390625
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 31,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        899,
+        150
+      ],
+      "size": {
+        "0": 347.36749267578125,
+        "1": 87.71485137939453
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 29,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 15,
       "type": "Eden_LoRa_trainer",
       "pos": [
-        482,
-        102
+        419,
+        104
       ],
       "size": {
         "0": 315,
-        "1": 454
+        "1": 502
       },
       "flags": {},
       "order": 0,
@@ -133,7 +133,7 @@
           "name": "sample_images",
           "type": "IMAGE",
           "links": [
-            19
+            28
           ],
           "shape": 3,
           "slot_index": 0
@@ -142,7 +142,7 @@
           "name": "lora_path",
           "type": "STRING",
           "links": [
-            18
+            29
           ],
           "shape": 3,
           "slot_index": 1
@@ -151,7 +151,7 @@
           "name": "embedding_path",
           "type": "STRING",
           "links": [
-            17
+            30
           ],
           "shape": 3,
           "slot_index": 2
@@ -160,7 +160,7 @@
           "name": "final_msg",
           "type": "STRING",
           "links": [
-            16
+            31
           ],
           "shape": 3,
           "slot_index": 3
@@ -172,18 +172,20 @@
       "widgets_values": [
         "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
         "zavychromaxl_v90.safetensors",
-        "Eden_LoRa",
+        "Eden_Token_LoRa",
         "style",
+        512,
         4,
-        360,
+        300,
         0.001,
-        0.001,
+        0.0005,
         16,
         false,
         3,
-        true,
-        180,
-        93817,
+        200,
+        0.7,
+        false,
+        97121,
         "randomize"
       ]
     },
@@ -191,13 +193,13 @@
       "id": 9,
       "type": "Note",
       "pos": [
-        477,
-        -167
+        420,
+        -216
       ],
-      "size": [
-        695.892050545609,
-        211.87560768462694
-      ],
+      "size": {
+        "0": 1159.188720703125,
+        "1": 255.17616271972656
+      },
       "flags": {},
       "order": 1,
       "mode": 0,
@@ -205,7 +207,7 @@
         "text": ""
       },
       "widgets_values": [
-        "This LoRa trainer was made by the team behind eden.art, led by https://x.com/xsteenbrugge\nThis trainer works for both SD15 and SDXL models, but is primarily tuned for SDXL models.\n\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference!\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 1000) and usually benefits from disabling ti_training.\n\nIf you disbale_ti (not recommended) to obtain a normal LoRa that does not train a token embedding, you typically need to train for longer and increase the unet_lr.\n\n\"training_images\" can both a a path to a local folder or a url to a public .zip file of imgs which will get downloaded."
+        "This LoRa trainer was made by the team behind https://www.eden.art/, led by https://x.com/xsteenbrugge\nThis trainer works for both SD15 and SDXL models, but is primarily tuned for SDXL models.\n\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference!\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 1000) and usually benefits from disabling ti_training.\n\nIf you disbale_ti (not recommended) to obtain a normal LoRa that does not train a token embedding, you typically need to train for longer and increase the unet_lr.\n\n\"training_images\" can both a a path to a local folder or a url to a public .zip file of imgs which will get downloaded."
       ],
       "color": "#432",
       "bgcolor": "#653"
@@ -213,46 +215,46 @@
   ],
   "links": [
     [
-      16,
-      10,
-      3,
-      5,
+      28,
+      15,
       0,
-      "*"
-    ],
-    [
-      17,
-      10,
       2,
-      4,
       0,
-      "*"
+      "IMAGE"
     ],
     [
-      18,
-      10,
+      29,
+      15,
       1,
       3,
       0,
       "*"
     ],
     [
-      19,
-      10,
-      0,
+      30,
+      15,
       2,
+      4,
       0,
-      "IMAGE"
+      "*"
+    ],
+    [
+      31,
+      15,
+      3,
+      5,
+      0,
+      "*"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1.1,
+      "scale": 1.1000000000000005,
       "offset": [
-        -239.79761027513499,
-        149.18757789012884
+        17.710560230056274,
+        555.7999200037842
       ]
     }
   },
