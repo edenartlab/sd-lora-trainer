@@ -124,13 +124,11 @@ class TrainingConfig(BaseModel):
             self.pretrained_model = pretrained_models[self.sd_model_version]
         else:
             self.pretrained_model = {"path": self.ckpt_path, "url": None, "version": None}
-
-        # add some metrics to the foldername:
-        timestamp = datetime.now().strftime("%d%b_%H%M")
-
+        
         if not self.name:
             self.name = os.path.basename(self.lora_training_urls)[:40]
 
+        timestamp = datetime.now().strftime("%d%b_%H%M")
         self.output_dir = self.output_dir + f"/{self.name}_{timestamp}-{self.concept_mode}_res{self.resolution}_{self.max_train_steps}steps"
         os.makedirs(self.output_dir, exist_ok=True)
 

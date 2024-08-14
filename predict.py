@@ -87,6 +87,15 @@ class Predictor(BasePredictor):
             description="Rank of LoRA embeddings for the unet.",
             default=16
         ),
+        caption_model: str = Input(
+            description="Which model to use for captioning the images",
+            choices=["blip", "florence"],
+            default="blip"
+        ),
+        checkpointing_steps: int = Input(
+            description="Save a checkpoint every n steps",
+            default=10000
+        ),
         n_tokens: int = Input(
             description="How many new tokens to train (highly recommended to leave this at 2)",
             ge=1, le=4, default=3
@@ -121,11 +130,11 @@ class Predictor(BasePredictor):
             resolution=resolution,
             train_batch_size=train_batch_size,
             max_train_steps=max_train_steps,
-            checkpointing_steps=10000,
+            checkpointing_steps=checkpointing_steps,
             ti_lr=ti_lr,
             unet_lr=unet_lr,
             lora_rank=lora_rank,
-            caption_model="florence",
+            caption_model=caption_model,
             n_tokens=n_tokens,
             verbose=True,
             debug=debug,

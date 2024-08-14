@@ -274,7 +274,7 @@ def train(config: TrainingConfig):
             # param_groups[1] goes from ti_lr to 0.0 over the course of training
             if config.ti_optimizer != "prodigy" and optimizers['textual_inversion'] is not None:
                 # Apply the exponential learning rate
-                optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 1.2
+                optimizers['textual_inversion'].param_groups[0]['lr'] = config.ti_lr * (1 - completion_f) ** 1.4
                 # Apply freezing condition
                 if completion_f > config.freeze_ti_after_completion_f:
                     optimizers['textual_inversion'].param_groups[0]['lr'] = 0.0
@@ -434,7 +434,7 @@ def train(config: TrainingConfig):
                     plot_token_stds(token_stds, save_path=f'{config.output_dir}/token_stds.png', target_value_dict=target_std_dict)
                     plot_grad_norms(grad_norms, save_path=f'{config.output_dir}/grad_norms.png')
                     plot_lrs(optimizer_collection.learning_rate_tracker, save_path=f'{config.output_dir}/learning_rates.png')
-                    plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
+                    #plot_curve(prompt_embeds_norms, 'steps', 'norm', 'prompt_embed norms', save_path=f'{config.output_dir}/prompt_embeds_norms.png')
 
                 validation_prompts = render_images(
                     pipe = pipe, 
