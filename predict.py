@@ -87,11 +87,6 @@ class Predictor(BasePredictor):
             description="Rank of LoRA embeddings for the unet.",
             default=16
         ),
-        caption_model: str = Input(
-            description="Which model to use for captioning the images",
-            choices=["blip", "florence"],
-            default="blip"
-        ),
         n_tokens: int = Input(
             description="How many new tokens to train (highly recommended to leave this at 2)",
             ge=1, le=4, default=3
@@ -144,7 +139,7 @@ class Predictor(BasePredictor):
             ti_lr=ti_lr,
             unet_lr=unet_lr,
             lora_rank=lora_rank,
-            caption_model=caption_model,
+            caption_model="blip",
             n_tokens=n_tokens,
             verbose=True,
             debug=debug,
