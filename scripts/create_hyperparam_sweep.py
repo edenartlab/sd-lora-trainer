@@ -34,7 +34,7 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "styles_final"
+exp_name             = "faces_final"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
@@ -49,21 +49,20 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "https://edenartlab-lfs.s3.amazonaws.com/datasets/clipx.zip",
-        "/home/rednax/Documents/datasets/good_styles/eden_crystals",
-        "/home/rednax/Documents/datasets/journey_small"
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/gene.zip",
+        "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/mira.zip",
 
     ],
-    "concept_mode": ['style'],
-    "sample_imgs_lora_scale": [0.8],
+    "concept_mode": ['face'],
+    "sample_imgs_lora_scale": [0.7],
     "disable_ti": ['false'],
     "caption_dropout": [0.0, 0.2],
-    "seed": [0],
+    "seed": [1,2,3],
     "resolution": [512],
     "train_batch_size": [4],
     "n_sample_imgs": [8],
-    "max_train_steps": [300],
-    "checkpointing_steps": [300],
+    "max_train_steps": [200,250,300,350,400],
+    "checkpointing_steps": [10000],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [3],
@@ -71,13 +70,12 @@ hyperparameters = {
     "ti_weight_decay": [0.000],
     "l1_penalty": [0.0],
     "token_warmup_steps": [0],
-    "tok_cov_reg_w": [500],
-    "token_attention_loss_w": [0e-7, 2e-7],
+    "token_attention_loss_w": [3e-7],
 
-    "freeze_ti_after_completion_f": [1.0, 0.75, 0.5],
-    "freeze_unet_before_completion_f": [0.0, 0.25, 0.5],
+    "freeze_ti_after_completion_f": [0.6],
+    "freeze_unet_before_completion_f": [0.0],
 
-    "unet_lr": [0.001, 0.0003],
+    "unet_lr": [0.0005],
     "lora_alpha_multiplier": [1.0],
     "prodigy_d_coef": [1.0],
     "lora_weight_decay": [0.001],

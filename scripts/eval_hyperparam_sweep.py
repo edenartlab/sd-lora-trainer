@@ -178,7 +178,7 @@ def create_plots(data, varying_params, outdir, top = 0.15):
     print(f"Plots have been saved as PNG files in {outdir}")
 
 if __name__ == "__main__":
-    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/faces3"
+    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/faces_final"
     outdir = os.path.join('.', os.path.basename(root_dir))
     
     # Collect data

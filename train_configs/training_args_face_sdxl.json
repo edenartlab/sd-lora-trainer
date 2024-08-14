@@ -4,20 +4,18 @@
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
     "concept_mode": "face",
     "sample_imgs_lora_scale": 0.7,
-    "seed": 0,
+    "seed": 3,
     "resolution": 512,
     "train_batch_size": 4,
-    "n_sample_imgs": 6,
+    "n_sample_imgs": 8,
     "max_train_steps": 300,
     "token_warmup_steps": 0,
     "checkpointing_steps": 200,
 
     "disable_ti": false,
     
-    "freeze_ti_after_completion_f": 0.5,
-    "freeze_unet_before_completion_f": 0.0,
     "ti_lr": 0.001,
-    "unet_lr": 0.0002,
+    "unet_lr": 0.0005,
     "lora_rank": 16,
 
     "debug": true
