@@ -1,111 +1,7 @@
 {
-  "last_node_id": 19,
-  "last_link_id": 31,
+  "last_node_id": 21,
+  "last_link_id": 35,
   "nodes": [
-    {
-      "id": 15,
-      "type": "Eden_LoRa_trainer",
-      "pos": [
-        399,
-        102
-      ],
-      "size": [
-        408.74602195807825,
-        502
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "sample_images",
-          "type": "IMAGE",
-          "links": [
-            28
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "lora_path",
-          "type": "STRING",
-          "links": [
-            29
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "embedding_path",
-          "type": "STRING",
-          "links": [
-            30
-          ],
-          "shape": 3,
-          "slot_index": 2
-        },
-        {
-          "name": "final_msg",
-          "type": "STRING",
-          "links": [
-            31
-          ],
-          "shape": 3,
-          "slot_index": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Eden_LoRa_trainer"
-      },
-      "widgets_values": [
-        "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
-        "zavychromaxl_v90.safetensors",
-        "Eden_Token_LoRa",
-        "style",
-        512,
-        4,
-        300,
-        0.001,
-        0.0005,
-        16,
-        false,
-        3,
-        200,
-        0.7,
-        false,
-        78327,
-        "randomize"
-      ]
-    },
-    {
-      "id": 5,
-      "type": "Display Any (rgthree)",
-      "pos": [
-        902,
-        377
-      ],
-      "size": {
-        "0": 349.3501892089844,
-        "1": 98.81207275390625
-      },
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "source",
-          "type": "*",
-          "link": 31,
-          "dir": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Display Any (rgthree)"
-      },
-      "widgets_values": [
-        ""
-      ]
-    },
     {
       "id": 4,
       "type": "Display Any (rgthree)",
@@ -124,7 +20,7 @@
         {
           "name": "source",
           "type": "*",
-          "link": 30,
+          "link": 34,
           "dir": 3
         }
       ],
@@ -153,7 +49,7 @@
         {
           "name": "source",
           "type": "*",
-          "link": 29,
+          "link": 33,
           "dir": 3
         }
       ],
@@ -165,11 +61,116 @@
       ]
     },
     {
-      "id": 19,
+      "id": 5,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        897,
+        373
+      ],
+      "size": {
+        "0": 349.3501892089844,
+        "1": 98.81207275390625
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 35,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 21,
+      "type": "Eden_LoRa_trainer",
+      "pos": [
+        413,
+        124
+      ],
+      "size": [
+        412.0186879621763,
+        526
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sample_images",
+          "type": "IMAGE",
+          "links": [
+            32
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "links": [
+            33
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "embedding_path",
+          "type": "STRING",
+          "links": [
+            34
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "final_msg",
+          "type": "STRING",
+          "links": [
+            35
+          ],
+          "shape": 3,
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Eden_LoRa_trainer"
+      },
+      "widgets_values": [
+        "https://edenartlab-lfs.s3.amazonaws.com/datasets/twisting_realities.zip",
+        "style",
+        "Eden_Token_LoRa",
+        "zavychromaxl_v90.safetensors",
+        512,
+        4,
+        300,
+        0.001,
+        0.0005,
+        16,
+        false,
+        3,
+        200,
+        6,
+        0.7,
+        false,
+        61543,
+        "randomize"
+      ]
+    },
+    {
+      "id": 18,
       "type": "Note Plus (mtb)",
       "pos": {
-        "0": 38,
-        "1": 87,
+        "0": 411,
+        "1": -278,
         "2": 0,
         "3": 0,
         "4": 0,
@@ -180,8 +181,8 @@
         "9": 0
       },
       "size": [
-        311.85119874831105,
-        500.51022151650477
+        1447.6545455654823,
+        329.15514519406656
       ],
       "flags": {},
       "order": 1,
@@ -191,7 +192,7 @@
       "title": "Unnamed",
       "properties": {},
       "widgets_values": [
-        "\n## A note on settings:\n\nIf you disbale\\_ti (not recommended) you'll get a normal LoRa that does not use a token embedding, in that case you typically need to train for a bit longer and increase the unet_lr.\n\n\"training_images\" can both a a path to a local folder or a url to a public .zip file of imgs which will get downloaded.\n\nYou can provide custom captions by placing a filename.txt file for each filename.jpg in the training_images folder\n\nI highly recommend to keep the training resolution at either 512 or 768.\n\nn_tokens = 1 is currently broken, need to fix that.\n\nAn embedding + LoRa checkpoint will get saved every **save_checkpoint_every_n_steps**, based on the sample image grid you can then pick the best checkpoint to use in your workflows!",
+        "\n## [Eden](https://www.eden.art/)\nThis LoRa trainer was made by the team behind https://www.eden.art/, led by https://x.com/xsteenbrugge\n\nIf you make awesome stuff w this trainer, give us a shout at:\nhttps://x.com/eden_art_ or\nhttps://www.instagram.com/eden.art____/\n\n---\n\n---\n\n## SD15 + SDXL:\nThis trainer works for both SD15 and SDXL models, but the default settings are primarily tuned for SDXL models.\n\n---\n\n### A note on Embeddings:\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference! See the example workflows in the repo.\n\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 800) and sometimes benefits from disabling ti_training.\n\n---\n\n### A note on captioning:\nImages will get automatically captioned. It is recommended to put a .env file in the root of this custom node repo with your OpenAI API key, if found that will trigger a prompt_cleanup function that significantly improves results!\n",
         "markdown",
         "",
         "one_dark"
@@ -201,11 +202,11 @@
       "shape": 1
     },
     {
-      "id": 18,
+      "id": 19,
       "type": "Note Plus (mtb)",
       "pos": {
-        "0": 404,
-        "1": -271,
+        "0": 48,
+        "1": 106,
         "2": 0,
         "3": 0,
         "4": 0,
@@ -216,8 +217,8 @@
         "9": 0
       },
       "size": [
-        1454.6318854500394,
-        307.9066720799907
+        326.25154556548205,
+        537.0981451940668
       ],
       "flags": {},
       "order": 2,
@@ -227,7 +228,7 @@
       "title": "Unnamed",
       "properties": {},
       "widgets_values": [
-        "\n## [Eden](https://www.eden.art/)\nThis LoRa trainer was made by the team behind https://www.eden.art/, led by https://x.com/xsteenbrugge\n\nIf you make awesome stuff w this trainer, give us a shout at:\nhttps://x.com/eden_art_ or\nhttps://www.instagram.com/eden.art____/\n\n---\n\n## SD15 + SDXL:\nThis trainer works for both SD15 and SDXL models, but the default settings are primarily tuned for SDXL models.\n\n### A note on Embeddings:\nThis trainer optionally trains a textual inversion token into the LoRa, this is highly recommended when using SDXL models, but also means you have to load that token embedding when doing inference! See the example workflows in the repo.\n\n\nThe default settings work great for SDXL, SD15 usually need more training steps (eg 800) and sometimes benefits from disabling ti_training.\n\n### A note on captioning:\nImages will get automatically captioned. It is recommended to put a .env file in the root of this custom node repo with your OpenAI API key, if found that will trigger a prompt_cleanup function that significantly improves results!\n",
+        "\n## A note on settings:\n\nIf you disbale\\_ti (not recommended) you'll get a normal LoRa that does not use a token embedding, in that case you typically need to train for a bit longer and increase the unet_lr.\n\n---\n\n\"training_images\" can both a a path to a local folder or a url to a public .zip file of imgs which will get downloaded.\n\n---\n\nYou can provide custom captions by placing a filename.txt file for each filename.jpg in the training_images folder\n\n---\n\nI highly recommend to keep the training resolution at either 512 or 768.\n\n---\n\nn_tokens = 1 is currently broken, need to fix that.\n\n---\n\nAn embedding + LoRa checkpoint will get saved every **save\\_checkpoint\\_every\\_n\\_steps**. Based on the sample image grid you can then pick the best checkpoint to use in your workflows!",
         "markdown",
         "",
         "one_dark"
@@ -240,8 +241,8 @@
       "id": 2,
       "type": "PreviewImage",
       "pos": [
-        1312,
-        101
+        1307,
+        121
       ],
       "size": {
         "0": 557.6970825195312,
@@ -254,7 +255,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 28
+          "link": 32
         }
       ],
       "properties": {
@@ -264,32 +265,32 @@
   ],
   "links": [
     [
-      28,
-      15,
+      32,
+      21,
       0,
       2,
       0,
       "IMAGE"
     ],
     [
-      29,
-      15,
+      33,
+      21,
       1,
       3,
       0,
       "*"
     ],
     [
-      30,
-      15,
+      34,
+      21,
       2,
       4,
       0,
       "*"
     ],
     [
-      31,
-      15,
+      35,
+      21,
       3,
       5,
       0,
@@ -300,10 +301,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015777,
+      "scale": 0.8264462809917354,
       "offset": [
-        123.08356135412646,
-        476.67783552719476
+        75.76382855598398,
+        267.8202654048342
       ]
     }
   },

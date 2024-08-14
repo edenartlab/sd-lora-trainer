@@ -404,7 +404,8 @@ def train(config: TrainingConfig):
 
             # Print some statistics:
             if (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
-                
+                print(f"\n---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
+
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"
                 os.makedirs(output_save_dir, exist_ok=True)
                 config.save_as_json(
@@ -458,10 +459,9 @@ def train(config: TrainingConfig):
             images_done += config.train_batch_size
             global_step += 1
             
-            if global_step % (config.max_train_steps//50) == 0:
+            if global_step % (config.max_train_steps//100) == 0:
                 progress = (global_step / config.max_train_steps) + 0.05
                 #print_system_info()
-                print(f"\n---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
                 yield np.min((progress, 1.0))
 
             if global_step > config.max_train_steps:

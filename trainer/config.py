@@ -140,6 +140,9 @@ class TrainingConfig(BaseModel):
         if self.unet_lr_warmup_steps is None:
             self.unet_lr_warmup_steps = self.max_train_steps
 
+        if self.checkpointing_steps < 1:
+            self.checkpointing_steps = self.max_train_steps
+
         if self.concept_mode == "face":
             print(f"Face mode is active ----> disabling left-right flips and setting mask_target_prompts to 'face'.")
             self.left_right_flip_augmentation = False  # always disable lr flips for face mode!

@@ -19,9 +19,9 @@ class Eden_LoRa_trainer:
         return {
             "required": {
                     "training_images_folder_path": ("STRING", {"default": "."}),
-                    "ckpt_name": (folder_paths.get_filename_list("checkpoints"), ),
+                    "mode": (["style", "face", "object"], {"default": "style"}),
                     "lora_name": ("STRING", {"default": "Eden_Token_LoRa"}),
-                    "mode": (["style", "face", "object"], ),
+                    "ckpt_name": (folder_paths.get_filename_list("checkpoints"), ),
                     "training_resolution": ("INT", {"default": 512, "min": 256, "max": 1024}),
                     "train_batch_size": ("INT", {"default": 4, "min": 1, "max": 8}),
                     "max_train_steps":  ("INT", {"default": 300, "min": 10, "max": 10000}),
@@ -31,6 +31,7 @@ class Eden_LoRa_trainer:
                     "disable_ti": ("BOOLEAN", {"default": False}),
                     "n_tokens": ("INT", {"default": 3, "min": 1, "max": 5}),
                     "save_checkpoint_every_n_steps": ("INT", {"default": 200, "min": 10, "max": 10000}),
+                    "n_sample_imgs": ("INT", {"default": 4, "min": 2, "max": 10}),
                     "sample_imgs_lora_scale": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.25}),
                     "plot_training_graphs_on_disk": ("BOOLEAN", {"default": False}),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),
@@ -57,6 +58,7 @@ class Eden_LoRa_trainer:
             n_tokens,
             plot_training_graphs_on_disk,
             save_checkpoint_every_n_steps,
+            n_sample_imgs,
             sample_imgs_lora_scale,
             seed,
             ):
@@ -83,6 +85,7 @@ class Eden_LoRa_trainer:
             train_batch_size=train_batch_size,
             max_train_steps=max_train_steps,
             checkpointing_steps=save_checkpoint_every_n_steps,
+            n_sample_imgs=(n_sample_imgs//2) * 2,
             sample_imgs_lora_scale=sample_imgs_lora_scale,
             ti_lr=ti_lr,
             unet_lr=unet_lr,

@@ -2,9 +2,9 @@
 val_prompts = {}
 val_prompts['style'] = [
         'a beautiful mountainous landscape, boulders, fresh water stream, setting sun',
-        'the stunning skyline of New York City',
+        'the stunning skyline of New York City, setting sun, skyscrapers, wallpaper',
         'fruit hanging from a tree, highly detailed texture, soil, rain, drops, photo realistic, surrealism, highly detailed, 8k macrophotography',
-        'the Taj Mahal, stunning wallpaper',
+        'the Taj Mahal, stunning wallpaper, architecture, ancient, marble, white, intricate, detailed',
         'A majestic tree rooted in circuits, leaves shimmering with data streams, stands as a beacon where the digital dawn caresses the fog-laden, binary soil—a symphony of pixels and chlorophyll.',
         'A beautiful octopus, with swirling tendrils and a pulsating heart of fiery opal hues, hovers ethereally against a starry void, sculpted through a meticulous flame-working technique.',
         'a stunning image of an aston martin sportscar',
