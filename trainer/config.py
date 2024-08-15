@@ -61,7 +61,7 @@ class TrainingConfig(BaseModel):
     unet_lr: float = 0.0003
     prodigy_d_coef: float = 1.0
     unet_prodigy_growth_factor: float = 1.05  # lower values make the lr go up slower (1.01 is for 1k step runs, 1.02 is for 500 step runs)
-    lora_weight_decay: float = 0.002
+    lora_weight_decay: float = 0.004
 
     ti_lr: float = 0.001
     token_warmup_steps: int = 0    #  warmup the token embeddings with a pure txt loss
@@ -74,7 +74,7 @@ class TrainingConfig(BaseModel):
     cond_reg_w: float = 0.0e-5
     tok_cond_reg_w: float = 0.0e-5
     tok_cov_reg_w: float = 0.     # regularizes the token covariance matrix wrt pretrained, normal tokens
-    l1_penalty: float = 0.02      # Makes the unet lora matrix more sparse
+    l1_penalty: float = 0.03      # Makes the unet lora matrix more sparse
     
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
     snr_gamma: float = 5.0

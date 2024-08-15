@@ -42,7 +42,7 @@ exp_name             = "styles_fin_sweep"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
-min_hamming_distance = 3   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 4   # min_n_params that have to be different from any previous experiment to be scheduled
 nohup                = False
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 

@@ -107,6 +107,7 @@ def create_plots(data, varying_params, outdir, top = 0.15):
         
         # Calculate global top threshold
         global_top_percent = np.percentile(all_scores, 100*(1-top))
+        top_75_percent = np.percentile(all_scores, 25)
         
         # Sort the values
         try:
@@ -136,14 +137,17 @@ def create_plots(data, varying_params, outdir, top = 0.15):
             all_x.extend([i] * len(scores))
             all_y.extend(scores)
         
-        # Calculate trendline for all data
+        # Calculate trendline for top 75% data
         x = np.array(all_x)
         y = np.array(all_y)
+        top_75_mask = y >= top_75_percent
+        x_75 = x[top_75_mask]
+        y_75 = y[top_75_mask]
         
-        z = np.polyfit(x, y, 1)
+        z = np.polyfit(x_75, y_75, 1)
         p = np.poly1d(z)
         plt.plot(range(len(values_list)), p(range(len(values_list))), "r--", alpha=0.8,
-                 label=f'All data: y={z[0]:.2f}x+{z[1]:.2f}\nR²: {r2_score(y, p(x)):.4f}')
+                 label=f'Top 75%: y={z[0]:.2f}x+{z[1]:.2f}\nR²: {r2_score(y_75, p(x_75)):.4f}')
         
         # Calculate trendline for global top 25% scoring datapoints
         top_mask = y >= global_top_percent
@@ -178,7 +182,7 @@ def create_plots(data, varying_params, outdir, top = 0.15):
     print(f"Plots have been saved as PNG files in {outdir}")
 
 if __name__ == "__main__":
-    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/faces_final"
+    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/styles_fin_sweep"
     outdir = os.path.join('.', os.path.basename(root_dir))
     
     # Collect data
