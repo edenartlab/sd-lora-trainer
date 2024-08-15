@@ -7,5 +7,7 @@ cog predict --gpus $GPU_ID \
     -i concept_mode="face" \
     -i sd_model_version="sdxl" \
     -i max_train_steps="300" \
+    -i checkpointing_steps="200" \
+    -i n_sample_imgs="8" \
     -i debug="False" \
-    -i seed="1"
+    -i seed="2"

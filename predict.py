@@ -95,8 +95,12 @@ class Predictor(BasePredictor):
             description="Batch size (per device) for training (dont increase unless running on a BIG GPU)",
             default=4
         ),
+        n_sample_imgs: int = Input(
+            description="Number of sample images in validation grid",
+            default=4
+        ),
         validation_img_size: int = Input(
-            description="Size of sample images in validation grid",
+            description="Resolution of sample images in validation grid",
             default=1024
         ),
         sample_imgs_lora_scale: float = Input(
@@ -136,6 +140,7 @@ class Predictor(BasePredictor):
             train_batch_size=train_batch_size,
             max_train_steps=max_train_steps,
             checkpointing_steps=checkpointing_steps,
+            n_sample_imgs=n_sample_imgs,
             ti_lr=ti_lr,
             unet_lr=unet_lr,
             lora_rank=lora_rank,

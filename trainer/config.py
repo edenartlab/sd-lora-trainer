@@ -78,7 +78,7 @@ class TrainingConfig(BaseModel):
     noise_offset: float = 0.02      # Noise offset training to improve very dark / very bright images
     snr_gamma: float = 5.0
     lora_alpha_multiplier: float = 1.0
-    lora_rank: int = 12
+    lora_rank: int = 16
     use_dora: bool = False
 
     left_right_flip_augmentation: bool = True
@@ -120,7 +120,7 @@ class TrainingConfig(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
 
-        #self.n_sample_imgs = 8
+        self.n_sample_imgs = 8
 
         if not self.ckpt_path:
             self.pretrained_model = pretrained_models[self.sd_model_version]
