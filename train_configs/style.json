@@ -3,18 +3,18 @@
     "sd_model_version": "sdxl",
     "lora_training_urls": "/home/rednax/Documents/datasets/does2",
     "concept_mode": "style",
-    "sample_imgs_lora_scale": 0.8,
+    "sample_imgs_lora_scale": 0.9,
     "seed": 0,
     "resolution": 768,
     "train_batch_size": 4,
     "n_sample_imgs": 6,
-    "max_train_steps": 600,
-    "checkpointing_steps": 200,
+    "max_train_steps": 1200,
+    "checkpointing_steps": 300,
 
-    "disable_ti": false,
+    "disable_ti": true,
     "caption_model": "florence",
     "ti_lr": 0.001,
-    "unet_lr": 0.0003,
+    "unet_lr": 0.001,
     "lora_rank": 16,
 
     "debug": true
