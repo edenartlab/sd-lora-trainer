@@ -120,8 +120,6 @@ class TrainingConfig(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
 
-        self.n_sample_imgs = 8
-
         if not self.ckpt_path:
             self.pretrained_model = pretrained_models[self.sd_model_version]
         else:

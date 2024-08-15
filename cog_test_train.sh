@@ -9,5 +9,5 @@ cog predict --gpus $GPU_ID \
     -i max_train_steps="300" \
     -i checkpointing_steps="200" \
     -i n_sample_imgs="8" \
-    -i debug="False" \
+    -i debug="True" \
     -i seed="2"
