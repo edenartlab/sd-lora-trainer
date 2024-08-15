@@ -231,20 +231,12 @@ def train(config: TrainingConfig):
     for i in range(len(text_encoders)):
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
-    
+
     # default value of cold (starting) optimizer lr:
-    if config.sd_model_version == "sdxl":
-        if config.is_lora:
-            if not config.disable_ti:  # let textual_inversion do the work first!
-                base_lr = 1.0e-5
-            else:
-                base_lr = 5.0e-5
-        else:
-            base_lr = 3.0e-5
-    elif config.sd_model_version == "sd15":
-        # let lora training kick in soonish (pure ti for sd15 is not working super well in my tests, idk why...)
-        base_lr = 1.0e-4
-        
+    base_lr = 2.0e-4
+    if config.is_lora and not config.disable_ti:  # let textual_inversion do the work first!
+        base_lr = 5.0e-5
+    
     #######################################################################################################
     
     """
