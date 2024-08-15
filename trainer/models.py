@@ -11,7 +11,7 @@ def load_models(pretrained_model, device, weight_dtype = torch.float16):
 
     tokenizer_two, text_encoder_two = None, None
     print(f"Loading model weights from {os.path.abspath(pretrained_model['path'])} with dtype: {weight_dtype}...")
-    
+
     try:
         print("Loading as SDXL model...")
         pipe = StableDiffusionXLPipeline.from_single_file(
@@ -75,16 +75,27 @@ def download_weights(url, dest):
     print(f"Downloading {url} took {time.time() - start} seconds")
 
 
-def print_trainable_parameters(model, model_name = ''):
+def print_trainable_parameters(model, model_name=''):
     trainable_params = 0
     all_param = 0
     for name, param in model.named_parameters():
         all_param += param.numel()
         if param.requires_grad and "token_embedding" not in name:
             trainable_params += param.numel()
+    
+    def format_param_count(count):
+        if count < 1000:
+            return f"{count}"
+        elif count < 1_000_000:
+            return f"{count/1000:.1f}K"
+        else:
+            return f"{count/1_000_000:.1f}M"
+    
     line_delimiter = "#" * 80
     print(line_delimiter)
     print(
-        f"Trainable {model_name} params: {trainable_params/1000000:.1f}M || All params: {all_param/1000000:.1f}M || trainable = {100 * trainable_params / all_param:.2f}%"
+        f"Trainable {model_name} params: {format_param_count(trainable_params)} "
+        f"|| All params: {format_param_count(all_param)} "
+        f"|| trainable = {100 * trainable_params / all_param:.2f}%"
     )
     print(line_delimiter)
