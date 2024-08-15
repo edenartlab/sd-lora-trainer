@@ -3,7 +3,7 @@
     "lora_rank": 4,
     "freeze_ti_after_completion_f": 1.0,
 
-    "name": "xander_sdxl_ti",
+    "name": "mira_sdxl_ti",
     "sd_model_version": "sdxl",
     "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/xander.zip",
     "concept_mode": "face",
@@ -12,8 +12,8 @@
     "resolution": 512,
     "train_batch_size": 4,
     "n_sample_imgs": 8,
-    "max_train_steps": 300,
-    "checkpointing_steps": 200,
+    "max_train_steps": 900,
+    "checkpointing_steps": 300,
 
     "caption_model": "blip",
     "debug": true
