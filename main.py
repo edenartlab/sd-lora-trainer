@@ -56,7 +56,7 @@ def train(config: TrainingConfig):
 
     if not config.sample_imgs_lora_scale:
         if config.sd_model_version == "sdxl":
-            config.sample_imgs_lora_scale = 0.7
+            config.sample_imgs_lora_scale = 0.75
         else:
             config.sample_imgs_lora_scale = 0.85
 
