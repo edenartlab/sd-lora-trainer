@@ -54,10 +54,28 @@ def set_adapter_scales(pipe, lora_scale = 1.0):
 
     return pipe
 
-
-def remove_delimiter_characters(name: str):
-    # Make sure all weird delimiter characters are removed from concept_name before using it as a filepath:
-    return name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
+import re
+def remove_delimiter_characters(name: str, max_length: int = 255) -> str:
+    # Define a regular expression pattern to match all weird and special characters
+    pattern = r'[^\w.-]+'  # Matches any character that is not alphanumeric, underscore, dot, or hyphen
+    
+    # Replace all occurrences of the pattern with a single underscore
+    cleaned_name = re.sub(pattern, '_', name)
+    
+    # Replace multiple consecutive underscores with a single underscore
+    cleaned_name = re.sub(r'_+', '_', cleaned_name)
+    
+    # Strip leading or trailing underscores and dots
+    cleaned_name = cleaned_name.strip('_.')
+    
+    # Ensure the name doesn't start with a dot (to avoid hidden files on Unix)
+    cleaned_name = '_' + cleaned_name if cleaned_name.startswith('.') else cleaned_name
+    
+    # Truncate to max_length if necessary
+    cleaned_name = cleaned_name[:max_length]
+    
+    # If the name is empty after cleaning, return a default name
+    return cleaned_name or 'unnamed'
 
 # Convert to WebUI format
 def convert_pytorch_lora_safetensors_to_webui(

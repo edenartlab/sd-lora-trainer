@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import json, time, os
 from typing import Literal
 from trainer.utils.utils import pick_best_gpu_id
+from trainer.checkpoint import remove_delimiter_characters
 
 class ModelPaths:
     def __init__(self):
@@ -127,6 +128,8 @@ class TrainingConfig(BaseModel):
         
         if not self.name:
             self.name = os.path.basename(self.lora_training_urls)[:40]
+
+        self.name = remove_delimiter_characters(self.name)
 
         timestamp = datetime.now().strftime("%d%b_%H%M")
         self.output_dir = self.output_dir + f"/{self.name}_{timestamp}-{self.concept_mode}_res{self.resolution}_{self.max_train_steps}steps"
