@@ -23,10 +23,3 @@ rendered_images
 
 # trained models:
 lora_models/*
-
-# Ignore the entire models folder by default:
-models/*
-
-### Include pipeline models: ###
-!models/juggernaut_reborn.safetensors
-!models/juggernaut_v6.safetensors
