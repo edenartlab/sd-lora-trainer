@@ -1,0 +1,16 @@
+{
+    "name": "mira_sdxl",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "/home/rednax/Documents/datasets/01_people/mira",
+    "concept_mode": "face",
+    "sample_imgs_lora_scale": 0.7,
+    "seed": 1,
+    "resolution": 512,
+    "train_batch_size": 4,
+    "n_sample_imgs": 8,
+    "max_train_steps": 360,
+    "checkpointing_steps": 240,
+
+    "caption_model": "florence",
+    "debug": true
+}

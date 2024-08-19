@@ -1,0 +1,16 @@
+{
+    "name": "xander_sdxl",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "/home/rednax/Documents/datasets/beeple",
+    "concept_mode": "style",
+    "sample_imgs_lora_scale": 0.7,
+    "seed": 0,
+    "resolution": 512,
+    "train_batch_size": 4,
+    "n_sample_imgs": 8,
+    "max_train_steps": 300,
+    "checkpointing_steps": 200,
+
+    "caption_model": "florence",
+    "debug": true
+}

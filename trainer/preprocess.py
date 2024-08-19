@@ -568,6 +568,7 @@ def florence_caption_dataset(images, captions):
         if captions[i] is None:
             #prompt = random.choice(["<CAPTION>", "<DETAILED_CAPTION>"])
             prompt = "<CAPTION>"
+            prompt = "<DETAILED_CAPTION>"
 
             inputs = processor(text=prompt, images=image, return_tensors="pt").to(device, torch_dtype)
             generated_ids = model.generate(
@@ -769,9 +770,10 @@ def load_and_save_masks_and_captions(
             n_length = len(files)
         files = sorted(files)[:n_length]
         
-    images, captions = [], []
+    images, captions, img_paths = [], [], []
     for file in files:
         images.append(load_image_with_orientation(file))
+        img_paths.append(file)
         caption_file = os.path.splitext(file)[0] + ".txt"
         if os.path.exists(caption_file) and use_dataset_captions:
             with open(caption_file, "r") as f:
@@ -820,6 +822,12 @@ def load_and_save_masks_and_captions(
 
     print(f"Generating {len(images)} captions using {caption_model} in {concept_mode} mode...")
     captions = caption_dataset(images, captions, caption_model = caption_model)
+
+    # Save captions back to disk:
+    for i, img_path in enumerate(img_paths):
+        caption_path = os.path.splitext(img_path)[0] + ".txt"
+        with open(caption_path, "w") as f:
+            f.write(captions[i])
 
     # It's nice if we can achieve the gpt pass, so if we're not losing too much, cut-off the n_images to just match what we're allowed to give to gpt:
     if (len(images) > MAX_GPT_PROMPTS) and (len(images) < MAX_GPT_PROMPTS*1.33):
