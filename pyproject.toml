@@ -1,27 +1,16 @@
 [project]
-<<<<<<< HEAD
 name = "Eden LoRa Trainer"
 description = "Highly optimized and fast LoRa trainer for SD15 and SDXL models. Does LoRa training, textual inversion and full finetuning!"
 version = "1.0.0"
 license = "GPL-3.0 license"
-=======
-name = "sd-lora-trainer"
-description = "Maintained by Eden.art, this is a very fast, well tuned trainer for SDXL and SD15"
-version = "1.0.0"
-license = {file = "LICENSE"}
 dependencies = ["torch==2.1.0", "torchaudio==2.1.0", "torchvision==0.16.0", "transformers==4.38.0", "diffusers==0.29.2", "tokenizers==0.15.2", "huggingface-hub==0.23.2", "ujson==5.10.0", "scipy==1.14.0", "peft==0.10.0", "invisible-watermark==0.2.0", "pandas==2.2.1", "numpy==1.26.4", "opencv-python==4.10.0.84", "mediapipe==0.10.14", "openai==1.35.13", "python-dotenv==1.0.1", "prodigyopt==1.0", "omegaconf==2.3.0", "ujson==5.10.0", "bitsandbytes==0.43.1", "setuptools==70.3.0", "torchtyping==0.1.5", "einops==0.8.0", "timm==1.0.8"]
->>>>>>> d5998e8fe6ac62514b4ffc22c732c26b0d7966dc
 
 [project.urls]
 Repository = "https://github.com/edenartlab/sd-lora-trainer"
+Website = "https://www.eden.art/"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-<<<<<<< HEAD
 PublisherId = "eden"
 DisplayName = "Eden LoRa Trainer"
-=======
-PublisherId = ""
-DisplayName = "sd-lora-trainer"
->>>>>>> d5998e8fe6ac62514b4ffc22c732c26b0d7966dc
 Icon = ""
