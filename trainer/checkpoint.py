@@ -68,14 +68,17 @@ def remove_delimiter_characters(name: str, max_length: int = 255) -> str:
     # Strip leading or trailing underscores and dots
     cleaned_name = cleaned_name.strip('_.')
     
-    # Ensure the name doesn't start with a dot (to avoid hidden files on Unix)
-    cleaned_name = '_' + cleaned_name if cleaned_name.startswith('.') else cleaned_name
+    # Ensure the name doesn't start with a dot (to avoid hidden files on Unix) 
+    cleaned_name = cleaned_name.lstrip('.')
     
     # Truncate to max_length if necessary
     cleaned_name = cleaned_name[:max_length]
+
+    # Raise an error if the name is empty or malformed after cleaning
+    if not cleaned_name:
+        raise ValueError("Malformed name")
     
-    # If the name is empty after cleaning, return a default name
-    return cleaned_name or 'unnamed'
+    return cleaned_name
 
 # Convert to WebUI format
 def convert_pytorch_lora_safetensors_to_webui(
