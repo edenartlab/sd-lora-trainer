@@ -23,6 +23,8 @@ A full guide on training can be found in [**our docs**](https://docs.eden.art/do
 - **as a ComfyUI node**
 - **as a standalone python script**
 
+  --> Example workflows for how to run the trainer and do inference with it can be found in /ComfyUI_workflows
+
 ### The trainer supports 3 default modes:
 - **style**: used for learning the aesthetic style of a collection of images.
 - **face**: used for learning a specific face (can be human, character, ...).
