@@ -70,7 +70,7 @@ Bugs:
 
 Bigger improvements:
 - integrate Flux / SD3
-- Add multi-token training
+- Add multi-concept training (multiple things represented by multiple tokens, trained into a single LoRa)
 - add stronger token regularization (eg CelebBasis spanning basis)
 - implement perfusion ideas (key locking with superclass): https://research.nvidia.com/labs/par/Perfusion/
 - implement prompt-aligned: https://prompt-aligned.github.io/
