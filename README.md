@@ -24,7 +24,7 @@ A full guide on training can be found in [**our docs**](https://docs.eden.art/do
 - **as a standalone python script**
 
 ### Using in ComfyUI:
-- Example workflows for how to run the trainer and do inference with it can be found in /ComfyUI_workflows
+- Example workflows for how to run the trainer and do inference with it can be found in `/ComfyUI_workflows`
 - Importantly this trainer uses a chatgpt call to cleanup the auto-generated prompts and inject the trainable token, this will only work if you have a .env file containing your OPENAI key in the root of the repo dir that contains a single line: `OPENAI_API_KEY=your_key_string` Everything will work without this, but results will be better if you set this up, especially for 'face' and 'object' modes.
 
 ### The trainer supports 3 default modes:
