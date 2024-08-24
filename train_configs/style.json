@@ -1,7 +1,7 @@
 {
-    "name": "does2",
+    "name": "stitchly",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "/home/rednax/Documents/datasets/does2",
+    "lora_training_urls": "/home/rednax/Documents/datasets/good_styles/stitchly",
     "concept_mode": "style",
     "sample_imgs_lora_scale": 0.9,
     "seed": 0,

@@ -38,11 +38,11 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "styles_fin_sweep"
+exp_name             = "stitchly"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
-min_hamming_distance = 4   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
 nohup                = False
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
@@ -53,39 +53,31 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/good_styles/eden_crystals",
-        "/home/rednax/Documents/datasets/good_styles/does2",
-        "/home/rednax/Documents/datasets/good_styles/beeple"
+        "/home/rednax/Documents/datasets/good_styles/stitchly"
 
     ],
     "concept_mode": ['style'],
-    "sample_imgs_lora_scale": [0.8, 0.6],
-    "disable_ti": ['false'],
-    "caption_dropout": [0.0, 0.2],
+    "sample_imgs_lora_scale": [0.9],
+    "disable_ti": ['false','true'],
+    "caption_dropout": [0.2],
     "seed": [0],
     "resolution": [512,768],
     "train_batch_size": [4],
     "n_sample_imgs": [8],
-    "max_train_steps": [250, 350, 450],
-    "checkpointing_steps": [10000],
+    "max_train_steps": [2000],
+    "checkpointing_steps": [500],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [3],
     "ti_lr": [0.001],
-    "ti_weight_decay": [0.000, 0.002],
-    "l1_penalty": [0.0, 0.02, 0.05],
-    "noise_offset": [0.02, 0.06],
     "token_warmup_steps": [0],
-    "token_attention_loss_w": [0.0, 3e-7],
 
-    "unet_lr": [0.0005, 0.0015],
-    "lora_alpha_multiplier": [1.0, 0.5],
-    "lora_weight_decay": [0.0, 0.002],
-    "lora_rank": [16, 24],
+    "unet_lr": [0.0003, 0.001],
+    "lora_rank": [16],
     "use_dora": ['false'],
 
     "unet_optimizer_type": ['adamw'],
-    "is_lora": ['true'],
+    "is_lora": ['true', 'false'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
