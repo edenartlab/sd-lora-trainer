@@ -290,6 +290,16 @@ def load_image_with_orientation(path, mode="RGB"):
         elif orientation == 8:
             image = image.rotate(90, expand=True)
 
+    if image.mode == 'P':
+        image = image.convert('RGBA')
+
+    # Remove alpha channel if present
+    if image.mode in ('RGBA', 'LA'):
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        background.paste(image, mask=image.split()[3])  # 3 is the alpha channel
+        image = background
+
+    # Convert to the desired mode
     return image.convert(mode)
 
 
