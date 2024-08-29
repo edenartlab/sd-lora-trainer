@@ -100,7 +100,6 @@ class TrainingConfig(BaseModel):
     inserting_list_tokens: List[str] = ["<s0>","<s1>","<s2>"]
     token_dict: dict = {"TOK": "<s0><s1><s2>"}
     device: str = "cuda:0"
-    do_cache: bool = True
     sample_imgs_lora_scale: float = None    # Default lora scale for sampling the validation images
     dataloader_num_workers: int = 0
     training_attributes: dict = {}

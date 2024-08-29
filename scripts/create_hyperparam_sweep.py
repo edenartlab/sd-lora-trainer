@@ -42,7 +42,7 @@ exp_name             = "stitchly"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
-min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 1   # min_n_params that have to be different from any previous experiment to be scheduled
 nohup                = False
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
@@ -53,37 +53,38 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/good_styles/stitchly"
+        "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/stitchly/stitchly_clean_29Aug_1251-style_res512_5000steps/images_in",
+        "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/stitchly/stitchly_clean_29Aug_1257-style_res768_5000steps/images_in"
 
     ],
     "concept_mode": ['style'],
     "sample_imgs_lora_scale": [0.9],
-    "disable_ti": ['false','true'],
     "caption_dropout": [0.2],
     "seed": [0],
-    "resolution": [512,768],
-    "train_batch_size": [4],
+    "resolution": [512, 768],
+    "train_batch_size": [3],
     "n_sample_imgs": [8],
-    "max_train_steps": [2000],
-    "checkpointing_steps": [500],
+    "max_train_steps": [5000],
+    "checkpointing_steps": [1000],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [3],
-    "ti_lr": [0.001],
+    "disable_ti": ['true'],
+    "ti_lr": [0.0001],
     "token_warmup_steps": [0],
-
-    "unet_lr": [0.0003, 0.001],
-    "lora_rank": [16],
+    
+    "unet_lr": [0.0001],
+    "lora_rank": [32],
     "use_dora": ['false'],
 
     "unet_optimizer_type": ['adamw'],
-    "is_lora": ['true', 'false'],
+    "is_lora": ['true'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
-    "caption_model": ["florence", "blip"],
+    "caption_model": ["florence"],
     "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']

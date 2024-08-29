@@ -182,7 +182,6 @@ def train(config: TrainingConfig):
         pipe,
         vae.float(),
         size = config.train_img_size,
-        do_cache=config.do_cache,
         substitute_caption_map=config.token_dict,
         aspect_ratio_bucketing=config.aspect_ratio_bucketing,
         train_batch_size=config.train_batch_size
@@ -194,8 +193,7 @@ def train(config: TrainingConfig):
     vae = vae.to('cpu')
     gc.collect()
     torch.cuda.empty_cache()
-
-    print(f"# Trainer : Loaded dataset, do_cache: {config.do_cache}")
+    
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=config.train_batch_size,

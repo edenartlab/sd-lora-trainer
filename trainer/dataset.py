@@ -32,7 +32,6 @@ class PreprocessedDataset(Dataset):
         data_dir: str,
         pipe,
         vae_encoder,
-        do_cache: bool = False,
         size: List[int] = [512, 512],
         text_dropout: float = 0.0,
         aspect_ratio_bucketing: bool = False,
@@ -62,21 +61,31 @@ class PreprocessedDataset(Dataset):
         self.text_dropout = text_dropout
         self.size = size
 
-        if do_cache:
-            print("Caching latents, masks and captions...\n")
+        # If the training data is small we can keep everything in memory, otherwise offload to disk
+        self.do_cache = True if len(self.data) < 250 else False
+
+        if self.do_cache:
+            print("Encoding latents, masks and captions and storing in memory...\n")
             self.vae_latents = []
             self.masks = []
-            self.do_cache = True
 
             for idx in range(len(self.data)):
-                vae_latent, mask = self._process(idx)
+                vae_latent, mask, _ = self._process(idx)
                 self.vae_latents.append(vae_latent)
                 self.masks.append(mask.detach())
 
-            print(f"\nCached latents, masks and captions for {len(self.vae_latents)} images.")
-            del self.vae_encoder
-        else:
-            self.do_cache = False
+        else: # Store the latents and masks on disk
+            print("Encoding latents, masks and captions and storing on disk...\n")
+            self.vae_latents = None
+            self.masks = None
+
+            for idx in range(len(self.data)):
+                vae_latent, mask, image_path = self._process(idx)
+                torch.save(vae_latent, os.path.join(self.data_dir, f"{idx}_vae_latent.pt"))
+                torch.save(mask, os.path.join(self.data_dir, f"{idx}_mask.pt"))
+
+        del self.vae_encoder
+        torch.cuda.empty_cache()
 
         if aspect_ratio_bucketing:
             print("Using aspect ratio bucketing.")
@@ -165,7 +174,7 @@ class PreprocessedDataset(Dataset):
 
         assert len(mask.shape) == 4 and len(dummy_vae_latent.shape) == 4
 
-        return vae_latent, mask.squeeze()
+        return vae_latent, mask.squeeze(), image_path
 
     def __getitem__(
         self, idx: int, bucketing_resolution:tuple = None
@@ -174,9 +183,11 @@ class PreprocessedDataset(Dataset):
         if self.do_cache:
             vae_latent = self.vae_latents[idx].sample() * self.vae_scaling_factor
             return self.captions[idx], vae_latent.squeeze().detach(), self.masks[idx].detach()
-        else: # This code pathway has not been tested in a long time and might be broken
-            caption, vae_latent, mask = self._process(idx, bucketing_resolution=bucketing_resolution)
+        else: # Load from disk:
+            vae_latent = torch.load(os.path.join(self.data_dir, f"{idx}_vae_latent.pt"))
             vae_latent = vae_latent.sample() * self.vae_scaling_factor
+            mask = torch.load(os.path.join(self.data_dir, f"{idx}_mask.pt"))
+            caption = self.captions[idx]
             return caption, vae_latent.squeeze().detach(), mask.detach()
 
 

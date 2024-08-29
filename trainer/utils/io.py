@@ -292,6 +292,8 @@ def load_image_with_orientation(path, mode="RGB"):
 
     if image.mode == 'P':
         image = image.convert('RGBA')
+    if image.mode == 'CMYK':
+        image = image.convert('RGB')
 
     # Remove alpha channel if present
     if image.mode in ('RGBA', 'LA'):
