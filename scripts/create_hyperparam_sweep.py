@@ -53,15 +53,14 @@ hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
     "sd_model_version": ["sdxl"],
     "lora_training_urls": [
-        "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/stitchly/stitchly_clean_29Aug_1251-style_res512_5000steps/images_in",
-        "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/stitchly/stitchly_clean_29Aug_1257-style_res768_5000steps/images_in"
+        "/home/rednax/Documents/datasets/good_styles/stitchly_clean"
 
     ],
     "concept_mode": ['style'],
     "sample_imgs_lora_scale": [0.9],
     "caption_dropout": [0.2],
     "seed": [0],
-    "resolution": [512, 768],
+    "resolution": [512],
     "train_batch_size": [3],
     "n_sample_imgs": [8],
     "max_train_steps": [5000],
@@ -74,17 +73,17 @@ hyperparameters = {
     "token_warmup_steps": [0],
     
     "unet_lr": [0.0001],
-    "lora_rank": [32],
+    "lora_rank": [4],
     "use_dora": ['false'],
 
     "unet_optimizer_type": ['adamw'],
-    "is_lora": ['true'],
+    "is_lora": ['false'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
-    "caption_model": ["florence"],
+    "caption_model": ["florence", "blip"],
     "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']

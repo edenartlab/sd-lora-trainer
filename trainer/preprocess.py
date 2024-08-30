@@ -418,6 +418,7 @@ def blip_caption_dataset(
             out = model.generate(**inputs, max_length=100, do_sample=True, top_k=40, temperature=0.65)
             captions[i] = processor.decode(out[0], skip_special_tokens=True)
 
+    model.to("cpu")
     del model
     gc.collect()
     torch.cuda.empty_cache()
@@ -583,6 +584,7 @@ def florence_caption_dataset(images, captions):
             caption = parsed_answer[prompt]
             captions[i] = caption.replace("The image shows a ", "A ")
 
+    model.to('cpu')
     del model
     del processor
     gc.collect()
@@ -604,6 +606,9 @@ def caption_dataset(
         captions = gpt4_v_caption_dataset(images, captions)
     elif "florence" in caption_model:
         captions = florence_caption_dataset(images, captions)
+
+    gc.collect()
+    torch.cuda.empty_cache()
 
     return captions
 

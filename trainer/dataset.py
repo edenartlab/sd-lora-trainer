@@ -62,7 +62,7 @@ class PreprocessedDataset(Dataset):
         self.size = size
 
         # If the training data is small we can keep everything in memory, otherwise offload to disk
-        self.do_cache = True if len(self.data) < 250 else False
+        self.do_cache = True if len(self.data) < 500 else False
 
         if self.do_cache:
             print("Encoding latents, masks and captions and storing in memory...\n")
