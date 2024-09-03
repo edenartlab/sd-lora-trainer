@@ -600,6 +600,11 @@ def caption_dataset(
         caption_model: Literal["blip", "gpt4-v", "florence"] = "blip"
     ) -> List[str]:
 
+    # if all captions are already generated, we dont need to do anything:
+    if all(captions):
+        print(f"All captions loaded from disk, skipping captioning...")
+        return captions
+
     if "blip" in caption_model:
         captions = blip_caption_dataset(images, captions)
     elif "gpt4-v" in caption_model:

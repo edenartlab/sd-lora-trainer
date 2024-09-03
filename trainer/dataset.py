@@ -1,6 +1,7 @@
 import os
 import torch
 import numpy as np
+from tqdm import tqdm
 import pandas as pd
 import PIL
 from PIL import Image
@@ -69,7 +70,7 @@ class PreprocessedDataset(Dataset):
             self.vae_latents = []
             self.masks = []
 
-            for idx in range(len(self.data)):
+            for idx in tqdm(range(len(self.data))):
                 vae_latent, mask, _ = self._process(idx)
                 self.vae_latents.append(vae_latent)
                 self.masks.append(mask.detach())
@@ -79,7 +80,7 @@ class PreprocessedDataset(Dataset):
             self.vae_latents = None
             self.masks = None
 
-            for idx in range(len(self.data)):
+            for idx in tqdm(range(len(self.data))):
                 vae_latent, mask, image_path = self._process(idx)
                 torch.save(vae_latent, os.path.join(self.data_dir, f"{idx}_vae_latent.pt"))
                 torch.save(mask, os.path.join(self.data_dir, f"{idx}_mask.pt"))

@@ -64,6 +64,9 @@ sudo chmod +x /usr/local/bin/cog
 3. Run a training run with `sh cog_test_train.sh`
 4. You can also go into the container with `cog run /bin/bash`
 
+## Full unet finetuning
+When running this trainer in native python, you can also perform full unet finetuning using something like (adjust to your needs)
+`python main.py train_configs/full_finetuning_example.json`
 
 ## TODO's
 

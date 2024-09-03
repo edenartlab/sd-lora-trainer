@@ -1,15 +1,17 @@
 {
-    "name": "stitchly_1",
+    "name": "stitchly",
     "sd_model_version": "sdxl",
-    "lora_training_urls": "/home/rednax/Documents/datasets/good_styles/stitchly_clean",
+    "lora_training_urls": "/home/rednax/Documents/datasets/good_styles/stitchly_florence",
     "concept_mode": "style",
     "sample_imgs_lora_scale": 0.9,
     "seed": 1,
-    "resolution": 768,
-    "train_batch_size": 3,
+    "resolution": 512,
+    "train_batch_size": 4,
     "n_sample_imgs": 8,
     "max_train_steps": 5000,
     "checkpointing_steps": 1000,
+
+    "unet_optimizer_type": "AdamW8bit",
 
     "disable_ti": true,
     "is_lora": false,
