@@ -232,6 +232,9 @@ def train(config: TrainingConfig):
 
     # default values for cold (starting) optimizer lr:
     base_unet_lr = 2.0e-4 if (config.is_lora and config.disable_ti) else 5.0e-5
+    
+    if not config.is_lora:
+        base_unet_lr = 1.0e-5
 
     #######################################################################################################
     
@@ -434,6 +437,7 @@ def train(config: TrainingConfig):
                     pretrained_model = config.pretrained_model, 
                     lora_scale = config.sample_imgs_lora_scale,
                     disable_ti = config.disable_ti,
+                    prompt_modifier = config.prompt_modifier,
                     n_imgs = config.n_sample_imgs, 
                     device = config.device,
                     checkpoint_folder = None
@@ -515,6 +519,7 @@ def train(config: TrainingConfig):
                 pretrained_model=config.pretrained_model, 
                 lora_scale=config.sample_imgs_lora_scale,
                 disable_ti = config.disable_ti,
+                prompt_modifier = config.prompt_modifier,
                 n_imgs = config.n_sample_imgs, 
                 n_steps = 30, 
                 device = config.device,

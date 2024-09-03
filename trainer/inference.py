@@ -296,6 +296,7 @@ def render_images(
     pretrained_model,
     lora_scale,
     disable_ti=False,
+    prompt_modifier=None,
     n_steps=25,
     n_imgs=4,
     device="cuda:0",
@@ -324,6 +325,9 @@ def render_images(
     else:
         validation_prompts_raw = random.sample(val_prompts["object"], n_imgs)
         validation_prompts_raw[0] = "<concept>"
+
+    if prompt_modifier:
+        validation_prompts_raw = [prompt_modifier.format(prompt) for prompt in validation_prompts_raw]
 
     if (
         checkpoint_folder is not None
