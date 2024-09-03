@@ -231,12 +231,7 @@ def train(config: TrainingConfig):
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
 
     # default values for cold (starting) optimizer lr:
-    if not config.is_lora:
-        base_lr = 1.0e-5
-    elif not config.disable_ti:
-        base_lr = 5.0e-5
-    else:
-        base_lr = 2.0e-4
+    base_unet_lr = 2.0e-4 if (config.is_lora and config.disable_ti) else 5.0e-5
 
     #######################################################################################################
     
@@ -282,9 +277,9 @@ def train(config: TrainingConfig):
             
             if optimizers['unet'] is not None:
                 # Calculate the exponential factor
-                exp_factor = (config.unet_lr / base_lr) ** (global_step / config.unet_lr_warmup_steps)
+                exp_factor = (config.unet_lr / base_unet_lr) ** (global_step / config.unet_lr_warmup_steps)
                 # Apply the exponential learning rate
-                optimizers['unet'].param_groups[0]['lr'] = base_lr * exp_factor
+                optimizers['unet'].param_groups[0]['lr'] = base_unet_lr * exp_factor
 
                 if completion_f < config.freeze_unet_before_completion_f:
                     optimizers['unet'].param_groups[0]['lr'] = 0.0

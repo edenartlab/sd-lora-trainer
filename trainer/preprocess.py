@@ -440,51 +440,6 @@ def prep_img_for_gpt_api(pil_img, max_size=(512, 512)):
     os.remove(output_path)
     return base64_image
 
-def gpt4_v_get_description(config, images):
-    if config.concept_mode == "object":
-        description = "object"
-        prompt = "Give a concise visual descriptioni of the object/figure/thing that all the grid-images have in common with at most 10 words. Dont start with statements like 'The image features...', just describe what you see."
-
-    elif config.concept_mode == "face":
-        description = "face"
-        prompt = "All the grid images depict a single person. Visually describe this person with at most 10 words. Dont start with statements like 'The image features...', just describe what you see. (eg an asian woman with long black hair)"
-
-    elif config.concept_mode == "style":
-        description = ""
-        prompt = "All these images share a common aesthetic style. Describe this style with at most 7 words. Dont start with statements like 'The image features...', just describe what you see. (eg impressionism collage surrealism)"
-
-    if not OPENAI_API_KEY:
-        print(f"Skipping GPT-4 Vision description because OPENAI_API_KEY is not set.")
-        return description
-
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENAI_API_KEY}"
-    }
-
-    # TODO sample a grid img:
-    # .... TODO
-    base64_image = prep_img_for_gpt_api(img,  max_size=(1024, 1024))
-
-    payload = {
-        "model": "gpt-4o",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "high"}}
-                ]
-            }
-        ],
-        "max_tokens": 60
-    }
-
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-    answer = response.json()["choices"][0]["message"]["content"]
-    return captions
-
 def gpt4_v_caption_dataset(
     images, captions, 
     batch_size=4,
@@ -495,6 +450,7 @@ def gpt4_v_caption_dataset(
         return captions
 
     prompt = "Concisely describe this image without assumptions with at most 20 words. Dont start with statements like 'The image features...', just describe what you see."
+    #prompt = "Concisely describe the main subject(s) in the image without assumptions with at most 20 words. Ignore the background and only describe the people / animals / objects in the foreground. Dont start with statements like 'The image features...', just describe what you see."
 
     headers = {
         "Content-Type": "application/json",
