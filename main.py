@@ -230,11 +230,14 @@ def train(config: TrainingConfig):
         grad_norms[f'text_encoder_{i}'] = []
         token_stds[f'text_encoder_{i}'] = {j: [] for j in range(config.n_tokens)}
 
-    # default value of cold (starting) optimizer lr:
-    base_lr = 2.0e-4
-    if config.is_lora and not config.disable_ti:  # let textual_inversion do the work first!
+    # default values for cold (starting) optimizer lr:
+    if not config.is_lora:
+        base_lr = 1.0e-5
+    elif not config.disable_ti:
         base_lr = 5.0e-5
-    
+    else:
+        base_lr = 2.0e-4
+
     #######################################################################################################
     
     """
