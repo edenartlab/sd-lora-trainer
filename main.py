@@ -66,6 +66,9 @@ def train(config: TrainingConfig):
         else:
             config.validation_img_size = 768
 
+    print("xxxxxxxxxxxxxxxxxxx")
+    print(config.prompt_modifier)
+
     config, input_dir = preprocess(
         config,
         working_directory=config.output_dir,

@@ -808,6 +808,7 @@ def load_and_save_masks_and_captions(
         captions, trigger_text, gpt_concept_description = post_process_captions(captions, caption_text, concept_mode, seed, skip_gpt_cleanup=config.skip_gpt_cleanup)
     
     if config.prompt_modifier:
+        print(config.prompt_modifier)
         captions = [config.prompt_modifier.format(caption) for caption in captions]
     
     aug_imgs, aug_caps = [],[]
