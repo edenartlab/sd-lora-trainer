@@ -525,7 +525,8 @@ def florence_caption_dataset(images, captions):
         if captions[i] is None:
             #prompt = random.choice(["<CAPTION>", "<DETAILED_CAPTION>"])
             prompt = "<CAPTION>"
-            #prompt = "<DETAILED_CAPTION>"
+            prompt = "<DETAILED_CAPTION>"
+            prompt = "<MORE_DETAILED_CAPTION>"
 
             inputs = processor(text=prompt, images=image, return_tensors="pt").to(device, torch_dtype)
             generated_ids = model.generate(
