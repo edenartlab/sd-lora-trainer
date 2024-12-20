@@ -1,9 +1,9 @@
-torch==2.1.0
-torchaudio==2.1.0
-torchvision==0.16.0
-transformers==4.38.0
-diffusers==0.29.2
-tokenizers==0.15.2
+torch>=2.1.0
+torchaudio>=2.1.0
+torchvision>=0.16.0
+transformers>=4.38.0
+diffusers>=0.29.2
+tokenizers>=0.15.2
 huggingface-hub==0.23.2
 ujson==5.10.0
 scipy==1.14.0
