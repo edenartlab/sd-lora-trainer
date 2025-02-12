@@ -1,0 +1,21 @@
+{
+    "name": "banny",
+    "sd_model_version": "sdxl",
+    "lora_training_urls": "https://storage.googleapis.com/public-assets-xander/A_workbox/lora_training_sets/banny_best.zip",
+    "concept_mode": "object",
+    "sample_imgs_lora_scale": 0.75,
+    "seed": 0,
+    "resolution": 512,
+    "train_batch_size": 4,
+    "n_sample_imgs": 8,
+    "max_train_steps": 300,
+    "checkpointing_steps": 200,
+
+    "disable_ti": false,
+    "caption_model": "florence",
+    "ti_lr": 0.001,
+    "unet_lr": 0.0003,
+    "lora_rank": 16,
+
+    "debug": true
+}
