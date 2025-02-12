@@ -513,7 +513,10 @@ def florence_caption_dataset(images, captions):
         if not str(filename).endswith("modeling_florence2.py"):
             return get_imports(filename)
         imports = get_imports(filename)
-        imports.remove("flash_attn")
+        try:
+            imports.remove("flash_attn")
+        except:
+            pass
         return imports
     
     with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports): #workaround for unnecessary flash_attn requirement
