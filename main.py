@@ -397,7 +397,7 @@ def train(config: TrainingConfig):
                     plot_token_attention_loss(config.output_dir, pipe, daam_loss, captions, timesteps, token_attention_loss, global_step, img_ratio)
 
             # Print some statistics:
-            if (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)) and global_step > 0:
+            if (global_step % config.checkpointing_steps == 0) and (global_step < (config.max_train_steps - 25)): #and global_step > 0:
                 print(f"\n---- avg training fps: {images_done / (time.time() - start_time):.2f}", end="\r", flush = True)
 
                 output_save_dir = f"{checkpoint_dir}/checkpoint-{global_step}"

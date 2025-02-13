@@ -38,11 +38,11 @@ def hamming_distance(dict1, dict2):
 #######################################################################################
 
 # Setup the base experiment config:
-exp_name             = "stitchly"
+exp_name             = "ygor_sd15"
 caption_prefix       = ""
 mask_target_prompts  = ""
 n_exp                = 100  # how many random experiment settings to generate
-min_hamming_distance = 1   # min_n_params that have to be different from any previous experiment to be scheduled
+min_hamming_distance = 2   # min_n_params that have to be different from any previous experiment to be scheduled
 nohup                = False
 output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
@@ -51,20 +51,20 @@ output_sh_path = f"gridsearch_configs/{exp_name}.sh"
 
 hyperparameters = {
     "output_dir": [f"lora_models/{exp_name}"],
-    "sd_model_version": ["sdxl"],
+    "sd_model_version": ["sd15"],
     "lora_training_urls": [
-        "/home/rednax/Documents/datasets/good_styles/stitchly_clean"
+        "/home/rednax/Documents/datasets/good_styles/visionary_painting_ygor_marotta_clean"
 
     ],
     "concept_mode": ['style'],
     "sample_imgs_lora_scale": [0.9],
     "caption_dropout": [0.2],
     "seed": [0],
-    "resolution": [512],
-    "train_batch_size": [3],
+    "resolution": [512,640,768],
+    "train_batch_size": [8],
     "n_sample_imgs": [8],
-    "max_train_steps": [5000],
-    "checkpointing_steps": [1000],
+    "max_train_steps": [2000],
+    "checkpointing_steps": [500],
     "gradient_accumulation_steps": [1],
 
     "n_tokens": [3],
@@ -72,18 +72,18 @@ hyperparameters = {
     "ti_lr": [0.0001],
     "token_warmup_steps": [0],
     
-    "unet_lr": [0.0001],
-    "lora_rank": [4],
-    "use_dora": ['false'],
+    "unet_lr": [0.001, 0.0003],
+    "lora_rank": [8,24,64],
+    "use_dora": ['false', 'true'],
 
     "unet_optimizer_type": ['adamw'],
-    "is_lora": ['false'],
+    "is_lora": ['true'],
 
     "text_encoder_lora_optimizer": [None],
     "text_encoder_lora_lr": [0.0e-4],
 
     "snr_gamma": [5.0],
-    "caption_model": ["florence", "blip"],
+    "caption_model": ["florence", "blip", "no_caption"],
     "augment_imgs_up_to_n": [40],
     "verbose": ['true'],
     "debug": ['true']

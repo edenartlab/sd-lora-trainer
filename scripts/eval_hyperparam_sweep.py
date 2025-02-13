@@ -33,7 +33,10 @@ def collect_data(root_dir, mode):
             if mode == "n_validation_grids":
                 score = count_jpg_files(checkpoints_dir)
                 training_args = load_training_args(checkpoints_dir)
-                    
+
+            if not training_args:
+                print(f"Warning: Could not load training_args.json from {checkpoints_dir}")
+                continue
             data.append((training_args, score))
 
     print(f"Collected data from {len(data)} runs")
@@ -182,12 +185,12 @@ def create_plots(data, varying_params, outdir, top = 0.15):
     print(f"Plots have been saved as PNG files in {outdir}")
 
 if __name__ == "__main__":
-    root_dir = "/home/rednax/SSD2TB/Github_repos/diffusion_trainer/lora_models/styles_fin_sweep"
+    root_dir = "/home/rednax/SSD2TB/Github_repos/Eden/sd-lora-trainer/lora_models/ygor_sd15"
     outdir = os.path.join('.', os.path.basename(root_dir))
     
     # Collect data
-    data = collect_data(root_dir, mode = "final_checkpoint")
-    #data = collect_data(root_dir, mode = "n_validation_grids")
+    #data = collect_data(root_dir, mode = "final_checkpoint")
+    data = collect_data(root_dir, mode = "n_validation_grids")
     
     # Identify varying hyperparameters
     varying_params = identify_varying_hyperparams(data)

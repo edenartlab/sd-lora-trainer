@@ -1,21 +1,21 @@
 {
-    "name": "twisting_realities_sd15",
+    "name": "ygor_painting_sd15",
     "sd_model_version": "sd15",
     "lora_training_urls": "/home/rednax/Documents/datasets/good_styles/visionary_painting_ygor_marotta_clean",
     "concept_mode": "style",
-    "sample_imgs_lora_scale": 0.8,
+    "sample_imgs_lora_scale": 0.7,
     "seed": 0,
-    "resolution": 768,
+    "resolution": 640,
     "train_batch_size": 4,
     "n_sample_imgs": 8,
-    "max_train_steps": 1200,
-    "checkpointing_steps": 200,
+    "max_train_steps": 4000,
+    "checkpointing_steps": 500,
 
-    "disable_ti": false,
+    "disable_ti": true,
     "caption_model": "blip",
     "ti_lr": 0.001,
-    "unet_lr": 0.0003,
-    "lora_rank": 16,
+    "unet_lr": 0.0015,
+    "lora_rank": 64,
 
     "debug": true
 }

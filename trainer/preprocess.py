@@ -571,6 +571,9 @@ def caption_dataset(
         captions = gpt4_v_caption_dataset(images, captions)
     elif "florence" in caption_model:
         captions = florence_caption_dataset(images, captions)
+    else:
+        print("WARNING: not using any captions!")
+        captions = [""] * len(images)
 
     gc.collect()
     torch.cuda.empty_cache()

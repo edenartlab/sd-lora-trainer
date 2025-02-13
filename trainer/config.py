@@ -40,7 +40,7 @@ class TrainingConfig(BaseModel):
     concept_mode: Literal["face", "style", "object"]
     caption_prefix: str = ""      # hardcoding this will inject TOK manually and skip the chatgpt token injection step, not recommended unless you know what you're doing
     prompt_modifier: str = None   # optional prompt modifier
-    caption_model: Literal["gpt4-v", "blip", "florence"] = "florence"
+    caption_model: Literal["gpt4-v", "blip", "florence", "no_caption"] = "florence"
     caption_dropout: float = 0.1  # dropout rate for captions: occasionally use empty prompt
     sd_model_version: Literal["sdxl", "sd15", None] = None
     ckpt_path: str = None  # optional hardcoded checkpoint path

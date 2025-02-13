@@ -42,13 +42,14 @@ class PreprocessedDataset(Dataset):
         super().__init__()
         self.data_dir = data_dir
         self.csv_path = os.path.join(data_dir, "captions.csv")
-        self.data = pd.read_csv(self.csv_path)
+        self.data = pd.read_csv(self.csv_path, dtype={"caption": str})
         
         self.captions = self.data["caption"]
         self.captions = self.captions.str.lower()
         for key, value in substitute_caption_map.items():
             self.captions = self.captions.str.replace(key.lower(), value)
 
+        self.captions = self.captions.fillna("")
         self.image_path = self.data["image_path"]
 
         if "mask_path" not in self.data.columns:
