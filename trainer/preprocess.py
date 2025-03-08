@@ -171,7 +171,7 @@ def clipseg_mask_generator(
     model_id: Literal[
         "CIDAS/clipseg-rd64-refined", "CIDAS/clipseg-rd16"
     ] = "CIDAS/clipseg-rd64-refined",
-    device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
     bias: float = 0.01,
     temp: float = 1.0,
     **kwargs,
@@ -185,10 +185,10 @@ def clipseg_mask_generator(
     model = None
     if any(target_prompts):
         processor = CLIPSegProcessor.from_pretrained(
-            model_id, cache_dir=model_paths.get_path("CLIP")
+            model_id, cache_dir = model_paths.get_path("CLIP")
         )
         model = CLIPSegForImageSegmentation.from_pretrained(
-            model_id, cache_dir=model_paths.get_path("CLIP")
+            model_id, cache_dir = model_paths.get_path("CLIP")
         ).to(device)
 
     masks = []
@@ -204,20 +204,20 @@ def clipseg_mask_generator(
 
             # Process text with tokenizer (no image-specific args)
             text_inputs = processor.tokenizer(
-                [prompt, ""], return_tensors="pt", padding=True, truncation=True
+                [prompt, ""], return_tensors = "pt", padding = True, truncation = True
             )
 
             # Process images with image_processor
             image_inputs = processor.image_processor(
-                images=[input_image] * 2,
-                return_tensors="pt",
-                do_resize=False,  # We've already resized
-                do_normalize=True,
+                images = [input_image] * 2,
+                return_tensors = "pt",
+                do_resize = False,  # We've already resized
+                do_normalize = True,
             )
 
             # Combine inputs
-            inputs = {**text_inputs, **image_inputs}
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+            inputs = { **text_inputs, **image_inputs }
+            inputs = { k: v.to(device) for k, v in inputs.items() }
 
             # Debug: Check input shapes
             print(f"Input pixel_values shape: {inputs['pixel_values'].shape}")
