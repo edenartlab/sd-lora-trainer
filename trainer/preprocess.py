@@ -184,7 +184,9 @@ def clipseg_mask_generator(
     # Initialize model and processor
     model = None
     if any(target_prompts):
-        processor = CLIPSegProcessor.from_pretrained(model_id, cache_dir=model_paths.get_path("CLIP"))
+        processor = CLIPSegProcessor.from_pretrained(
+            model_id, cache_dir=model_paths.get_path("CLIP")
+        )
         model = CLIPSegForImageSegmentation.from_pretrained(
             model_id, cache_dir=model_paths.get_path("CLIP")
         ).to(device)
@@ -202,18 +204,15 @@ def clipseg_mask_generator(
 
             # Process text with tokenizer (no image-specific args)
             text_inputs = processor.tokenizer(
-                [prompt, ""],
-                return_tensors="pt",
-                padding=True,
-                truncation=True
+                [prompt, ""], return_tensors="pt", padding=True, truncation=True
             )
 
             # Process images with image_processor
             image_inputs = processor.image_processor(
                 images=[input_image] * 2,
                 return_tensors="pt",
-                do_resize=False,  # We’ve already resized
-                do_normalize=True
+                do_resize=False,  # We've already resized
+                do_normalize=True,
             )
 
             # Combine inputs
