@@ -171,24 +171,22 @@ def clipseg_mask_generator(
     model_id: Literal[
         "CIDAS/clipseg-rd64-refined", "CIDAS/clipseg-rd16"
     ] = "CIDAS/clipseg-rd64-refined",
-    device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
     bias: float = 0.01,
     temp: float = 1.0,
     **kwargs,
 ) -> List[Image.Image]:
-    """
-    Returns a greyscale mask for each image, where the mask is the probability of the target prompt being present in the image
-    """
-
+    # Handle single prompt case
     if isinstance(target_prompts, str):
-        print(
-            f'Using "{target_prompts}" as CLIP-segmentation prompt for all images.'
-        )
+        print(f'Using "{target_prompts}" as CLIP-segmentation prompt for all images.')
         target_prompts = [target_prompts] * len(images)
 
+    # Initialize model and processor
     model = None
     if any(target_prompts):
-        processor = CLIPSegProcessor.from_pretrained(model_id, cache_dir = model_paths.get_path("CLIP"))
+        processor = CLIPSegProcessor.from_pretrained(
+            model_id, cache_dir = model_paths.get_path("CLIP")
+        )
         model = CLIPSegForImageSegmentation.from_pretrained(
             model_id, cache_dir = model_paths.get_path("CLIP")
         ).to(device)
@@ -197,34 +195,51 @@ def clipseg_mask_generator(
 
     for image, prompt in tqdm(zip(images, target_prompts)):
         original_size = image.size
+        print(f"Original image size: {original_size}")
 
         if prompt != "":
-            inputs = processor(
-                text=[prompt, ""],
-                images=[image] * 2,
-                padding="max_length",
-                truncation=True,
-                return_tensors="pt",
-            ).to(device)
+            # Manually resize image to 224x224
+            input_image = image.resize((224, 224), Image.Resampling.LANCZOS)
+            print(f"Resized image size: {input_image.size}")
 
+            # Process text with tokenizer (no image-specific args)
+            text_inputs = processor.tokenizer(
+                [prompt, ""], return_tensors = "pt", padding = True, truncation = True
+            )
+
+            # Process images with image_processor
+            image_inputs = processor.image_processor(
+                images = [input_image] * 2,
+                return_tensors = "pt",
+                do_resize = False,  # We've already resized
+                do_normalize = True,
+            )
+
+            # Combine inputs
+            inputs = { **text_inputs, **image_inputs }
+            inputs = { k: v.to(device) for k, v in inputs.items() }
+
+            # Debug: Check input shapes
+            print(f"Input pixel_values shape: {inputs['pixel_values'].shape}")
+
+            # Run model
             outputs = model(**inputs)
 
+            # Process logits
             logits = outputs.logits
             probs = torch.nn.functional.softmax(logits / temp, dim=0)[0]
             probs = (probs + bias).clamp_(0, 1)
             probs = 255 * probs / probs.max()
 
-            # make mask greyscale
+            # Create and resize mask
             mask = Image.fromarray(probs.cpu().numpy()).convert("L")
-
-            # resize mask to original size
-            mask = mask.resize(original_size)
+            mask = mask.resize(original_size, Image.Resampling.BILINEAR)
         else:
             mask = Image.new("L", original_size, 255)
 
         masks.append(mask)
 
-    # cleanup
+    # Cleanup
     del model
     gc.collect()
     torch.cuda.empty_cache()
